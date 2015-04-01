@@ -4,6 +4,10 @@
 #include <queue>
 #include <assert.h>
 
+#if __cplusplus > 199711L
+#include <tuple>
+#endif
+
 #define DEBUG  printf
 
 // Based off on http://nms.lcs.mit.edu/~aklmiu/6.838/L7.pdf
@@ -102,12 +106,9 @@ static const Arc* arc_get_right_parent(const Arc* a)
 	return parent;
 }
 
-
 bool CompareEvent::operator()(const struct Event* l, const struct Event* r) const
 {
-	if( l->y != r->y)
-		return l->y > r->y;
-	return l->p.x > r->p.x;
+	return (l->y != r->y) ? (l->y > r->y) : (l->p.x > r->p.x);
 }
 
 void Edge::create(Site* s1, Site* s2)
@@ -219,22 +220,22 @@ void Edge::clipline(real_t width, real_t height)
 		{
 			x1 = pxmax;
 			y1 = (e->c - x1) / e->b;
-		};
-		if (x1 < pxmin)
+		}
+		else if (x1 < pxmin)
 		{
 			x1 = pxmin;
 			y1 = (e->c - x1) / e->b;
-		};
+		}
 		if (x2 > pxmax)
 		{
 			x2 = pxmax;
 			y2 = (e->c - x2) / e->b;
-		};
-		if (x2 < pxmin)
+		}
+		else if (x2 < pxmin)
 		{
 			x2 = pxmin;
 			y2 = (e->c - x2) / e->b;
-		};
+		}
 	}
 	else
 	{
@@ -265,18 +266,18 @@ void Edge::clipline(real_t width, real_t height)
 		{
 			y1 = pymax;
 			x1 = (e->c - y1) / e->a;
-		};
-		if (y1 < pymin)
+		}
+		else if (y1 < pymin)
 		{
 			y1 = pymin;
 			x1 = (e->c - y1) / e->a;
-		};
+		}
 		if (y2 > pymax)
 		{
 			y2 = pymax;
 			x2 = (e->c - y2) / e->a;
-		};
-		if (y2 < pymin)
+		}
+		else if (y2 < pymin)
 		{
 			y2 = pymin;
 			x2 = (e->c - y2) / e->a;

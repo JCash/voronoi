@@ -8,7 +8,6 @@ namespace voronoi
 
 #ifndef VORONOI_REAL_TYPE
 	typedef float real_t;
-	//typedef double real_t;
 #else
 	typedef VORONOI_REAL_TYPE real_t;
 #endif
