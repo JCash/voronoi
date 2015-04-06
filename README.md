@@ -3,6 +3,8 @@ A fast C++ implementation for creating 2D Voronoi diagrams from a point set
 
 Uses Fortune's sweep algorithm.
 
+![50 points](example1.png)
+
 
 Goals
 =====
@@ -19,6 +21,35 @@ So this lib set out to achieve a combination of the good things the other libs p
 * No external dependencies
 * Cells have a list of edges (for easier relaxation)
 * A clear license
+
+
+License
+=======
+
+The MIT license
+
+
+Usage
+=====
+
+```C++
+
+#include "voronoi.h"
+
+void generate(int count, voronoi::Point* points, int imagewidth, int imageheight)
+{
+    voronoi::Voronoi generator;
+    generator.generate(count, points, imagewidth, imageheight);
+    
+    const struct voronoi::Edge* edge = generator.get_edges();
+    while( edge )
+    {
+        printf("%f, %f -> %f, %f\n", edge->pos[0].x, edge->pos[0].y, edge->pos[1].x, edge->pos[1].y);
+        edge = edge->next;
+    }
+}
+
+```
 
 
 Comparisons
@@ -64,39 +95,11 @@ It simply doesn't handle many of the edge cases. For instance,
 it cannot handle vertical edges due to the fact that it represents lines as 'y = mx + b'
 
 
-License
-=======
-
-The MIT license
 
 
 Contact
 =======
 
 http://sizeofvoid.blogspot.com
+
 https://twitter.com/mwesterdahl76
-
-
-
-Examples
-========
-
-![50 points](example1.png)
-
-
-Usage
-=====
-
-```C++
-
-voronoi::Voronoi generator;
-generator.generate(count, points, dimension, dimension);
-
-const struct voronoi::Edge* edge = generator.get_edges();
-while( edge )
-{
-    printf("%f, %f -> %f, %f\n", edge->pos[0].x, edge->pos[0].y, edge->pos[1].x, edge->pos[1].y);
-    edge = edge->next;
-}
-
-```
