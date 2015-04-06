@@ -1,115 +1,50 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2015 Mathias Westerdahl
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+ */
+
 #include "voronoi.h"
 #include <cstdlib>
 #include <math.h>	// sqrt
 #include <queue>
 #include <assert.h>
 
-#if __cplusplus > 199711L
-#include <tuple>
-#endif
+// Originally based off on http://nms.lcs.mit.edu/~aklmiu/6.838/L7.pdf
+// but after more and more optimizations, the code implemented more and more of
+// Steven Fortune/Shane O'Sullivan's algorithms (http://www.skynet.ie/~sos/mapviewer/voronoi.php)
+//
 
-#define DEBUG  printf
+// good reads:
+// http://nms.lcs.mit.edu/~aklmiu/6.838/L7.pdf
+// http://www.ams.org/samplings/feature-column/fcarc-voronoi
 
-// Based off on http://nms.lcs.mit.edu/~aklmiu/6.838/L7.pdf
-
-// good read: http://www.ams.org/samplings/feature-column/fcarc-voronoi
 
 namespace voronoi
 {
 
 static const int DIRECTION_LEFT  = 0;
 static const int DIRECTION_RIGHT = 1;
+static const real_t INVALID_VALUE = real_t(-1);
 
-struct Event
-{
-	Site*		site;	// is this a site event (site != 0)? If not, it's a circle event
-	struct Arc* arc;	// the arc causing the circle event
-	Point		p;		// If a circle event, the center of the circle
-	real_t		y;		// The y of the event. For site events, it's the sites' y value. For circle events, it's the top y value of the circle.
-	bool		deleted;
-
-	void create(const Point& _p, real_t _y)
-	{
-		site 	= 0;
-		arc 	= 0;
-		p 		= _p;
-		y 		= _y;
-		deleted = false;
-	}
-};
-
-
-struct Arc
-{
-	struct Arc*	parent;
-	struct Arc*	left;
-	struct Arc*	right;
-
-	// internal node
-	HalfEdge*	edge;
-
-	// Leaf node
-	Site*		site;
-	Event*		circleevent;
-
-	void create(Site* _site);
-	void setleft(struct Arc* child)		{ left = child; child->parent = this; }
-	void setright(struct Arc* child)	{ right = child; child->parent = this; }
-	bool isleaf() const					{ return left == 0 && right == 0; }
-};
-
-void Arc::create(Site* s)
-{
-	memset(this, 0, sizeof(Arc));
-	site 	= s;
-}
-
-static const Arc* arc_get_left_child(const Arc* a)
-{
-	if(!a) return 0;
-	const Arc* arc = a->left;
-	while(!arc->isleaf()) arc = arc->right;
-	return arc;
-}
-
-static const Arc* arc_get_right_child(const Arc* a)
-{
-	if(!a) return 0;
-	const Arc* arc = a->right;
-	while(!arc->isleaf()) arc = arc->left;
-	return arc;
-}
-
-static const Arc* arc_get_left_parent(const Arc* a)
-{
-	const Arc* parent = a->parent;
-	const Arc* last	= a;
-	while(parent->left == last)
-	{
-		if(!parent->parent) return 0;
-		last = parent;
-		parent = parent->parent;
-	}
-	return parent;
-}
-
-static const Arc* arc_get_right_parent(const Arc* a)
-{
-	const Arc* parent = a->parent;
-	const Arc* last	= a;
-	while(parent->right == last)
-	{
-		if(!parent->parent) return 0;
-		last = parent;
-		parent = parent->parent;
-	}
-	return parent;
-}
-
-bool CompareEvent::operator()(const struct Event* l, const struct Event* r) const
-{
-	return (l->y != r->y) ? (l->y > r->y) : (l->p.x > r->p.x);
-}
 
 void Edge::create(Site* s1, Site* s2)
 {
@@ -117,27 +52,41 @@ void Edge::create(Site* s1, Site* s2)
 	e->next = 0;
 	sites[0] = s1;
 	sites[1] = s2;
-	pos[0].x = real_t(-1);
-	pos[1].x = real_t(-1);
+	pos[0].x = INVALID_VALUE;
+	pos[1].x = INVALID_VALUE;
+
+	// Create line equation between S1 and S2:
+	// real_t a = -1 * (s2->p.y - s1->p.y);
+	// real_t b = s2->p.x - s1->p.x;
+	// //real_t c = -1 * (s2->p.x - s1->p.x) * s1->p.y + (s2->p.y - s1->p.y) * s1->p.x;
+	//
+	// // create perpendicular line
+	// real_t pa = b;
+	// real_t pb = -a;
+	// //real_t pc = pa * s1->p.x + pb * s1->p.y;
+	//
+	// // Move to the mid point
+	// real_t mx = s1->p.x + dx * real_t(0.5);
+	// real_t my = s1->p.y + dy * real_t(0.5);
+	// real_t pc = ( pa * mx + pb * my );
 
 	real_t dx = s2->p.x - s1->p.x;
 	real_t dy = s2->p.y - s1->p.y;
-	real_t adx = fabsf(dx);
-	real_t ady = fabsf(dy);
 
-	e->c = s1->p.x * dx + s1->p.y * dy + (dx*dx + dy*dy) * real_t(0.5);
+	// Simplify it, using dx and dy
+	e->c = dx * (s1->p.x + dx * real_t(0.5)) + dy * (s1->p.y + dy * real_t(0.5));
 
-	if( adx > ady )
+	if( fabsf(dx) > fabsf(dy) )
 	{
-		e->a = real_t(1.0);
+		e->a = real_t(1);
 		e->b = dy / dx;
-		e->c = e->c / dx;
+		e->c /= dx;
 	}
 	else
 	{
 		e->a = dx / dy;
-		e->b = real_t(1.0);
-		e->c = e->c / dy;
+		e->b = real_t(1);
+		e->c /= dy;
 	}
 }
 
@@ -145,75 +94,48 @@ void Edge::clipline(real_t width, real_t height)
 {
 	Edge* e = this;
 
-	real_t x1 = e->sites[0]->p.x;
-	real_t y1 = e->sites[0]->p.y;
-	real_t x2 = e->sites[1]->p.x;
-	real_t y2 = e->sites[1]->p.y;
-
-	//if the distance between the two points this line was created from is less than
-	//the square root of 2, then ignore it
-	//TODO improve/remove
-	//if(sqrt(((x2 - x1) * (x2 - x1)) + ((y2 - y1) * (y2 - y1))) < minDistanceBetweenSites)
-	//  {
-	//    return;
-	//  }
 	real_t pxmin = 0;
 	real_t pxmax = width;
 	real_t pymin = 0;
 	real_t pymax = height;
 
+	real_t x1, y1, x2, y2;
 	Point* s1;
 	Point* s2;
-	if (e->a == 1.0 && e->b >= 0.0)
+	if (e->a == real_t(1) && e->b >= real_t(0))
 	{
-		s1 = e->pos[1].x != real_t(-1) ? &e->pos[1] : 0;
-		s2 = e->pos[0].x != real_t(-1) ? &e->pos[0] : 0;
+		s1 = e->pos[1].x != INVALID_VALUE ? &e->pos[1] : 0;
+		s2 = e->pos[0].x != INVALID_VALUE ? &e->pos[0] : 0;
 	}
 	else
 	{
-		s1 = e->pos[0].x != real_t(-1) ? &e->pos[0] : 0;
-		s2 = e->pos[1].x != real_t(-1) ? &e->pos[1] : 0;
+		s1 = e->pos[0].x != INVALID_VALUE ? &e->pos[0] : 0;
+		s2 = e->pos[1].x != INVALID_VALUE ? &e->pos[1] : 0;
 	};
 
-	//printf("clip_line\n");
-	//printf("\ta, b, c: %f, %f, %f\n", e->a, e->b, e->c);
-	//printf("\t(x1, y1), (x2, y2): (%f, %f), (%f, %f)\n", x1, y1, x2, y2);
-
-	//if (s1)
-	//	printf("\ts1, %f, %f\n", s1->x, s1->y);
-	//if (s2)
-	//	printf("\ts2, %f, %f\n", s2->x, s2->y);
-
-	//printf("\ts1, s2: %p  %p\n", s1, s2);
-
-	if (e->a == 1.0)
+	if (e->a == real_t(1))
 	{
 		y1 = pymin;
 		if (s1 != 0 && s1->y > pymin)
 		{
 			y1 = s1->y;
 		}
-		if (y1 > pymax)
+		if( y1 > pymax )
 		{
-			//printf("\nClipped (1) y1 = %f to %f", y1, pymax);
 			y1 = pymax;
-			//return;
 		}
 		x1 = e->c - e->b * y1;
 		y2 = pymax;
 		if (s2 != 0 && s2->y < pymax)
 			y2 = s2->y;
 
-		if (y2 < pymin)
+		if( y2 < pymin )
 		{
-			//printf("\nClipped (2) y2 = %f to %f", y2, pymin);
 			y2 = pymin;
-			//return;
 		}
 		x2 = (e->c) - (e->b) * y2;
-		if (((x1 > pxmax) & (x2 > pxmax)) | ((x1 < pxmin) & (x2 < pxmin)))
+		if( ((x1 > pxmax) & (x2 > pxmax)) | ((x1 < pxmin) & (x2 < pxmin)) )
 		{
-			//printf("\nClipLine jumping out(3), x1 = %f, pxmin = %f, pxmax = %f\n", x1, pxmin, pxmax);
 			return;
 		}
 		if (x1 > pxmax)
@@ -240,44 +162,41 @@ void Edge::clipline(real_t width, real_t height)
 	else
 	{
 		x1 = pxmin;
-		if (s1 != 0 && s1->x > pxmin)
+		if( s1 != 0 && s1->x > pxmin )
 			x1 = s1->x;
-		if (x1 > pxmax)
+		if( x1 > pxmax )
 		{
-			//printf("\nClipped (3) x1 = %f to %f", x1, pxmin);
 			x1 = pxmax;
 		}
 		y1 = e->c - e->a * x1;
 		x2 = pxmax;
-		if (s2 != 0 && s2->x < pxmax)
+		if( s2 != 0 && s2->x < pxmax )
 			x2 = s2->x;
-		if (x2 < pxmin)
+		if( x2 < pxmin )
 		{
-			//printf("Clipped (4) x2 = %f to %f\n", x2, pxmin);
 			x2 = pxmin;
 		}
 		y2 = e->c - e->a * x2;
-		if (((y1 > pymax) & (y2 > pymax)) | ((y1 < pymin) & (y2 < pymin)))
+		if( ((y1 > pymax) & (y2 > pymax)) | ((y1 < pymin) & (y2 < pymin)) )
 		{
-			//printf("\nClipLine jumping out(6), y1 = %f, pymin = %f, pymax = %f", y2, pymin, pymax);
 			return;
 		}
-		if (y1 > pymax)
+		if( y1 > pymax )
 		{
 			y1 = pymax;
 			x1 = (e->c - y1) / e->a;
 		}
-		else if (y1 < pymin)
+		else if( y1 < pymin )
 		{
 			y1 = pymin;
 			x1 = (e->c - y1) / e->a;
 		}
-		if (y2 > pymax)
+		if( y2 > pymax )
 		{
 			y2 = pymax;
 			x2 = (e->c - y2) / e->a;
 		}
-		else if (y2 < pymin)
+		else if( y2 < pymin )
 		{
 			y2 = pymin;
 			x2 = (e->c - y2) / e->a;
@@ -292,21 +211,45 @@ void Edge::clipline(real_t width, real_t height)
 
 struct HalfEdge
 {
+	//Site*		site;
 	Edge*		edge;
-	HalfEdge*	next;
+	HalfEdge*	left;
+	HalfEdge*	right;
+	Point		vertex;
+	real_t		y;
 	int 		direction; // 0=left, 1=right
+	int			pqpos;
 
 	void			create(Edge* edge, int direction);
 	struct Site*	leftsite() const;
 	struct Site*	rightsite() const;
 	bool		 	rightof(const struct Point& p) const;
+
+	void link(HalfEdge* newedge)
+	{
+		newedge->left = this;
+		newedge->right = this->right;
+		this->right->left = newedge;
+		this->right = newedge;
+	}
+
+	void unlink()
+	{
+		left->right = right;
+		right->left = left;
+		left  = 0;
+		right = 0;
+	}
 };
 
 void HalfEdge::create(Edge* e, int dir)
 {
-	edge = e;
-	next = 0;
-	direction = dir;
+	edge 		= e;
+	left 		= 0;
+	right		= 0;
+	direction 	= dir;
+	pqpos		= 0;
+	y			= 0;
 }
 
 struct Site* HalfEdge::leftsite() const
@@ -316,7 +259,7 @@ struct Site* HalfEdge::leftsite() const
 
 struct Site* HalfEdge::rightsite() const
 {
-	return edge->sites[1-direction];
+	return edge ? edge->sites[1-direction] : 0;
 }
 
 bool HalfEdge::rightof(const struct Point& p) const
@@ -334,12 +277,12 @@ bool HalfEdge::rightof(const struct Point& p) const
 	real_t dxp, dyp, dxs, t1, t2, t3, yl;
 
 	int above;
-	if (e->a == 1.0)
+	if (e->a == real_t(1))
 	{
 		dyp = p.y - topsite->p.y;
 		dxp = p.x - topsite->p.x;
 		int fast = 0;
-		if ((!right_of_site & (e->b < 0.0)) | (right_of_site & (e->b >= 0.0)))
+		if( (!right_of_site & (e->b < real_t(0))) | (right_of_site & (e->b >= real_t(0))) )
 		{
 			above = dyp >= e->b * dxp;
 			fast = above;
@@ -347,7 +290,7 @@ bool HalfEdge::rightof(const struct Point& p) const
 		else
 		{
 			above = p.x + p.y * e->b > e->c;
-			if (e->b < 0.0)
+			if (e->b < real_t(0))
 				above = !above;
 			if (!above)
 				fast = 1;
@@ -356,12 +299,12 @@ bool HalfEdge::rightof(const struct Point& p) const
 		{
 			dxs = topsite->p.x - e->sites[0]->p.x;
 			above = e->b * (dxp * dxp - dyp * dyp)
-					< dxs * dyp * (1.0 + 2.0 * dxp / dxs + e->b * e->b);
-			if (e->b < 0.0)
+					< dxs * dyp * (real_t(1) + real_t(2) * dxp / dxs + e->b * e->b);
+			if (e->b < real_t(0))
 				above = !above;
 		};
 	}
-	else /*e->b==1.0 */
+	else // e->b == 1
 	{
 		yl = e->c - e->a * p.x;
 		t1 = p.y - yl;
@@ -372,48 +315,208 @@ bool HalfEdge::rightof(const struct Point& p) const
 	return (he->direction == DIRECTION_LEFT ? above : !above);
 }
 
-static void print_tree(const Arc* arc, const char* name, int indent)
+
+
+static int pq_moveup(PriorityQueue* pq, int pos)
 {
-	for( int i = 0; i < indent; ++i )
-		printf("    ");
+	const void* node = pq->items[pos];
 
-	if( arc->isleaf() )
+	for( int parent = (pos >> 1);
+		 pos > 1 && pq->compare(pq->items[parent], node);
+		 pos = parent, parent = parent >> 1)
 	{
-		//printf("%s %d: %f, %f\n", name, arc->site->id, arc->site->p.x, arc->site->p.y);
-		return;
-	}
-	else
-	{
-		//printf("%s (%d, %d)\n", name, arc->edge->edge->sites[arc->edge->direction]->id, arc->edge->edge->sites[1-arc->edge->direction]->id);
+		pq->items[pos] = pq->items[parent];
+		pq->setpos( (void*)pq->items[pos], pos );
 	}
 
-	if( arc->left)
-	{
-		printf("\n");
-		print_tree(arc->left, "L", indent+1);
-	}
-	if( arc->right )
-	{
-		printf("\n");
-		print_tree(arc->right, "R", indent+1);
-	}
+	pq->items[pos] = node;
+	pq->setpos( (void*)pq->items[pos], pos );
+	return pos;
 }
+
+static int pq_maxchild(PriorityQueue* pq, int pos)
+{
+	int child = pos << 1;
+	if( child >= pq->numitems )
+		return 0;
+	if( (child + 1) < pq->numitems && pq->compare(pq->items[child], pq->items[child+1]) )
+		return child+1;
+	return child;
+}
+
+static int pq_movedown(PriorityQueue* pq, int pos)
+{
+	const void* node = pq->items[pos];
+
+	int child;
+	while( (child = pq_maxchild(pq, pos)) &&
+			pq->compare( node, pq->items[child] ) )
+	{
+		pq->items[pos] = pq->items[child];
+		pq->setpos( (void*)pq->items[pos], pos );
+		pos = child;
+	}
+
+	pq->items[pos] = node;
+	pq->setpos( (void*)pq->items[pos], pos );
+	return pos;
+}
+
+void pq_create(PriorityQueue* pq, int capacity, const void** buffer,
+				FPriorityQueueCompare cmp,
+				FPriorityQueueSetpos setpos,
+				FPriorityQueueGetpos getpos)
+{
+	pq->compare 	= cmp;
+	pq->setpos		= setpos;
+	pq->getpos		= getpos;
+	pq->maxnumitems = capacity;
+	pq->numitems	= 1;
+	pq->items 		= buffer;
+}
+
+bool pq_empty(PriorityQueue* pq)
+{
+	return pq->numitems == 1;
+}
+
+int pq_push(PriorityQueue* pq, const void* node)
+{
+	int n = pq->numitems++;
+	pq->items[n] = node;
+	return pq_moveup(pq, n);
+}
+
+const void* pq_pop(PriorityQueue* pq)
+{
+	if( pq->numitems == 1 )
+		return 0;
+
+	const void* node = pq->items[1];
+	pq->items[1] = pq->items[--pq->numitems];
+	pq_movedown(pq, 1);
+	return node;
+}
+
+const void* pq_top(PriorityQueue* pq)
+{
+	if( pq->numitems == 1 )
+		return 0;
+	return pq->items[1];
+}
+
+void pq_remove(PriorityQueue* pq, const void* node)
+{
+	if( pq->numitems == 1 )
+		return;
+	int pos = pq->getpos(node);
+	if( pos == 0 )
+		return;
+
+	pos = 1;
+	for( ; pos < pq->numitems; ++pos )
+	{
+		if( pq->items[pos] == node )
+			break;
+	}
+
+	pq->items[pos] = pq->items[--pq->numitems];
+	if( pq->compare( node, pq->items[pos] ) )
+		pq_moveup( pq, pos );
+	else
+		pq_movedown( pq, pos );
+	pq->setpos( (void*)node, 0 );
+}
+
+void pq_print(PriorityQueue* pq, FPriorityQueuePrint printfn)
+{
+	printf("\tPQ\n");
+	for( int i = 1; i < pq->numitems; ++i )
+	{
+		printfn(pq->items[i], i);
+	}
+	printf("\t-----\n");
+}
+
+static void he_print(const HalfEdge* he, int pos)
+{
+	printf("\t%g, %g  y: %g\n", he->vertex.x, he->vertex.y, he->y);
+}
+
+static inline bool he_compare( const HalfEdge* he1, const HalfEdge* he2 )
+{
+	return (he1->y > he2->y) || ((he1->y == he2->y) && (he1->vertex.x > he2->vertex.x));
+}
+
+static inline void he_setpos( HalfEdge* he, int pos )
+{
+	he->pqpos = pos;
+}
+
+static inline int he_getpos( const HalfEdge* he )
+{
+	return he->pqpos;
+}
+
+static inline int point_cmp(const void *p1, const void *p2)
+{
+	const Point& s1 = *(Point*) p1;
+	const Point& s2 = *(Point*) p2;
+	return (s1.y != s2.y) ? (s1.y - s2.y) : (s1.x - s2.x);
+}
+
+static inline bool pt_less( const Point& pt1, const Point& pt2 )
+{
+	return (pt1.y < pt2.y) || ((pt1.y == pt2.y) && (pt1.x < pt2.x));
+}
+
+static inline real_t pt_dist( const Point& pt1, const Point& pt2 )
+{
+	real_t dx = pt1.x - pt2.x;
+	real_t dy = pt1.y - pt2.y;
+	return (real_t) sqrt(dx*dx + dy*dy);
+}
+
+
+static void printbeach(const HalfEdge* he)
+{
+	printf("(%g, %g, y: %g), ", he->vertex.x, he->vertex.y, he->y );
+	if( he->right )
+		printbeach(he->right);
+}
+
 
 Voronoi::Voronoi()
 {
-	sites 		= 0;
-	beachline 	= 0;
-	edges		= 0;
+	sites 			= 0;
+	beachline_start = 0;
+	beachline_end	= 0;
+	edges			= 0;
+	eventmem		= 0;
+	eventqueue		= 0;
+	edgemem			= 0;
+	halfedgemem		= 0;
 }
 
 
 void Voronoi::cleanup()
 {
 	if( sites )
-	{
 		delete[] sites;
-		beachline = 0;
-	}
+	if( eventmem )
+		free(eventmem);
+	if( edgemem )
+		delete[] edgemem;
+	if( halfedgemem )
+		delete[] halfedgemem;
+	if( eventqueue )
+		free(eventqueue);
+	sites 			= 0;
+	beachline_start = 0;
+	beachline_end	= 0;
+	edges			= 0;
+	eventqueue		= 0;
+	eventmem		= 0;
 }
 
 Voronoi::~Voronoi()
@@ -421,30 +524,18 @@ Voronoi::~Voronoi()
 	cleanup();
 }
 
-static int point_cmp(const void *p1, const void *p2)
+Site* Voronoi::nextsite()
 {
-	const Point* s1 = (Point*) p1;
-	const Point* s2 = (Point*) p2;
-	if (s1->y < s2->y)
-		return (-1);
-	if (s1->y > s2->y)
-		return (1);
-	if (s1->x < s2->x)
-		return (-1);
-	if (s1->x > s2->x)
-		return (1);
-	return (0);
+	return (currentsite < numsites) ? &sites[currentsite++] : 0;
 }
 
 void Voronoi::generate(size_t num_sites, const Point* _sites, int _width, int _height)
 {
 	cleanup();
 
-	edges 		= 0;
-	beachline 	= 0;
-	sites 	  	= new Site[num_sites];
+	sites = new Site[num_sites];
 
-	size_t max_num_edges = num_sites * 3 - 6;
+	size_t max_num_edges = num_sites * 3 - 6 + 1;
 
 	edgemem		= new Edge[max_num_edges];
 	edgepool	= edgemem;
@@ -454,57 +545,51 @@ void Voronoi::generate(size_t num_sites, const Point* _sites, int _width, int _h
 	}
 	edgemem[max_num_edges-1].next = 0;
 
-
-	size_t max_num_arcs = num_sites * 4;
-
-	arcmem 		= new Arc[max_num_arcs];
-	arcpool 	= arcmem;
-
-	for( int i = 0; i < max_num_arcs-1; ++i )
-	{
-		arcmem[i].right = &arcmem[i+1];
-	}
-	arcmem[max_num_arcs-1].right = 0;
-
-
-
-	size_t max_num_halfedges = max_num_edges * 2;
+	size_t max_num_arcs		 = 2 * num_sites - 1;
+	size_t max_num_halfedges = max_num_arcs * 2 + 2; // Each arc gets 2 half edges, and we want 2 extra at the start/end
 
 	halfedgemem 	= new HalfEdge[max_num_halfedges];
 	halfedgepool 	= halfedgemem;
 
+	memset( halfedgemem, 0, max_num_halfedges * sizeof(HalfEdge) );
+
 	for( int i = 0; i < max_num_halfedges-1; ++i )
 	{
-		halfedgemem[i].next = &halfedgemem[i+1];
+		halfedgemem[i].right = &halfedgemem[i+1];
 	}
-	halfedgemem[max_num_halfedges-1].next = 0;
+	halfedgemem[max_num_halfedges-1].right = 0;
 
+	beachline_start = halfedgepool;
+	halfedgepool = halfedgepool->right;
+	beachline_end = halfedgepool;
+	halfedgepool = halfedgepool->right;
 
-	size_t max_num_events = num_sites * 2;
+	beachline_start->left 	= 0;
+	beachline_start->right 	= beachline_end;
+	beachline_end->left		= beachline_start;
+	beachline_end->right	= 0;
 
-	eventmem		= new Event[max_num_events];
-	eventpool		= eventmem;
-	for( int i = 0; i < max_num_events-1; ++i )
-	{
-		eventmem[i].arc = (Arc*)&eventmem[i+1];
-	}
-	eventmem[max_num_events-1].arc = 0;
+	last_inserted = 0;
+
+	int max_num_events = num_sites * 2 + 1;
+	eventmem = (void**)malloc(max_num_events * sizeof(void*));
+
+	eventqueue = (PriorityQueue*)malloc(sizeof(PriorityQueue));
+	pq_create(eventqueue, max_num_events, (const void**)eventmem,
+				(FPriorityQueueCompare)he_compare,
+				(FPriorityQueueSetpos)he_setpos,
+				(FPriorityQueueGetpos)he_getpos);
 
 
 	for( size_t i = 0; i < num_sites; ++i )
 	{
-		const Point& p = _sites[i];
-		sites[i].p 	= p;
+		sites[i].p 	= _sites[i];
 		//sites[i].id = (int)i;
         sites[i].edges = 0;
 	}
 
 	// Remove duplicates, to avoid anomalies
 	qsort(sites, num_sites, sizeof(Site), point_cmp);
-
-	Event* e = new_event(sites[0].p, sites[0].p.y);
-	e->site  = &sites[0];
-	eventqueue.push( e );
 
 	unsigned int offset = 0;
 	for (int is = 1; is < num_sites; is++)
@@ -518,43 +603,43 @@ void Voronoi::generate(size_t num_sites, const Point* _sites, int _width, int _h
 		{
 			sites[is - offset] = sites[is];
 		}
-
-		int newindex = is - offset;
-		Event* e = new_event(sites[newindex].p, sites[newindex].p.y);
-		e->site  = &sites[newindex];
-		eventqueue.push( e );
 	}
-	num_sites -= offset;
+	num_sites 	-= offset;
+	numsites 	= num_sites;
+	currentsite = 0;
 
 	width = _width;
 	height = _height;
 
-	int i = 0;
-	while( !eventqueue.empty() )
+	bottomsite = nextsite();
+
+	Site* site = nextsite();
+
+	while( true )
 	{
-		const Event* event = eventqueue.top();
-		eventqueue.pop();
-
-		//DEBUG("LOOP: (%f, %f),  %f, %s %s\n", event->p.x, event->p.y, event->y, event->site ? "site":"circle", event->deleted ? "deleted":"");
-
-		if( event->deleted )
-			continue;
-
-		//debugdraw();
-
-		sweepline = event->y;
-		//DEBUG("Sweepline: %f\n", sweepline);
-
-		if( event->site )
+		Point lowest_pq_point;
+		if( !pq_empty(eventqueue) )
 		{
-			site_event(event);
+			HalfEdge* he = (HalfEdge*)pq_top(eventqueue);
+			lowest_pq_point.x = he->vertex.x;
+			lowest_pq_point.y = he->y;
+		}
+
+		if( site != 0 && (pq_empty(eventqueue) || pt_less(site->p, lowest_pq_point) ) )
+		{
+			site_event(site);
+			site = nextsite();
+		}
+		else if( !pq_empty(eventqueue) )
+		{
+			circle_event();
 		}
 		else
 		{
-			circle_event(event);
+			break;
 		}
 
-		delete_event( (Event*)event );
+		//pq_print(eventqueue, (FPriorityQueuePrint)he_print);
 	}
 
 	Edge* edge = edges;
@@ -575,136 +660,110 @@ const struct Edge* Voronoi::get_edges() const
 	return edges;
 }
 
-
-void Voronoi::site_event(const struct Event* event)
+void Voronoi::site_event(struct Site* site)
 {
-	if( beachline == 0 )
-	{
-		beachline = new_arc(event->site);
-		return;
-	}
+	//printf("%s   %g, %g\n", __FUNCTION__, site->p.x, site->p.y);
 
-	//DEBUG("%s  event %f, %f\n", __FUNCTION__, event->p.x, event->p.y);
+	HalfEdge* left 	 = get_edge_above_x(site->p);
+	HalfEdge* right	 = left->right;
+	Site*	  bottom = left->rightsite();
+	if( !bottom )
+		bottom = bottomsite;
 
-	// Get the arc directly above
-	Arc* arc = get_arc_from_x(event->p);
-
-	if( arc->circleevent )
-	{
-		arc->circleevent->deleted = true;
-		arc->circleevent = 0;
-	}
-
-	Arc* p0 = new_arc(arc->site);
-	Arc* pp = new_arc(0);
-	Arc* p1 = new_arc(event->site);
-	Arc* p2 = new_arc(arc->site);
-	pp->setleft(p1);
-	pp->setright(p2);
-	arc->setleft(p0);
-	arc->setright(pp);
-
-	Edge* edge = new_edge(arc->site, event->site);
+	Edge* edge = new_edge(bottom, site);
 	edge->next = edges;
 	edges = edge;
 
 	HalfEdge* edge1 = new_halfedge(edge, DIRECTION_LEFT);
 	HalfEdge* edge2 = new_halfedge(edge, DIRECTION_RIGHT);
-	arc->edge = edge1;
-	pp->edge = edge2;
 
+	HalfEdge* leftleft = left->left;
 
-	//printf("\tTree\n");
-	//print_tree(beachline, "B", 1);
-	//printf("\n");
+	left->link(edge1);
+	edge1->link(edge2);
 
-	if( !check_circle_event( p0 ) )
+	last_inserted = edge1;
+
+	Point p;
+	if( check_circle_event( left, edge1, p ) )
 	{
-		//printf("\tNO circle_event added from site  %f, %f\n", p0->site->p.x, p0->site->p.y);
+		if( left->pqpos )
+			pq_remove(eventqueue, left);
+		left->vertex 	= p;
+		left->y		 	= p.y + pt_dist(site->p, p);
+		pq_push(eventqueue, left);
 	}
-	if( !check_circle_event( p2 ) )
+	if( check_circle_event( edge2, right, p ) )
 	{
-		//printf("\tNO circle_event added from site  %f, %f\n", p2->site->p.x, p2->site->p.y);
+		edge2->vertex	= p;
+		edge2->y		= p.y + pt_dist(site->p, p);
+		pq_push(eventqueue, edge2);
 	}
 }
 
-void Voronoi::circle_event(const struct Event* event)
+void Voronoi::circle_event()
 {
-	Arc* a1 = event->arc;
-	Arc* pl = (Arc*)arc_get_left_parent(a1);
-	Arc* pr = (Arc*)arc_get_right_parent(a1);
+	HalfEdge* left 		= (HalfEdge*)pq_pop(eventqueue);
 
-	Arc* a0 = (Arc*)arc_get_left_child(pl);
-	Arc* a2 = (Arc*)arc_get_right_child(pr);
+	//printf("%s   %g, %g  Y: %g\n", __FUNCTION__, left->vertex.x, left->vertex.y, left->y);
+	//pq_print(eventqueue, (FPriorityQueuePrint)he_print);
 
-	if( a0->circleevent )
-	{
-		a0->circleevent->deleted = true;
-		a0->circleevent = 0;
-	}
-	if( a2->circleevent )
-	{
-		a2->circleevent->deleted = true;
-		a2->circleevent = 0;
-	}
+	HalfEdge* leftleft 	= left->left;
+	HalfEdge* right		= left->right;
+	HalfEdge* rightright= right->right;
+	Site* bottom = left->leftsite();
+	Site* top 	 = right->rightsite();
 
-	endpos(pl->edge, event->p, pl->edge->direction);
-	endpos(pr->edge, event->p, pr->edge->direction);
+	Point vertex = left->vertex;
+	endpos(left->edge, vertex, left->direction);
+	endpos(right->edge, vertex, right->direction);
 
-	Arc* bottom = (Arc*)a0;
-	Arc* top    = (Arc*)a2;
+	if( last_inserted == left )
+		last_inserted = leftleft;
+	else if( last_inserted == right )
+		last_inserted = rightright;
+	pq_remove(eventqueue, right);
+	left->unlink();
+	right->unlink();
+    delete_halfedge(left);
+    delete_halfedge(right);
+
 	int direction = DIRECTION_LEFT;
-
-	if( bottom->site->p.y > top->site->p.y )
+	if( bottom->p.y > top->p.y )
 	{
-		Arc* temp = bottom;
+		Site* temp = bottom;
 		bottom = top;
 		top = temp;
 		direction = DIRECTION_RIGHT;
 	}
 
-	Edge* edge = new_edge(bottom->site, top->site);
-
+	Edge* edge = new_edge(bottom, top);
 	edge->next = edges;
 	edges = edge;
 
-	if(top->edge)
-		delete_halfedge(top->edge);
+	HalfEdge* he = new_halfedge(edge, direction);
+	leftleft->link(he);
+	endpos(edge, vertex, DIRECTION_RIGHT - direction);
 
-	Arc* higher;
-	Arc* par = a1;
-	while(par != beachline)
+	Point p;
+	if( check_circle_event( leftleft, he, p ) )
 	{
-		par = par->parent;
-		if(par == pl) higher = pl;
-		if(par == pr) higher = pr;
+		if( leftleft->pqpos )
+			pq_remove(eventqueue, leftleft);
+		leftleft->vertex 	= p;
+		leftleft->y		 	= p.y + pt_dist(bottom->p, p);
+		pq_push(eventqueue, leftleft);
 	}
-	higher->edge = new_halfedge(edge, direction);
-	endpos(higher->edge, event->p, 1-direction);
-
-	// relink hierarchy
-	Arc* grandparent = a1->parent->parent;
-	if( a1->parent->left == a1 )
+	if( check_circle_event( he, rightright, p ) )
 	{
-		if( grandparent->left == a1->parent )	grandparent->setleft(a1->parent->right);
-		else if( grandparent->right == a1->parent )	grandparent->setright(a1->parent->right);
+		he->vertex 		= p;
+		he->y		 	= p.y + pt_dist(bottom->p, p);
+		pq_push(eventqueue, he);
 	}
-	else
-	{
-		if( grandparent->left == a1->parent )	grandparent->setleft(a1->parent->left);
-		else if( grandparent->right == a1->parent )	grandparent->setright(a1->parent->left);
-	}
-
-	delete_arc(a1->parent);
-	delete_arc(a1);
-
-	check_circle_event( (Arc*)a0 );
-	check_circle_event( (Arc*)a2 );
 }
 
-void Voronoi::endpos(struct HalfEdge* he, const Point& p, int direction)
+void Voronoi::endpos(struct Edge* e, const Point& p, int direction)
 {
-	Edge* e = he->edge;
 	e->pos[direction] = p;
 
 	if( e->pos[0].x != real_t(-1) && e->pos[1].x != real_t(-1) )
@@ -718,174 +777,30 @@ void Voronoi::endpos(struct HalfEdge* he, const Point& p, int direction)
 	}
 }
 
-static const Arc* arc_get_left_sibling(const Arc* a)
-{
-	const Arc* parent = a->parent;
-	const Arc* last	= a;
-	while( parent->left == last )
-	{
-		if( !parent->parent )
-			return 0;
-		last = parent;
-		parent = parent->parent;
-	}
-
-	parent = parent->left;
-	while(!parent->isleaf()) parent = parent->right;
-	return parent;
-}
-
-static const Arc* arc_get_right_sibling(const Arc* a)
-{
-	const Arc* parent = a->parent;
-	const Arc* last	= a;
-	while( parent->right == last )
-	{
-		if( !parent->parent )
-			return 0;
-		last = parent;
-		parent = parent->parent;
-	}
-
-	parent = parent->right;
-	while(!parent->isleaf()) parent = parent->left;
-	return parent;
-}
-
-static void find_circle(const Point& v1, const Point& v2, const Point& v3, Point& out, real_t& radiussq)
-{
-    float bx = v1.x; float by = v1.y;
-    float cx = v2.x; float cy = v2.y;
-    float dx = v3.x; float dy = v3.y;
-    float temp = cx*cx+cy*cy;
-    float bc = (bx*bx + by*by - temp)/2.0;
-    float cd = (temp - dx*dx - dy*dy)/2.0;
-    float det = (bx-cx)*(cy-dy)-(cx-dx)*(by-cy);
-    if(fabs(det) < 1.0e-6)
-    {
-    	out = v2;
-    	radiussq = real_t(0);
-        return;
-    }
-    det = 1/det;
-    out.x = (bc*(cy-dy)-cd*(by-cy))*det;
-    out.y = ((bx-cx)*cd-(cx-dx)*bc)*det;
-    radiussq = (out.x-bx)*(out.x-bx)+(out.y-by)*(out.y-by);
-}
-
 bool Voronoi::edge_intersect(const struct HalfEdge& he1, const struct HalfEdge& he2, Point& out) const
 {
 	const Edge& e1 = *he1.edge;
 	const Edge& e2 = *he2.edge;
 
-	/*
 	real_t dx = e2.sites[1]->p.x - e1.sites[1]->p.x;
 	real_t dy = e2.sites[1]->p.y - e1.sites[1]->p.y;
 
-	printf("\tintersect  %f, %f  -> %f, %f\n", e1.sites[1]->p.x, e1.sites[1]->p.y, e2.sites[1]->p.x, e2.sites[1]->p.y);
-
 	if( dx == 0 && dy == 0 )
 	{
-		printf("\t\tearly out 1\n");
 		return false;
 	}
 
-	real_t adx = dx > 0 ? dx : -dx;
-	real_t ady = dy > 0 ? dy : -dy;
-
-	real_t c = e1.sites[1]->p.x * dx + e1.sites[1]->p.y * dy + (dx * dx + dy * dy) * real_t(0.5);
-	real_t a, b;
-	if( adx > ady )
+	real_t d = e1.a * e2.b - e1.b * e2.a;
+	if( fabsf(d) < real_t(0.00001f) )
 	{
-		a = 1.0;
-		b = dy / dx;
-		c /= dx;
-	}
-	else
-	{
-		b = 1.0;
-		a = dx / dy;
-		c /= dy;
-	}
-	real_t d = e1.a * b - e1.b * a;
-	if (-1.0e-10 < d && d < 1.0e-10)
-	{
-		printf("\t\tearly out 2: d == %f\n", d);
 		return false;
 	}
-	*/
-
-	real_t dx = e2.sites[1]->p.x - e1.sites[1]->p.x;
-	real_t dy = e2.sites[1]->p.y - e1.sites[1]->p.y;
-	real_t dxref = e1.sites[1]->p.x - e1.sites[0]->p.x;
-	real_t dyref = e1.sites[1]->p.y - e1.sites[0]->p.y;
-
-	//printf("\tintersect  (%f,%f),(%f,%f)  v  (%f,%f),(%f,%f)\n",
-	//		e1.sites[0]->p.x, e1.sites[0]->p.y,
-	//		e1.sites[1]->p.x, e1.sites[1]->p.y,
-	//		e2.sites[0]->p.x, e2.sites[0]->p.y,
-	//		e2.sites[1]->p.x, e2.sites[1]->p.y);
-
-	if( dx == 0 && dy == 0 )
-	{
-		//printf("\t\tearly out 1\n");
-		return false;
-	}
-
-	if (dx * dx + dy * dy < 1e-14 * (dxref * dxref + dyref * dyref))
-	{
-		// make sure that the difference is positive
-		real_t adx = dx > 0 ? dx : -dx;
-		real_t ady = dy > 0 ? dy : -dy;
-
-		// get the slope of the line
-		real_t a, b;
-		real_t c = (real_t) (e1.sites[1]->p.x * dx + e1.sites[1]->p.y * dy + (dx * dx + dy * dy) * 0.5);
-
-		if (adx > ady)
-		{
-			a = 1.0;
-			b = dy / dx;
-			c /= dx;
-		}
-		else
-		{
-			b = 1.0;
-			a = dx / dy;
-			c /= dy;
-		}
-
-		real_t d = e1.a * b - e1.b * a;
-		if (-1.0e-10 < d && d < 1.0e-10)
-		{
-			//printf("\t\tearly out 3\n");
-			return false;
-		}
-
-		out.x = (e1.c * b - c * e1.b) / d;
-		out.y = (c * e1.a - e1.c * a) / d;
-
-	}
-	else
-	{
-		real_t d = e1.a * e2.b - e1.b * e2.a;
-		if (-1.0e-10 < d && d < 1.0e-10)
-		{
-			//printf("\t\tearly out 4\n");
-			return false;
-		}
-
-		out.x = (e1.c * e2.b - e2.c * e1.b) / d;
-		out.y = (e2.c * e1.a - e1.c * e2.a) / d;
-	}
-	// end of Gregory Soyez's modifications
-
-	real_t local_y1 = e1.sites[1]->p.y;
-	real_t local_y2 = e2.sites[1]->p.y;
+	out.x = (e1.c * e2.b - e1.b * e2.c) / d;
+	out.y = (e1.a * e2.c - e1.c * e2.a) / d;
 
 	const Edge* e;
 	const HalfEdge* he;
-	if ((local_y1 < local_y2) || ((local_y1 == local_y2) && (e1.sites[1]->p.x < e2.sites[1]->p.x)))
+	if( pt_less( e1.sites[1]->p, e2.sites[1]->p) )
 	{
 		he = &he1;
 		e = &e1;
@@ -899,74 +814,62 @@ bool Voronoi::edge_intersect(const struct HalfEdge& he1, const struct HalfEdge& 
 	int right_of_site = out.x >= e->sites[1]->p.x;
 	if ((right_of_site && he->direction == DIRECTION_LEFT) || (!right_of_site && he->direction == DIRECTION_RIGHT))
 	{
-		//printf("\t\tearly out 5\n");
 		return false;
 	}
-
-
-	/*
-	printf("\tintersection: e1.abc %f, %f, %f,  d = %f\n", e1.a, e1.b, e1.c, d);
-	printf("\tintersection: abc    %f, %f, %f\n", a, b, c);
-	printf("\tintersection: dx/dy  %f, %f\n", dx, dy);
-	printf("\tintersection: adx/ady  %f, %f\n", adx, ady);
-	printf("\tintersection new: %f, %f\n", out.x, out.y);
-	*/
 
 	return true;
 }
 
-bool Voronoi::check_circle_event(struct Arc* a1)
+bool Voronoi::check_circle_event(struct HalfEdge* he1, struct HalfEdge* he2, Point& vertex)
 {
-	const Arc* pl = arc_get_left_parent(a1);
-	const Arc* pr = arc_get_right_parent(a1);
-
-	Arc* a0 = (Arc*)arc_get_left_child(pl);
-	Arc* a2 = (Arc*)arc_get_right_child(pr);
-
-	if( !a0 || !a2 || a0->site == a2->site )
-		return false;
-
-	Point vertex;
-	if( !edge_intersect(*pl->edge, *pr->edge, vertex) )
+	Edge* e1 = he1->edge;
+	Edge* e2 = he2->edge;
+	if( e1 == 0 || e2 == 0 || e1->sites[1] == e2->sites[1] )
 	{
 		return false;
 	}
 
-	real_t dx = a1->site->p.x - vertex.x;
-	real_t dy = a1->site->p.y - vertex.y;
-	real_t radius = sqrt( (dx*dx) + (dy*dy) );
-	real_t y = vertex.y + radius;
-
-	Event* event = new_event(vertex, y);
-	event->site = 0;
-	event->arc 	= (Arc*)a1;
-	a1->circleevent = event;
-
-	eventqueue.push(event);
-	return true;
+	return edge_intersect(*he1, *he2, vertex);
 }
 
-
-struct Arc* Voronoi::get_arc_from_x(const Point& p)
+struct HalfEdge* Voronoi::get_edge_above_x(const Point& p)
 {
 	// Gets the arc on the beach line at the x coordinate (i.e. right above the new site event)
-	struct Arc* arc = beachline;
-	while( !arc->isleaf() )
-	{
-		bool right_of_edge = arc->edge->rightof(p);
 
-		if( right_of_edge )
-			arc = arc->right;
-		else
-			arc = arc->left;
+	// A good guess it's close by (Can be optimized)
+	HalfEdge* he = last_inserted;
+    if( !he )
+    {
+        if( p.x < width / 2 )
+            he = beachline_start;
+        else
+            he = beachline_end;
+    }
+
+	//
+	if( he == beachline_start || (he != beachline_end && he->rightof(p)) )
+	{
+		do {
+			he = he->right;
+		}
+		while( he != beachline_end && he->rightof(p) );
+
+		he = he->left;
 	}
-	return arc;
+	else
+	{
+		do {
+			he = he->left;
+		}
+		while( he != beachline_start && !he->rightof(p) );
+	}
+
+	return he;
 }
 
 
 struct Edge* Voronoi::new_edge(struct Site* s1, struct Site* s2)
 {
-	assert(edgepool != 0);
 	struct Edge* p = edgepool;
 	edgepool = edgepool->next;
 	p->create(s1, s2);
@@ -981,47 +884,16 @@ void Voronoi::delete_edge(struct Edge* e)
 
 struct HalfEdge* Voronoi::new_halfedge(struct Edge* e, int direction)
 {
-	assert(halfedgepool != 0);
-	struct HalfEdge* p = halfedgepool;
-	halfedgepool = halfedgepool->next;
-	p->create(e, direction);
-	return p;
+	struct HalfEdge* he = halfedgepool;
+	halfedgepool = halfedgepool->right;
+	he->create(e, direction);
+	return he;
 }
 
-void Voronoi::delete_halfedge(struct HalfEdge* e)
+void Voronoi::delete_halfedge(struct HalfEdge* he)
 {
-	e->next = halfedgepool;
-	halfedgepool = e;
-}
-
-struct Arc* Voronoi::new_arc(struct Site* s)
-{
-	assert(arcpool != 0);
-	struct Arc* a = arcpool;
-	arcpool = arcpool->right;
-	a->create(s);
-	return a;
-}
-
-void Voronoi::delete_arc(struct Arc* a)
-{
-	a->right = arcpool;
-	arcpool = a;
-}
-
-struct Event* Voronoi::new_event(struct Point& p, real_t y)
-{
-	assert(eventpool != 0);
-	struct Event* e = eventpool;
-	eventpool = (Event*)eventpool->arc;
-	e->create(p, y);
-	return e;
-}
-
-void Voronoi::delete_event(struct Event* e)
-{
-	e->arc = (Arc*)eventpool;
-	eventpool = e;
+	he->right = halfedgepool;
+    halfedgepool = he;
 }
 
 /*

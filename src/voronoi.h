@@ -1,3 +1,27 @@
+/*
+The MIT License (MIT)
+
+Copyright (c) 2015 Mathias Westerdahl
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+ */
+
 #pragma once
 
 #include <stdint.h>
@@ -25,7 +49,6 @@ struct Point
 struct Site
 {
 	Point	p;
-	//int 	id;			// index into original list
 
 	struct HalfEdge*	edges;	// The half edges owned by the cell
 };
@@ -44,14 +67,6 @@ struct Edge
 	void clipline(real_t width, real_t height);
 };
 
-
-struct CompareEvent : public std::binary_function<struct Event*, struct Event*, bool>
-{
-	bool operator()(const struct Event* l, const struct Event* r) const;
-};
-
-typedef std::priority_queue<struct Event*, std::vector<struct Event*>, CompareEvent> priorityqueue_t;
-
 class Voronoi
 {
 public:
@@ -67,49 +82,73 @@ public:
 
 private:
 	void cleanup();
-	void site_event(const struct Event* e);
-	void circle_event(const struct Event* e);
 
-	bool check_circle_event(struct Arc* arc);
+	Site*	nextsite();
+	void 	site_event(struct Site* site);
+	void 	circle_event();
+	bool 	check_circle_event(struct HalfEdge* he1, struct HalfEdge* he2, Point& vertex);
 
-	struct Arc* get_arc_from_x(const Point& p);
+	struct HalfEdge* get_edge_above_x(const Point& p);
 	bool edge_intersect(const struct HalfEdge& e1, const struct HalfEdge& e2, Point& out) const;
-	void endpos(struct HalfEdge* e, const Point& p, int direction);
+	void endpos(struct Edge* e, const Point& p, int direction);
 
 	//void debugdraw();
 
 	struct Edge*		edges;
-	struct Arc*			beachline;		// The binary tree of arcs
-	priorityqueue_t		eventqueue;
-	struct Site*		sites;
+	struct HalfEdge*	beachline_start;
+	struct HalfEdge*	beachline_end;
+	struct HalfEdge*	last_inserted;
+	struct PriorityQueue* eventqueue;
 
-	real_t 				sweepline;		// The y value of the sweep line
+	struct Site*		sites;
+	struct Site*		bottomsite;
+	int					numsites;
+	int					currentsite;
+
 	real_t 				width;
 	real_t 				height;
 
 	struct Edge*		edgemem;
 	struct Edge*		edgepool;
 
-	struct Arc*			arcmem;
-	struct Arc*			arcpool;
-
 	struct HalfEdge*	halfedgemem;
 	struct HalfEdge*	halfedgepool;
 
-	struct Event*		eventmem;
-	struct Event*		eventpool;
+	void**				eventmem;
 
 	struct Edge*		new_edge(struct Site* s1, struct Site* s2);
 	void				delete_edge(struct Edge*);
 
 	struct HalfEdge*	new_halfedge(struct Edge* e, int direction);
 	void				delete_halfedge(struct HalfEdge*);
-
-	struct Arc*			new_arc(struct Site* s);
-	void				delete_arc(struct Arc*);
-
-	struct Event*		new_event(struct Point& p, real_t y);
-	void				delete_event(struct Event*);
 };
+
+
+typedef bool (*FPriorityQueueCompare)(const void* node1, const void* node2);
+typedef void (*FPriorityQueueSetpos)(const void* node, int pos);
+typedef int  (*FPriorityQueueGetpos)(const void* node);
+typedef int  (*FPriorityQueuePrint)(const void* node, int pos);
+
+struct PriorityQueue
+{
+	// Implements a binary heap
+	FPriorityQueueCompare	compare;		// implement the < operator
+	FPriorityQueueSetpos	setpos;
+	FPriorityQueueGetpos	getpos;
+	int						maxnumitems;
+	int						numitems;
+	const void**			items;
+};
+
+void 		pq_create(PriorityQueue* pq, int capacity, const void** buffer,
+						FPriorityQueueCompare cmp,
+						FPriorityQueueSetpos setpos,
+						FPriorityQueueGetpos getpos);
+bool 		pq_empty(PriorityQueue* pq);
+int 		pq_push(PriorityQueue* pq, const void* node);
+const void* pq_pop(PriorityQueue* pq);
+const void* pq_top(PriorityQueue* pq);
+void 		pq_remove(PriorityQueue* pq, const void* node);
+void		pq_print(PriorityQueue* pq, FPriorityQueuePrint printfn);
 
 };

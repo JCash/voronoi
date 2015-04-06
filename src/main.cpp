@@ -10,7 +10,6 @@
 
 #include "voronoi.h"
 
-#include "../test/ivank/Voronoi.h"
 #include "../test/fastjet/voronoi.h"
 
 static void plot(int x, int y, unsigned char* image, int dimension, int nchannels, unsigned char* color)
@@ -39,21 +38,6 @@ static void plot_line(int x0, int y0, int x1, int y1, unsigned char* image, int 
 		if (e2 >= dy) { err += dy; x0 += sx; } // e_xy+e_x > 0
 		if (e2 <= dx) { err += dx; y0 += sy; } // e_xy+e_y < 0
 	}
-}
-
-static int point_cmp(const void* _a, const void* _b)
-{
-	voronoi::Point* a = (voronoi::Point*)_a;
-	voronoi::Point* b = (voronoi::Point*)_b;
-	if( a->x < b->x )
-		return -1;
-	if( a->x > b->x )
-		return 1;
-	if( a->y < b->y )
-		return -1;
-	if( a->y > b->y )
-		return 1;
-	return 0;
 }
 
 int main(int argc, const char** argv)
@@ -178,38 +162,9 @@ if(mode == 0)
 	voronoi::Voronoi generator;
 	generator.generate(count, points, dimension, dimension);
 
-	/*
 	const struct voronoi::Edge* edge = generator.get_edges();
 	while( edge )
 	{
-		printf("l: %f, %f -> %f, %f\n", edge->pos[0].x, edge->pos[0].y, edge->pos[1].x, edge->pos[1].y);
-
-		unsigned char color[3];
-		color[0] = 50 + edge->idx;
-		color[1] = 50 + edge->idx;
-		color[2] = 50 + edge->idx;
-		plot_line(edge->pos[0].x, edge->pos[0].y, edge->pos[1].x, edge->pos[1].y, data, dimension, 3, color);
-		edge = edge->next;
-	}
-	*/
-	/*
-	const struct voronoi::Site* sites = generator.get_cells();
-	for( int i = 0; i < count; ++i )
-	{
-		printf("PLOT %f, %f\n", sites[i].p.x, sites[i].p.y );
-		const struct voronoi::HalfEdge* edge = sites[i].edges;
-		while( edge )
-		{
-			printf("\tedge %f, %f  ->  %f, %f\n", edge->pos[0].x, edge->pos[0].y, edge->4pos[1].x, edge->pos[1].y);
-			plot_line(edge->pos[0].x, edge->pos[0].y, edge->pos[1].x, edge->pos[1].y, data, dimension, 3, color);
-            edge = edge->next;
-		}
-	}
-	*/
-	const struct voronoi::Edge* edge = generator.get_edges();
-	while( edge )
-	{
-		//printf("\tedge %f, %f  ->  %f, %f\n", edge->pos[0].x, edge->pos[0].y, edge->pos[1].x, edge->pos[1].y);
 		plot_line(edge->pos[0].x, edge->pos[0].y, edge->pos[1].x, edge->pos[1].y, data, dimension, 3, color);
 		edge = edge->next;
 	}
@@ -223,41 +178,6 @@ if(mode == 0)
 	}
 
 	delete[] points;
-
-}
-else if(mode == 1)
-{
-	printf("IVANK\n");
-
-	vor::Vertices vertices;
-	for( int i = 0; i < count; ++i )
-	{
-		vertices.push_back(new VPoint(points[i].x, points[i].y));
-	}
-
-	vor::Voronoi generator;
-	vor::Edges* edges = generator.GetEdges(&vertices, dimension, dimension);
-
-	for(vor::Edges::reverse_iterator i = edges->rbegin(); i != edges->rend(); ++i)
-	{
-		const struct VEdge* e = *i;
-
-		//printf("l: %f, %f -> %f, %f\t%p -> %p\n", e->start->x, e->start->y, e->end->x, e->end->y, e->start, e->end);
-		if( !isfinite(e->start->x) ||
-			!isfinite(e->start->y) ||
-			!isfinite(e->end->x) ||
-			!isfinite(e->end->y) )
-		{
-			continue;
-		}
-
-		plot_line( e->start->x, e->start->y, e->end->x, e->end->y, data, dimension, 3, color );
-	}
-
-	for(vor::Vertices::iterator	i = vertices.begin(); i != vertices.end(); ++i)
-	{
-		plot( (*i)->x, (*i)->y, data, dimension, 3, color_pt );
-	}
 
 }
 else if(mode == 2)
