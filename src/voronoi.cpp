@@ -27,6 +27,7 @@ SOFTWARE.
 #include <math.h>	// sqrt
 #include <queue>
 #include <assert.h>
+#include <new>		// in place new
 
 // Originally based off on http://nms.lcs.mit.edu/~aklmiu/6.838/L7.pdf
 // but after more and more optimizations, the code implemented more and more of
@@ -45,6 +46,12 @@ static const int DIRECTION_LEFT  = 0;
 static const int DIRECTION_RIGHT = 1;
 static const real_t INVALID_VALUE = real_t(-1);
 
+struct MemoryBlock
+{
+	size_t sizefree;
+	struct MemoryBlock* next;
+	char* memory;
+};
 
 void Edge::create(Site* s1, Site* s2)
 {
@@ -90,7 +97,7 @@ void Edge::create(Site* s1, Site* s2)
 	}
 }
 
-void Edge::clipline(real_t width, real_t height)
+bool Edge::clipline(real_t width, real_t height)
 {
 	Edge* e = this;
 
@@ -136,7 +143,7 @@ void Edge::clipline(real_t width, real_t height)
 		x2 = (e->c) - (e->b) * y2;
 		if( ((x1 > pxmax) & (x2 > pxmax)) | ((x1 < pxmin) & (x2 < pxmin)) )
 		{
-			return;
+			return false;
 		}
 		if (x1 > pxmax)
 		{
@@ -179,7 +186,7 @@ void Edge::clipline(real_t width, real_t height)
 		y2 = e->c - e->a * x2;
 		if( ((y1 > pymax) & (y2 > pymax)) | ((y1 < pymin) & (y2 < pymin)) )
 		{
-			return;
+			return false;
 		}
 		if( y1 > pymax )
 		{
@@ -207,11 +214,11 @@ void Edge::clipline(real_t width, real_t height)
 	pos[0].y = y1;
 	pos[1].x = x2;
 	pos[1].y = y2;
+    return true;
 }
 
 struct HalfEdge
 {
-	//Site*		site;
 	Edge*		edge;
 	HalfEdge*	left;
 	HalfEdge*	right;
@@ -413,13 +420,6 @@ void pq_remove(PriorityQueue* pq, const void* node)
 	if( pos == 0 )
 		return;
 
-	pos = 1;
-	for( ; pos < pq->numitems; ++pos )
-	{
-		if( pq->items[pos] == node )
-			break;
-	}
-
 	pq->items[pos] = pq->items[--pq->numitems];
 	if( pq->compare( node, pq->items[pos] ) )
 		pq_moveup( pq, pos );
@@ -462,7 +462,7 @@ static inline int point_cmp(const void *p1, const void *p2)
 {
 	const Point& s1 = *(Point*) p1;
 	const Point& s2 = *(Point*) p2;
-	return (s1.y != s2.y) ? (s1.y - s2.y) : (s1.x - s2.x);
+	return (s1.y != s2.y) ? (s1.y < s2.y ? -1 : 1) : (s1.x < s2.x ? -1 : 1);
 }
 
 static inline bool pt_less( const Point& pt1, const Point& pt2 )
@@ -494,23 +494,22 @@ Voronoi::Voronoi()
 	edges			= 0;
 	eventmem		= 0;
 	eventqueue		= 0;
-	edgemem			= 0;
-	halfedgemem		= 0;
+	memblocks		= 0;
+	edgepool		= 0;
+	halfedgepool	= 0;
 }
 
 
 void Voronoi::cleanup()
 {
-	if( sites )
-		delete[] sites;
-	if( eventmem )
-		free(eventmem);
-	if( edgemem )
-		delete[] edgemem;
-	if( halfedgemem )
-		delete[] halfedgemem;
-	if( eventqueue )
-		free(eventqueue);
+	while(memblocks)
+	{
+		struct MemoryBlock* p = memblocks;
+		memblocks = memblocks->next;
+		//free(p);
+		delete[] p;
+	}
+
 	sites 			= 0;
 	beachline_start = 0;
 	beachline_end	= 0;
@@ -532,37 +531,8 @@ Site* Voronoi::nextsite()
 void Voronoi::generate(size_t num_sites, const Point* _sites, int _width, int _height)
 {
 	cleanup();
-
-	sites = new Site[num_sites];
-
-	size_t max_num_edges = num_sites * 3 - 6 + 1;
-
-	edgemem		= new Edge[max_num_edges];
-	edgepool	= edgemem;
-	for( int i = 0; i < max_num_edges-1; ++i )
-	{
-		edgemem[i].next = &edgemem[i+1];
-	}
-	edgemem[max_num_edges-1].next = 0;
-
-	size_t max_num_arcs		 = 2 * num_sites - 1;
-	size_t max_num_halfedges = max_num_arcs * 2 + 2; // Each arc gets 2 half edges, and we want 2 extra at the start/end
-
-	halfedgemem 	= new HalfEdge[max_num_halfedges];
-	halfedgepool 	= halfedgemem;
-
-	memset( halfedgemem, 0, max_num_halfedges * sizeof(HalfEdge) );
-
-	for( int i = 0; i < max_num_halfedges-1; ++i )
-	{
-		halfedgemem[i].right = &halfedgemem[i+1];
-	}
-	halfedgemem[max_num_halfedges-1].right = 0;
-
-	beachline_start = halfedgepool;
-	halfedgepool = halfedgepool->right;
-	beachline_end = halfedgepool;
-	halfedgepool = halfedgepool->right;
+	beachline_start = alloc_halfedge();
+	beachline_end	= alloc_halfedge();
 
 	beachline_start->left 	= 0;
 	beachline_start->right 	= beachline_end;
@@ -571,21 +541,35 @@ void Voronoi::generate(size_t num_sites, const Point* _sites, int _width, int _h
 
 	last_inserted = 0;
 
-	int max_num_events = num_sites * 2 + 1;
-	eventmem = (void**)malloc(max_num_events * sizeof(void*));
+	//int max_num_events = num_sites * 2 + 1;
+	int max_num_events = sqrt(num_sites) * 4;
+	size_t sitessize = num_sites * sizeof(Site);
+	size_t memsize = max_num_events * sizeof(void*) + sizeof(PriorityQueue) + sitessize;
 
-	eventqueue = (PriorityQueue*)malloc(sizeof(PriorityQueue));
+	char* mem = (char*)alloc(memsize);
+
+	sites = (Site*) mem;
+	mem += sitessize;
+
+	eventqueue = (PriorityQueue*)mem;
+	mem += sizeof(PriorityQueue);
+
+	eventmem = (void**) mem;
+
+	//eventqueue = (PriorityQueue*)malloc(sizeof(PriorityQueue));
+	//eventqueue = new PriorityQueue;
 	pq_create(eventqueue, max_num_events, (const void**)eventmem,
 				(FPriorityQueueCompare)he_compare,
 				(FPriorityQueueSetpos)he_setpos,
 				(FPriorityQueueGetpos)he_getpos);
 
+	width = _width;
+	height = _height;
 
 	for( size_t i = 0; i < num_sites; ++i )
 	{
-		sites[i].p 	= _sites[i];
-		//sites[i].id = (int)i;
-        sites[i].edges = 0;
+		sites[i].p 		= _sites[i];
+        sites[i].edges 	= 0;
 	}
 
 	// Remove duplicates, to avoid anomalies
@@ -604,12 +588,10 @@ void Voronoi::generate(size_t num_sites, const Point* _sites, int _width, int _h
 			sites[is - offset] = sites[is];
 		}
 	}
-	num_sites 	-= offset;
-	numsites 	= num_sites;
-	currentsite = 0;
-
-	width = _width;
-	height = _height;
+	num_sites 		-= offset;
+	numsites 		= num_sites;
+	numsites_sqrt	= sqrt(num_sites);
+	currentsite 	= 0;
 
 	bottomsite = nextsite();
 
@@ -638,16 +620,100 @@ void Voronoi::generate(size_t num_sites, const Point* _sites, int _width, int _h
 		{
 			break;
 		}
-
-		//pq_print(eventqueue, (FPriorityQueuePrint)he_print);
 	}
 
-	Edge* edge = edges;
-	while(edge)
+	for( struct HalfEdge* he = beachline_start->right; he != beachline_end; he = he->right )
 	{
-		edge->clipline(width, height);
-		edge = edge->next;
+		finishline(he->edge);
 	}
+}
+
+void Voronoi::finishline(Edge* e)
+{
+	if( !e->clipline(width, height) )
+		return;
+
+	for( int i = 0; i < 2; ++i )
+	{
+        GraphEdge* ge = alloc_graphedge();
+
+		ge->edge = e;
+		ge->next = 0;
+		ge->neighbor = e->sites[1-i];
+		ge->pos[0] = e->pos[i];
+		ge->pos[1] = e->pos[1-i];
+
+		ge->next = e->sites[i]->edges;
+		e->sites[i]->edges = ge;
+	}
+}
+
+void* Voronoi::alloc(size_t size)
+{
+	if( !memblocks || memblocks->sizefree < size )
+	{
+		size_t blocksize = 16 * 1024;
+		if( size + sizeof(MemoryBlock) > blocksize )
+			blocksize = size + sizeof(MemoryBlock);
+		//struct MemoryBlock* block = (struct MemoryBlock*)malloc(blocksize);
+		struct MemoryBlock* block = (struct MemoryBlock*)new char[blocksize];
+		size_t offset = sizeof(MemoryBlock);
+		block->sizefree = blocksize - offset;
+		block->next = memblocks;
+		block->memory = ((char*)block) + offset;
+		memblocks = block;
+	}
+	void* p = memblocks->memory;
+	memblocks->memory += size;
+	memblocks->sizefree -= size;
+	assert(p != 0);
+	return p;
+}
+
+
+struct Edge* Voronoi::alloc_edge()
+{
+	if( edgepool )
+	{
+		Edge* edge = edgepool;
+		edgepool = edgepool->next;
+		edge = new(edge) Edge;
+		return edge;
+	}
+
+	Edge* edge = (struct Edge*)alloc(sizeof(struct Edge));
+	edge = new(edge) Edge;
+	//memset(edge, 0, sizeof(struct Edge));
+	return edge;
+	//return (struct Edge*)alloc(sizeof(struct Edge));
+	//Edge* edge = new Edge;
+	//memset(edge, 0, sizeof(struct Edge));
+	//return edge;
+}
+
+struct HalfEdge* Voronoi::alloc_halfedge()
+{
+	if( halfedgepool )
+	{
+		HalfEdge* edge = halfedgepool;
+		halfedgepool = halfedgepool->right;
+		return edge;
+	}
+
+	HalfEdge* edge = (struct HalfEdge*)alloc(sizeof(struct HalfEdge));
+	memset(edge, 0, sizeof(struct HalfEdge));
+	edge = new(edge) HalfEdge;
+	return edge;
+
+	//return (struct HalfEdge*)alloc(sizeof(struct HalfEdge));
+	//HalfEdge* edge = new HalfEdge;
+	//memset(edge, 0, sizeof(struct HalfEdge));
+	//return edge;
+}
+
+struct GraphEdge* Voronoi::alloc_graphedge()
+{
+	return (struct GraphEdge*)alloc(sizeof(struct GraphEdge));
 }
 
 const struct Site* Voronoi::get_cells() const
@@ -662,8 +728,6 @@ const struct Edge* Voronoi::get_edges() const
 
 void Voronoi::site_event(struct Site* site)
 {
-	//printf("%s   %g, %g\n", __FUNCTION__, site->p.x, site->p.y);
-
 	HalfEdge* left 	 = get_edge_above_x(site->p);
 	HalfEdge* right	 = left->right;
 	Site*	  bottom = left->rightsite();
@@ -687,8 +751,7 @@ void Voronoi::site_event(struct Site* site)
 	Point p;
 	if( check_circle_event( left, edge1, p ) )
 	{
-		if( left->pqpos )
-			pq_remove(eventqueue, left);
+		pq_remove(eventqueue, left);
 		left->vertex 	= p;
 		left->y		 	= p.y + pt_dist(site->p, p);
 		pq_push(eventqueue, left);
@@ -705,9 +768,6 @@ void Voronoi::circle_event()
 {
 	HalfEdge* left 		= (HalfEdge*)pq_pop(eventqueue);
 
-	//printf("%s   %g, %g  Y: %g\n", __FUNCTION__, left->vertex.x, left->vertex.y, left->y);
-	//pq_print(eventqueue, (FPriorityQueuePrint)he_print);
-
 	HalfEdge* leftleft 	= left->left;
 	HalfEdge* right		= left->right;
 	HalfEdge* rightright= right->right;
@@ -722,6 +782,7 @@ void Voronoi::circle_event()
 		last_inserted = leftleft;
 	else if( last_inserted == right )
 		last_inserted = rightright;
+
 	pq_remove(eventqueue, right);
 	left->unlink();
 	right->unlink();
@@ -748,8 +809,7 @@ void Voronoi::circle_event()
 	Point p;
 	if( check_circle_event( leftleft, he, p ) )
 	{
-		if( leftleft->pqpos )
-			pq_remove(eventqueue, leftleft);
+		pq_remove(eventqueue, leftleft);
 		leftleft->vertex 	= p;
 		leftleft->y		 	= p.y + pt_dist(bottom->p, p);
 		pq_push(eventqueue, leftleft);
@@ -768,10 +828,10 @@ void Voronoi::endpos(struct Edge* e, const Point& p, int direction)
 
 	if( e->pos[0].x != real_t(-1) && e->pos[1].x != real_t(-1) )
 	{
-		e->clipline(width, height);
+		finishline(e);
 
 		// TODO: Add to site
-
+		//delete_edge(e);
 		//e->next = edges;
 		//edges = e;
 	}
@@ -870,10 +930,9 @@ struct HalfEdge* Voronoi::get_edge_above_x(const Point& p)
 
 struct Edge* Voronoi::new_edge(struct Site* s1, struct Site* s2)
 {
-	struct Edge* p = edgepool;
-	edgepool = edgepool->next;
-	p->create(s1, s2);
-	return p;
+	struct Edge* e = alloc_edge();
+	e->create(s1, s2);
+	return e;
 }
 
 void Voronoi::delete_edge(struct Edge* e)
@@ -884,8 +943,8 @@ void Voronoi::delete_edge(struct Edge* e)
 
 struct HalfEdge* Voronoi::new_halfedge(struct Edge* e, int direction)
 {
-	struct HalfEdge* he = halfedgepool;
-	halfedgepool = halfedgepool->right;
+	struct HalfEdge* he = alloc_halfedge();
+	memset(he, 0, sizeof(struct HalfEdge));
 	he->create(e, direction);
 	return he;
 }
@@ -895,6 +954,7 @@ void Voronoi::delete_halfedge(struct HalfEdge* he)
 	he->right = halfedgepool;
     halfedgepool = he;
 }
+
 
 /*
 #include "stb_image_write.h"

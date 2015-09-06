@@ -26,7 +26,7 @@ So this lib set out to achieve a combination of the good things the other libs p
 License
 =======
 
-The MIT license
+[The MIT license](http://choosealicense.com/licenses/mit/)
 
 
 Usage
@@ -41,11 +41,11 @@ void generate(int count, voronoi::Point* points, int imagewidth, int imageheight
     voronoi::Voronoi generator;
     generator.generate(count, points, imagewidth, imageheight);
     
-    const struct voronoi::Edge* edge = generator.get_edges();
-    while( edge )
+    const struct voronoi::Edge* e = generator.get_edges();
+    while( e )
     {
-        printf("%f, %f -> %f, %f\n", edge->pos[0].x, edge->pos[0].y, edge->pos[1].x, edge->pos[1].y);
-        edge = edge->next;
+        printf("%f, %f -> %f, %f\n", e->pos[0].x, e->pos[0].y, e->pos[1].x, e->pos[1].y);
+        e = e->next;
     }
 }
 
@@ -59,6 +59,14 @@ Comparisons
 General thoughts
 ================
 
+O'Sullivan
+==========
+
+A C++ version of the original C version from Steven Fortune.
+
+Although fast, it's not completely robust and will produce errors.
+
+
 Fastjet
 =======
 
@@ -66,7 +74,8 @@ The Fastjet version is built upon Steven Fortune's original C version, which Sha
 Given the robustness and speed improvements of the implementation done by Fastjet,
 that should be the base line to compare other implementations with.
 
-Unfortunately, the code is not very readable, and the license is a bit unclear.
+Unfortunately, the code is not very readable, and the license is a bit unclear (GPL?)
+
 
 Boost
 =====
@@ -74,17 +83,20 @@ Boost
 Using boost might be convenient for some, but the sheer amount of code is too great in many cases.
 I had to install 5 modules of boost to compile (config, core, mpl, preprocessor and polygon).
 
-It is ~2x as slow as the fastest algorithms, and takes ~10x as much memory.
+It is ~3x as slow as the fastest algorithms, and takes ~2.5x as much memory.
 
 The code consists of only templated headers, so they'll get recompiled each time you recompile.
 For simply generating a 2D voronoi diagram using points as input, it is clearly overkill.
+
+The boost implementation also puts the burden of clipping the final edges on the client. 
 
 Voronoi++
 =========
 
 The speed of it is simply too slow to be used in a time critical application.
-And it uses ~10x more memory than the fastest algorithms.
+And it uses ~16x more memory than the fastest algorithms.
 
+Using the same data sets as the other algorithms, it breaks under some conditions.
 
 Ivan K
 ======

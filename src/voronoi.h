@@ -24,8 +24,8 @@ SOFTWARE.
 
 #pragma once
 
+#include <stdlib.h>
 #include <stdint.h>
-#include <queue>
 
 namespace voronoi
 {
@@ -44,13 +44,37 @@ struct Point
 	Point() {}
 	Point(const Point& p) : x(p.x), y(p.y) {}
 	Point(real_t _x, real_t _y) : x(_x), y(_y) {}
+	const Point& operator=( const Point& rhs )
+	{
+		x = rhs.x;
+		y = rhs.y;
+		return *this;
+	}
+
+	bool operator==( const Point& rhs ) const
+	{
+		return x == rhs.x && y == rhs.y;
+	}
+
+	bool operator!=( const Point& rhs ) const
+	{
+		return !(*this == rhs);
+	}
+};
+
+struct GraphEdge
+{
+	GraphEdge* 		next;
+	struct Edge*	edge;
+	struct Site*	neighbor;
+	Point			pos[2];
 };
 
 struct Site
 {
 	Point	p;
 
-	struct HalfEdge*	edges;	// The half edges owned by the cell
+	struct GraphEdge* edges;	// The half edges owned by the cell
 };
 
 
@@ -64,7 +88,7 @@ struct Edge
 	Edge*		next;
 
 	void create(struct Site* s1, struct Site* s2);
-	void clipline(real_t width, real_t height);
+	bool clipline(real_t width, real_t height);
 };
 
 class Voronoi
@@ -91,8 +115,7 @@ private:
 	struct HalfEdge* get_edge_above_x(const Point& p);
 	bool edge_intersect(const struct HalfEdge& e1, const struct HalfEdge& e2, Point& out) const;
 	void endpos(struct Edge* e, const Point& p, int direction);
-
-	//void debugdraw();
+	void finishline(struct Edge* e);
 
 	struct Edge*		edges;
 	struct HalfEdge*	beachline_start;
@@ -103,16 +126,20 @@ private:
 	struct Site*		sites;
 	struct Site*		bottomsite;
 	int					numsites;
+	int					numsites_sqrt;
 	int					currentsite;
 
 	real_t 				width;
 	real_t 				height;
 
-	struct Edge*		edgemem;
+	struct MemoryBlock* memblocks;
 	struct Edge*		edgepool;
-
-	struct HalfEdge*	halfedgemem;
 	struct HalfEdge*	halfedgepool;
+
+	void*				alloc(size_t size);
+	struct Edge*		alloc_edge();
+	struct HalfEdge*	alloc_halfedge();
+	struct GraphEdge*	alloc_graphedge();
 
 	void**				eventmem;
 
