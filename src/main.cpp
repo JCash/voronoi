@@ -2,13 +2,18 @@
  * A simple test program to display the output of the voronoi generator
  */
 
+#include <stdlib.h>
+
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
-#include "voronoi.h"
+#define JC_VORONOI_IMPLEMENTATION
+// If you wish to use doubles
+//#define JCV_REAL_TYPE double
+//#define JCV_FABS fabs
+#include "jc_voronoi.h"
 
 #include <vector>
-#include "../test/fastjet/voronoi.h"
 
 static void plot(int x, int y, unsigned char* image, int width, int height, int nchannels, unsigned char* color)
 {
@@ -22,7 +27,7 @@ static void plot(int x, int y, unsigned char* image, int width, int height, int 
 }
 
 // http://members.chello.at/~easyfilter/bresenham.html
-static void plot_line(int x0, int y0, int x1, int y1, unsigned char* image, int width, int height, int nchannels, unsigned char* color)
+static void draw_line(int x0, int y0, int x1, int y1, unsigned char* image, int width, int height, int nchannels, unsigned char* color)
 {
 	int dx =  abs(x1-x0), sx = x0<x1 ? 1 : -1;
 	int dy = -abs(y1-y0), sy = y0<y1 ? 1 : -1;
@@ -36,6 +41,57 @@ static void plot_line(int x0, int y0, int x1, int y1, unsigned char* image, int 
 		if (e2 >= dy) { err += dy; x0 += sx; } // e_xy+e_x > 0
 		if (e2 <= dx) { err += dx; y0 += sy; } // e_xy+e_y < 0
 	}
+}
+
+// http://fgiesen.wordpress.com/2013/02/08/triangle-rasterization-in-practice/
+static inline int orient2d(const jcv_point& a, const jcv_point& b, const jcv_point& c)
+{
+    return (b.x-a.x)*(c.y-a.y) - (b.y-a.y)*(c.x-a.x);
+}
+
+static inline int min3(int a, int b, int c)
+{
+	return std::min(a, std::min(b, c));
+}
+static inline int max3(int a, int b, int c)
+{
+	return std::max(a, std::max(b, c));
+}
+
+static void draw_triangle(const jcv_point& v0, const jcv_point& v1, const jcv_point& v2, unsigned char* image, int width, int height, int nchannels, unsigned char* color)
+{
+    float area = orient2d(v0, v1, v2);
+    if( area == 0 )
+        return;
+
+    // Compute triangle bounding box
+    int minX = min3(v0.x, v1.x, v2.x);
+    int minY = min3(v0.y, v1.y, v2.y);
+    int maxX = max3(v0.x, v1.x, v2.x);
+    int maxY = max3(v0.y, v1.y, v2.y);
+
+    // Clip against screen bounds
+    minX = std::max(minX, 0);
+    minY = std::max(minY, 0);
+    maxX = std::min(maxX, width - 1);
+    maxY = std::min(maxY, height - 1);
+
+    // Rasterize
+    jcv_point p;
+    for (p.y = minY; p.y <= maxY; p.y++) {
+        for (p.x = minX; p.x <= maxX; p.x++) {
+            // Determine barycentric coordinates
+            int w0 = orient2d(v1, v2, p);
+            int w1 = orient2d(v2, v0, p);
+            int w2 = orient2d(v0, v1, p);
+
+            // If p is on or inside all edges, render pixel.
+            if (w0 >= 0 && w1 >= 0 && w2 >= 0)
+            {
+                plot(p.x, p.y, image, width, height, nchannels, color);
+            }
+        }
+    }
 }
 
 static void Usage()
@@ -126,19 +182,19 @@ int main(int argc, const char** argv)
 		fseek(file, 0, SEEK_END);
 		size_t size = ftell(file);
 		fseek(file, 0, SEEK_SET);
-		count = size / sizeof(voronoi::Point);
+		count = size / sizeof(jcv_point);
 	}
 
-	voronoi::Point* points = new voronoi::Point[count];
+	jcv_point* points = new jcv_point[count];
 	if( !points )
 		return 1;
 
 	if( inputfile )
 	{
-		int nread = fread(points, count * sizeof(voronoi::Point), 1, file);
+		int nread = fread(points, count * sizeof(jcv_point), 1, file);
 		if( nread != 1 )
 		{
-			fprintf(stderr, "Failed to read %lu bytes from %s\n", count * sizeof(voronoi::Point), inputfile);
+			fprintf(stderr, "Failed to read %lu bytes from %s\n", count * sizeof(jcv_point), inputfile);
 			fclose(file);
 			delete[] points;
 			return 1;
@@ -160,60 +216,51 @@ int main(int argc, const char** argv)
 	}
 
 	printf("Width/Height is %d, %d\n", width, height);
+	printf("Count is %d\n", count);
 
 	size_t imagesize = width*height*3;
 	unsigned char* image = (unsigned char*)malloc(imagesize);
 	memset(image, 0, imagesize);
 
-	unsigned char color[] = {127, 127, 255};
 	unsigned char color_pt[] = {255, 255, 255};
+	unsigned char color_line[] = {255, 255, 255};
+	unsigned char color_line2[] = {127, 127, 255};
 
-	if( mode == 0 )
+	jcv_diagram diagram = { 0 };
+	jcv_diagram_generate(count, (const jcv_point*)points, width, height, &diagram );
+
+	srand(count); // for generating colors for the triangles
+
+	// If you want to draw triangles, or relax the diagram,
+	// you can iterate over the sites and get all edges easily
+	const struct jcv_site* sites = jcv_diagram_get_sites( &diagram );
+	for( int i = 0; i < count; ++i )
 	{
-		voronoi::Voronoi generator;
-		generator.generate(count, points, width, height);
+		const struct jcv_site& site = sites[i];
 
-		const struct voronoi::Edge* e = generator.get_edges();
-		/*
+		unsigned char color_tri[3];
+		int basecolor = 120;
+		color_tri[0] = basecolor + rand() % (235 - basecolor);
+		color_tri[1] = basecolor + rand() % (235 - basecolor);
+		color_tri[2] = basecolor + rand() % (235 - basecolor);
+
+		const struct jcv_graphedge* e = site.edges;
 		while( e )
 		{
-			plot_line(e->pos[0].x, e->pos[0].y, e->pos[1].x, e->pos[1].y, image, width, height, 3, color);
+			draw_triangle( site.p, e->pos[0], e->pos[1], image, width, height, 3, color_tri);
 			e = e->next;
-		}*/
-
-		const struct voronoi::Site* sites = generator.get_cells();
-		for( int i = 0; i < count; ++i )
-		{
-			const struct voronoi::Site& site = sites[i];
-
-			const struct voronoi::GraphEdge* e = site.edges;
-			while( e )
-			{
-				plot_line(e->pos[0].x, e->pos[0].y, e->pos[1].x, e->pos[1].y, image, width, height, 3, color);
-				e = e->next;
-			}
 		}
 	}
-	else if( mode == 1 )
+
+	// If all you need are the edges
+	const struct jcv_edge* edge = jcv_diagram_get_edges( &diagram );
+	while( edge )
 	{
-		std::vector<fastjet::VPoint> fastjet_sites;
-		fastjet_sites.resize(count);
-		for( int i = 0; i < count; ++i )
-		{
-			fastjet_sites[i].x = points[i].x;
-			fastjet_sites[i].y = points[i].y;
-		}
-		fastjet::VoronoiDiagramGenerator generator;
-		generator.generateVoronoi(&fastjet_sites, 0, width, 0, height );
-
-		generator.resetIterator();
-
-		fastjet::GraphEdge* e = 0;
-		while( generator.getNext(&e) )
-		{
-			plot_line(e->x1, e->y1, e->x2, e->y2, image, width, height, 3, color);
-		}
+		draw_line(edge->pos[0].x, edge->pos[0].y, edge->pos[1].x, edge->pos[1].y, image, width, height, 3, color_line);
+		edge = edge->next;
 	}
+
+	jcv_diagram_free( &diagram );
 
 	// Plot the sites
 	for( int i = 0; i < count; ++i )

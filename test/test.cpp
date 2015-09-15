@@ -18,7 +18,11 @@ void* operator new(std::size_t sz)
 }
 
 
-#include "src/voronoi.h"
+#define JC_VORONOI_IMPLEMENTATION
+#include "src/jc_voronoi.h"
+
+//#define ONLYNEWIMPL
+#ifndef ONLYNEWIMPL
 
 // Before the fastjet version pollutes the namespace
 #include "boost/polygon/voronoi.hpp"
@@ -27,6 +31,8 @@ void* operator new(std::size_t sz)
 #include "fastjet/voronoi.h"
 
 #include "voronoi/VoronoiDiagram.h"
+
+#endif // ONLYNEWIMPL
 
 #include "timeit.h"
 #include <iostream>
@@ -60,11 +66,14 @@ struct Context
 
 	std::vector<PointD> dpoints;
 
+#ifndef ONLYNEWIMPL
 	std::vector<voronoi::VoronoiSite*> vpp_sites;
 
 	std::vector<boost::polygon::point_data<float> > boost_points;
+#endif
 
 	std::vector< std::pair<PointF, PointF> > collectededges;
+	std::vector< std::pair<PointF, std::vector<std::pair<PointF, PointF> > > > collectedcells;
 };
 
 
@@ -79,8 +88,10 @@ void setup_sites(int count, Context* context)
 	context->sitesx = new float[count];
 	context->sitesy = new float[count];
 	context->dpoints.resize(count);
+#ifndef ONLYNEWIMPL
 	context->vpp_sites.resize(count);
 	context->boost_points.resize(count);
+#endif
 
     int pointoffset = 10; // move the points inwards, for aestetic reasons
 	srand(0);
@@ -97,9 +108,11 @@ void setup_sites(int count, Context* context)
 		context->dpoints[i].x = x;
 		context->dpoints[i].y = y;
 
+#ifndef ONLYNEWIMPL
 		context->vpp_sites[i] = new voronoi::VoronoiSite(x, y);
 
 		context->boost_points[i] = boost::polygon::point_data<float>(x, y);
+#endif
 	}
 
 	context->collectedges = false;
@@ -124,21 +137,44 @@ void null_setup(Context* context)
 
 int new_voronoi(Context* context)
 {
-	voronoi::Voronoi generator;
-	generator.generate(context->count, (const voronoi::Point*)context->fsites, MAP_DIMENSION, MAP_DIMENSION);
+	jcv_diagram diagram = { 0 };
+	jcv_diagram_generate(context->count, (const jcv_point*)context->fsites, MAP_DIMENSION, MAP_DIMENSION, &diagram );
 
 	if( context->collectedges )
 	{
-		const voronoi::Edge* edge = generator.get_edges();
+		const struct jcv_edge* edge = jcv_diagram_get_edges( &diagram );
 		while( edge )
 		{
 			context->collectededges.push_back( std::make_pair( PointF(edge->pos[0].x, edge->pos[0].y), PointF(edge->pos[1].x, edge->pos[1].y) ) );
 			edge = edge->next;
 		}
+
+		context->collectedcells.reserve(context->count);
+
+		const struct jcv_site* sites = jcv_diagram_get_sites( &diagram );
+		for( int i = 0; i < context->count; ++i )
+		{
+			const struct jcv_site& site = sites[i];
+
+			std::vector< std::pair<PointF, PointF> > collectedsiteedges;
+
+			const struct jcv_graphedge* e = site.edges;
+			while( e )
+			{
+				collectedsiteedges.push_back( std::make_pair(PointF(e->pos[0].x, e->pos[0].y), PointF(e->pos[1].x, e->pos[1].y)) );
+				e = e->next;
+			}
+
+			context->collectedcells.push_back( std::make_pair(PointF(site.p.x, site.p.y), collectedsiteedges) );
+		}
+
 	}
+
+	jcv_diagram_free( &diagram );
 	return 0;
 }
 
+#ifndef ONLYNEWIMPL
 int shaneosullivan_voronoi(Context* context)
 {
 	shaneosullivan::VoronoiDiagramGenerator generator;
@@ -196,11 +232,68 @@ int voronoiplusplus_voronoi(Context* context)
 			const geometry::Line& line = edges[i]->getRenderLine(boundingPolygon);
 			context->collectededges.push_back( std::make_pair( PointF(line.startPoint().x(), line.startPoint().y()), PointF(line.endPoint().x(), line.endPoint().y()) ) );
 		}
+
+		const std::map< voronoi::VoronoiSite*, voronoi::VoronoiCell*>& cells = diagram.cells();
+		//for( size_t i = 0; i < cells.size(); ++i )
+		for( std::map< voronoi::VoronoiSite*, voronoi::VoronoiCell*>::const_iterator it = cells.begin();
+				it != cells.end(); ++it )
+		{
+			std::vector< std::pair<PointF, PointF> > collectedsiteedges;
+
+			const voronoi::VoronoiSite& site = *it->first;
+			const voronoi::VoronoiCell& cell = *it->second;
+			for( size_t i = 0; i < cell.edges.size(); ++i )
+			{
+				const geometry::Line& line = cell.edges[i]->getRenderLine(boundingPolygon);
+				collectedsiteedges.push_back( std::make_pair( PointF(line.startPoint().x(), line.startPoint().y()), PointF(line.endPoint().x(), line.endPoint().y()) ) );
+			}
+
+			context->collectedcells.push_back( std::make_pair(PointF(site.position().x(), site.position().y()), collectedsiteedges) );
+		}
 	}
 	return 0;
 }
 
-int boost_voronoi(Context* context)
+// http://www.boost.org/doc/libs/1_55_0/libs/polygon/example/voronoi_visualizer.cpp
+static void clip_infinite_edge( Context* context, const boost::polygon::voronoi_diagram<double>::edge_type& edge, std::vector<PointF>& clipped_edge)
+{
+	using namespace boost::polygon;
+	typedef double coordinate_type;
+	typedef point_data<coordinate_type> point_type;
+	const voronoi_diagram<coordinate_type>::cell_type& cell1 = *edge.cell();
+	const voronoi_diagram<coordinate_type>::cell_type& cell2 = *edge.twin()->cell();
+	point_type origin, direction;
+	// Infinite edges could not be created by two segment sites.
+	if (cell1.contains_point() && cell2.contains_point())
+	{
+		std::size_t index = cell1.source_index();
+		PointF p1 = context->fsites[index];
+		index = cell2.source_index();
+		PointF p2 = context->fsites[index];
+		origin.x((p1.x + p2.x) * 0.5);
+		origin.y((p1.y + p2.y) * 0.5);
+		direction.x(p1.y - p2.y);
+		direction.y(p2.x - p1.x);
+	} else {
+	}
+	coordinate_type side = MAP_DIMENSION;
+	coordinate_type koef = side / (std::max)(fabs(direction.x()), fabs(direction.y()));
+	if (edge.vertex0() == NULL) {
+	  clipped_edge.push_back( PointF(origin.x() - direction.x() * koef, origin.y() - direction.y() * koef));
+	} else {
+	  clipped_edge.push_back( PointF(edge.vertex0()->x(), edge.vertex0()->y()));
+	}
+	if (edge.vertex1() == NULL)
+	{
+		clipped_edge.push_back(PointF( origin.x() + direction.x() * koef, origin.y() + direction.y() * koef));
+	}
+	else
+	{
+	  clipped_edge.push_back( PointF(edge.vertex1()->x(), edge.vertex1()->y()));
+	}
+}
+
+static int boost_voronoi(Context* context)
 {
 	boost::polygon::voronoi_diagram<double> vd;
 	boost::polygon::construct_voronoi(context->boost_points.begin(), context->boost_points.end(), &vd);
@@ -209,24 +302,59 @@ int boost_voronoi(Context* context)
 	{
 		for( boost::polygon::voronoi_diagram<double>::const_edge_iterator it = vd.edges().begin(); it != vd.edges().end(); ++it )
 		{
-			if( !it->is_primary() )
+			const boost::polygon::voronoi_diagram<double>::edge_type& edge = *it;
+			if( !edge.is_primary() )
 				continue;
-			if( it->is_finite() )
+			if( edge.is_finite() )
 			{
-				const boost::polygon::voronoi_diagram<double>::edge_type& edge = *it;
-
 				context->collectededges.push_back( std::make_pair( PointF(edge.vertex0()->x(), edge.vertex0()->y()), PointF(edge.vertex1()->x(), edge.vertex1()->y()) ) );
 			}
+			else
+			{
+				std::vector<PointF> points;
+				clip_infinite_edge( context, edge, points );
+				context->collectededges.push_back( std::make_pair( points[0], points[1] ) );
+			}
+		}
+
+		for( boost::polygon::voronoi_diagram<double>::const_cell_iterator it = vd.cells().begin(); it != vd.cells().end(); ++it )
+		{
+			if(!it->contains_point())
+				continue;
+			const boost::polygon::voronoi_diagram<double>::cell_type& cell = *it;
+			const boost::polygon::voronoi_diagram<double>::edge_type* edge = cell.incident_edge();
+
+			std::vector< std::pair<PointF, PointF> > collectedgraphedges;
+			do {
+				//if(edge->is_primary())
+				{
+					if( edge->is_finite() )
+					{
+						collectedgraphedges.push_back( std::make_pair( PointF(edge->vertex0()->x(), edge->vertex0()->y()), PointF(edge->vertex1()->x(), edge->vertex1()->y()) ) );
+					}
+					else
+					{
+						std::vector<PointF> points;
+						clip_infinite_edge( context, *edge, points );
+						collectedgraphedges.push_back( std::make_pair( points[0], points[1] ) );
+					}
+				}
+				edge = edge->next();
+			} while (edge != cell.incident_edge());
+
+			std::size_t index = it->source_index();
+			context->collectedcells.push_back( std::make_pair( context->fsites[index], collectedgraphedges ) );
 		}
 	}
 	return 0;
 }
+#endif
 
-static void plot(int x, int y, unsigned char* image, int dimension, int nchannels, unsigned char* color)
+static void plot(int x, int y, unsigned char* image, int width, int height, int nchannels, unsigned char* color)
 {
-	if( x < 0 || y < 0 || x > (dimension-1) || y > (dimension-1) )
+	if( x < 0 || y < 0 || x > (width-1) || y > (height-1) )
 		return;
-	int index = y * dimension * nchannels + x * nchannels;
+	int index = y * width * nchannels + x * nchannels;
 	for( int i = 0; i < nchannels; ++i )
 	{
 		image[index+i] = color[i];
@@ -242,12 +370,64 @@ static void plot_line(int x0, int y0, int x1, int y1, unsigned char* image, int 
 
 	for(;;)
 	{  // loop
-		plot(x0,y0, image, dimension, nchannels, color);
+		plot(x0,y0, image, dimension, dimension, nchannels, color);
 		if (x0==x1 && y0==y1) break;
 		e2 = 2*err;
 		if (e2 >= dy) { err += dy; x0 += sx; } // e_xy+e_x > 0
 		if (e2 <= dx) { err += dx; y0 += sy; } // e_xy+e_y < 0
 	}
+}
+// http://fgiesen.wordpress.com/2013/02/08/triangle-rasterization-in-practice/
+template<typename PT>
+static inline int orient2d(const PT& a, const PT& b, const PT& c)
+{
+    return (b.x-a.x)*(c.y-a.y) - (b.y-a.y)*(c.x-a.x);
+}
+
+static inline int min3(int a, int b, int c)
+{
+	return std::min(a, std::min(b, c));
+}
+static inline int max3(int a, int b, int c)
+{
+	return std::max(a, std::max(b, c));
+}
+
+template<typename PT>
+static void draw_triangle(const PT& v0, const PT& v1, const PT& v2, unsigned char* image, int width, int height, int nchannels, unsigned char* color)
+{
+    float area = orient2d(v0, v1, v2);
+    if( area == 0 )
+        return;
+
+    // Compute triangle bounding box
+    int minX = min3(v0.x, v1.x, v2.x);
+    int minY = min3(v0.y, v1.y, v2.y);
+    int maxX = max3(v0.x, v1.x, v2.x);
+    int maxY = max3(v0.y, v1.y, v2.y);
+
+    // Clip against screen bounds
+    minX = std::max(minX, 0);
+    minY = std::max(minY, 0);
+    maxX = std::min(maxX, width - 1);
+    maxY = std::min(maxY, height - 1);
+
+    // Rasterize
+    PT p;
+    for (p.y = minY; p.y <= maxY; p.y++) {
+        for (p.x = minX; p.x <= maxX; p.x++) {
+            // Determine barycentric coordinates
+            int w0 = orient2d(v1, v2, p);
+            int w1 = orient2d(v2, v0, p);
+            int w2 = orient2d(v0, v1, p);
+
+            // If p is on or inside all edges, render pixel.
+            if (w0 >= 0 && w1 >= 0 && w2 >= 0)
+            {
+                plot(p.x, p.y, image, width, height, nchannels, color);
+            }
+        }
+    }
 }
 
 static void output_image(const char* name, Context* context)
@@ -259,6 +439,32 @@ static void output_image(const char* name, Context* context)
 	unsigned char color_blue[] = {127, 127, 255};
 	unsigned char color_white[] = {255, 255, 255};
 
+	srand(0);
+
+	for( size_t i = 0; i < context->collectedcells.size(); ++i )
+	{
+		const PointF& site = context->collectedcells[i].first;
+		const std::vector< std::pair<PointF, PointF> >& edges = context->collectedcells[i].second;
+
+		unsigned char color_tri[3];
+		int colorcount = 0;
+
+		for( size_t i = 0; i < edges.size(); ++i )
+		{
+			color_tri[0] = 100 + colorcount * 10;
+			color_tri[1] = 100 + colorcount * 10;
+			color_tri[2] = 100 + colorcount * 10;
+			colorcount++;
+
+			// Needed for voronoi++
+			float det = orient2d(site, edges[i].first, edges[i].second);
+			if( det > 0 )
+				draw_triangle( site, edges[i].first, edges[i].second, data, MAP_DIMENSION, MAP_DIMENSION, 3, color_tri);
+			else
+				draw_triangle( site, edges[i].second, edges[i].first, data, MAP_DIMENSION, MAP_DIMENSION, 3, color_tri);
+		}
+	}
+
 	for( size_t i = 0; i < context->collectededges.size(); ++i )
 	{
 		plot_line( (int)context->collectededges[i].first.x, (int)context->collectededges[i].first.y,
@@ -267,7 +473,7 @@ static void output_image(const char* name, Context* context)
 
 	for( int i = 0; i < context->count; ++i )
 	{
-		plot( (int)context->fsites[i].x, (int)context->fsites[i].y, data, MAP_DIMENSION, 3, color_white);
+		plot( (int)context->fsites[i].x, (int)context->fsites[i].y, data, MAP_DIMENSION, MAP_DIMENSION, 3, color_white);
 	}
 
 	char path[512];
@@ -283,6 +489,8 @@ void generate_image(const char* name, Context* context, SetupFunc setupfunc, Fun
 {
 	context->collectededges.clear();
 	context->collectededges.resize(0);
+	context->collectedcells.clear();
+	context->collectedcells.resize(0);
 	context->collectedges = true;
 
 	setupfunc(context);
@@ -325,6 +533,9 @@ int main(int argc, const char** argv)
 
 	fflush(stdout);
 
+	run_test("jc_voronoi", &context, null_setup, new_voronoi);
+
+#ifndef ONLYNEWIMPL
 	run_test("voronoi++", &context, null_setup, voronoiplusplus_voronoi);
 
 	fflush(stdout);
@@ -337,8 +548,7 @@ int main(int argc, const char** argv)
 	run_test("osullivan", &context, null_setup, shaneosullivan_voronoi);
 
 	fflush(stdout);
-
-	run_test("jc_voronoi", &context, null_setup, new_voronoi);
+#endif
 
 	return 0;
 }
