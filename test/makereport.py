@@ -1,210 +1,65 @@
 #! /usr/bin/python
 
-import sys
 import os
+import pygal
+import sys
+import subprocess
 from collections import OrderedDict
-import json
 
-
-# If set to true, the output from the actual runs are printed out to the stdout
-NOPRESENT='-v' in sys.argv
-
-class Test(object):
-    def __init__(self, implementation):
-        self.implementation = implementation
-        self.results = []
-
-"""
-tests = OrderedDict()
-
-tests['Factorial (recursive)'] = (  [OrderedDict([('n',40)]), OrderedDict([('n',100)]), OrderedDict([('n',200)]), OrderedDict([('n',400)]), OrderedDict([('n',600)]), OrderedDict([('n',800)]) ],
-                                    [ Test('C++', BUILDDIR+'/fact_recursive'),
-                                       Test('Python 2', 'python python/fact_recursive.py'),
-                                       Test('Python 3', 'python3 python/fact_recursive.py'),
-                                       Test('C#', CSHARPINTERPRETER + BUILDDIR+'/fact_recursive.exe')] )
-
-tests['Factorial (loop)'] = ( [OrderedDict([('n',40)]), OrderedDict([('n',100)]), OrderedDict([('n',200)]), OrderedDict([('n',400)]), OrderedDict([('n',600)]), OrderedDict([('n',800)]) ],
-                                [Test('C++', BUILDDIR+'/fact_loop'),
-                                  Test('Python 2', 'python python/fact_loop.py'),
-                                  Test('Python 3', 'python3 python/fact_loop.py'),
-                                  Test('C#', CSHARPINTERPRETER + BUILDDIR+'/fact_loop.exe')] )
-
-tests['Fibonacci (recursive)'] = (  [OrderedDict([('n',4)]), OrderedDict([('n',8)]), OrderedDict([('n',12)]), OrderedDict([('n',16)]), OrderedDict([('n',20)]) ],
-                                    [ Test('C++', BUILDDIR+'/fib_recursive'),
-                                      Test('Python 2', 'python python/fib_recursive.py'),
-                                      Test('Python 3', 'python3 python/fib_recursive.py'),
-                                      Test('C#', CSHARPINTERPRETER + BUILDDIR+'/fib_recursive.exe')
-                                    ])
-
-tests['Fibonacci (loop)'] = (  [OrderedDict([('n',25)]), OrderedDict([('n',50)]), OrderedDict([('n',75)]), OrderedDict([('n',100)]), OrderedDict([('n',250)]), OrderedDict([('n',500)]) ],
-                                    [ Test('C++', BUILDDIR+'/fib_loop'),
-                                      Test('Python 2', 'python python/fib_loop.py'),
-                                      Test('Python 3', 'python3 python/fib_loop.py'),
-                                      Test('C#', CSHARPINTERPRETER + BUILDDIR+'/fib_loop.exe')
-                                    ])
-"""
 
 def find_time_unit(t):
     if t < 0.000001:
         return 'ns'
     if t < 0.001:
-        return '\xb5s'
-        #return 'us'
+        return '\xc2\xb5s'
     if t < 0.1:
         return 'ms'
     return 's'
 
 def convert_time(t, unit):
     if unit == 'ns':
-        return t * 1000000000.0
-    if unit == '\xb5s':
-    #if unit == 'us':
-        return t * 1000000.0
+        return t / 1000000000.0
+    if unit == '\xc2\xb5s':
+        return t / 1000000.0
     if unit == 'ms':
-        return t * 1000.0
+        return t / 1000.0
     return t
 
-def get_average_time(tests):
-    t = sum([test.results[-1]['time_avg'] for test in tests])
-    return t / len(tests)
 
-def present(groupname, args, tests):
-    timeunit = find_time_unit(get_average_time(tests))
-    args = '(' + ','.join(['%s = %s' % (k, v) for k, v in args.iteritems()]) + ')'
+def run_test(report, *args):
+    cmd = ['./test']+map(str, args)
+    print "cmd:", ' '.join(cmd)
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+    p.wait()
+    d = p.stdout.read()
     
-    print groupname, args
-    for test in tests:
-        print test.implementation.ljust(14), 'average', convert_time(test.results[-1]['time_avg'], timeunit), timeunit
-    print ""
-
-
-
-def present_html(stream, groupname, argslst, tests):
+    lines = d.replace('\r', '\n').split('\n')
     
-    html = """
-    <script type="text/javascript">
-      google.load("visualization", "1", {packages:["corechart"]});
-      google.setOnLoadCallback(drawChart%(FUNCTIONTITLE)s);
-      function drawChart%(FUNCTIONTITLE)s() {
-        var data = google.visualization.arrayToDataTable(
-            %(TABLEDATA)s
-        );
-
-        var options = {
-          title: '%(TITLE)s',
-          hAxis: {title: '%(HAXIS_TITLE)s'},
-          vAxis: {title: '%(VAXIS_TITLE)s'},
-          is3D: true,
-          backgroundColor: {
-            'fill': '#F4F4F4',
-            'strokeWidth': 1,
-            'opacity': 100
-             },
-        };
-
-        var chart = new google.visualization.ColumnChart(document.getElementById('chart_div_%(FUNCTIONTITLE)s'));
-        chart.draw(data, options);
-      }
-    </script>
-    """
-    
-    timeunit = find_time_unit(get_average_time(tests))
-    
-    info = dict()
-    info['TITLE'] = groupname
-    info['FUNCTIONTITLE'] = ''.join([x for x in groupname if str.isalpha(x)])
-    info['VAXIS_TITLE'] = 'Unit: ' + timeunit
-    info['HAXIS_TITLE'] = 'Args'
-    info['TABLEDATA'] = ''
-    
-    headers = ['Args']
-    for args in argslst:
-        headers.append( ','.join(['%s = %s' % (k, v) for k, v in args.iteritems()]))
-    
-    info['TABLEDATA'] = [headers]
-    
-    for test in tests:
-        langinfo = [test.implementation] + [convert_time(result['time_avg'], timeunit) for result in test.results]
-        info['TABLEDATA'].append(langinfo) 
-
-    # transpose the data
-    info['TABLEDATA'] = zip(*info['TABLEDATA'])
-    info['TABLEDATA'] = map(list, info['TABLEDATA'])
-    
-    print >>stream, html % info
-
-def present_html_header(stream, alltests):
-    
-    html = """
-<html>
-  <head>
-    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
-    <script>
-        function toggle_visibility(id) {
-            var e = document.getElementById(id);
-            if(e.style.display == 'none')
-                e.style.display = 'block';
-            else
-                e.style.display = 'none';
-        }
-    </script>
-      """
-    print >>stream, html
-
-def present_html_footer(stream, alltests):
-    html1 = """
-      </head>
-  <body>
-    """
-    html2 = """
-  </body>
-</html>
-    """
-    
-    
-    div = """
-        <hr />
-        <a id="chart_div_anchor_%(FUNCTIONTITLE)s" />
-        %(TEXT)s
-        <div id="chart_div_%(FUNCTIONTITLE)s" style="width: 600px; height: 350px;"></div>
-        <a href="#chart_div_result_%(FUNCTIONTITLE)s" onclick="toggle_visibility('chart_div_result_%(FUNCTIONTITLE)s');">Results:</a>
-        <div id="chart_div_result_%(FUNCTIONTITLE)s" style="display: none">
-        <pre>
-%(RESULT)s
-        </pre>
-        </div>
-    """
-    
-    link = """<a href="#chart_div_anchor_%(FUNCTIONTITLE)s">%(TITLE)s</a><br>"""
-    
-    print >>stream, html1
-    
-    
-    for groupname, tests in alltests.iteritems():
-        info = dict()
-        info['TITLE'] = groupname
-        info['FUNCTIONTITLE'] = ''.join([x for x in groupname if str.isalpha(x)])
+    for line in lines[1:]:
+        tokens = line.split()
+        if not tokens:
+            continue
         
-        print >>stream, link % info
-    
-    print >>stream, "<p/>"
-    
-    for groupname, tests in alltests.iteritems():
-        info = dict()
-        info['FUNCTIONTITLE'] = ''.join([x for x in groupname if str.isalpha(x)])
-        info['TEXT'] = ''
-        
-        
-        info['RESULT'] = ''
-        """
-        for i, args in enumerate(argslst):
-            info['RESULT'] += ','.join(['%s = %s' % (k, v) for k, v in args.iteritems()]) + ':\n'
-            for test in tests:
-                info['RESULT'] += ' '*4 + test.implementation.ljust(14) + test.results[i]['result'] + '\n'
-            info['RESULT'] += '\n'"""
-        print >>stream, div % info
-    
-    print >>stream, html2
+        name = tokens[0]
+        if not name in report['timings']:
+            report['memory'][name]      = list()
+            report['allocations'][name] = list()
+            report['timings'][name]     = list()
+            
+        if 'used' == tokens[1]:
+            memory      = int(tokens[2])
+            allocations = int(tokens[5])
+            report['memory'][name].append(memory)
+            report['allocations'][name].append(allocations)
+            
+        else: # timings
+            timing      = float(tokens[4])
+            unit        = tokens[5]
+            timing      = convert_time(timing, unit)
+            report['timings'][name].append(timing)
+            
+        #print tokens
+
 
 
 """
@@ -220,36 +75,159 @@ jc_voronoi                  iterations: 1    avg: 51.633 ms    median: 51.633 ms
 
 """
 
-if __name__ == '__main__':
-    with open(sys.argv[1], 'rb') as f:
-        allresults = json.loads(f.read())
+def collect_table_data(counts, report, tabledata):
+    for category, results in report.iteritems():
+        if not category in tabledata:
+            tabledata[category] = OrderedDict()
         
-    alltests = {}
-    for testname, results in allresults.iteritems():
-        testname = str(testname)
-        for result in results:
-            if not 'category' in result:
+        if not 'counts' in tabledata[category]:
+            tabledata[category]['counts'] = list()
+        tabledata[category]['counts'].extend(counts)
+        
+        for name, values in results.iteritems():
+            if not name in tabledata[category]:
+                tabledata[category][name] = list()
+            if name in ['title', 'scale', 'unit']:
+                tabledata[category][name] = values
                 continue
-            if not testname in alltests:
-                alltests[testname] = []
-            category = str(result['category'])
-            test = Test( category )
-            test.results.append(result)
-            alltests[testname].append(test)
-        
-    
-    output = sys.stdout
-    if len(sys.argv) > 2:
-        output = open(sys.argv[2], 'wb')
-
-    present_html_header(output, alltests)
-    
-    args = { 'n': 5000 }        
-    for groupname, tests in alltests.iteritems():
-        present(groupname, args, tests)
+            tabledata[category][name].extend(values)
             
-        present_html(output, groupname, [args], tests)
-        output.write('\n')
 
-    present_html_footer(output, alltests)
+def make_table_report(data):
+    for category, results in data.iteritems():
+        columns = list()
+        for name, values in results.iteritems():
+            if name in ['title', 'scale', 'formatter', 'unit']:
+                continue
+            columns.append( [name]+values )
+        
+        formatter = results['formatter']
+        scale = results['scale']
+        title = results['title']
+        
+        matrix = zip(*columns)
+        
+        rows = [list(matrix[0])]
+        for row in matrix[1:]:
+            rows.append( [str(row[0])] + map(formatter, map(lambda x: scale * x, row[1:]) ) )
+        
+        lengths = [0] * len(rows[0])
+        for row in rows:
+            for ic, v in enumerate(row):
+                lengths[ic] = max(lengths[ic], len(v))
+        
+        # header
+        headers = []
+        headersunderline = []
+        for ic, v in enumerate(rows[0]):
+            length = lengths[ic]
+            headers.append( ' ' + v.ljust(length) + ' ' )
+            if ic == 0:
+                headersunderline.append( '-' * (length + 1) + ':' )
+            else:
+                headersunderline.append( '-' * (length + 2) )
+                
+        print title
+        print '-' * len(title)
+        print ""
+        print '|' + '|'.join(headers) + '|'
+        print '|' + '|'.join(headersunderline) + '|'
+
+        for row in rows[1:]:
+            values = []
+            for ic, v in enumerate(row):
+                length = lengths[ic]
+                value = v.ljust(length)
+                values.append( ' ' + value + ' ')
+                
+            print '|' + '|'.join(values) + '|'
+        
+        print ""
+        print ""
+
+
+
+def make_report(counts, suffix, report):
+    for count in counts:
+        run_test( report, count )
+        
+    for category, results in report.iteritems():
+        
+        chart = pygal.Bar()
+        chart.x_labels = map(str, counts)
+        chart.title = results['title']
+        
+        unit = results['unit']
+        chart.value_formatter = lambda x: '%.2f %s' % ((x if x is not None else ''), unit)
+        
+        scale = results['scale']
+        
+        for name, values in results.iteritems():
+            if name in ['title', 'scale', 'unit']:
+                continue
+
+            chart.add(name, map(lambda x: x * scale, values))
+            
+        chart.render()
+        outpath = '../%s%s.svg' % (category, suffix)
+        chart.render_to_file(outpath)
+        print "Wrote", outpath
+
+
+if __name__ == '__main__':
+    
+    counts = [3, 10, 50, 100, 200]
+    
+    tabledata = OrderedDict()
+    tabledata['timings'] = OrderedDict()
+    tabledata['memory'] = OrderedDict()
+    tabledata['allocations'] = OrderedDict()
+    
+    report = OrderedDict()
+    report['timings'] = OrderedDict()
+    report['memory'] = OrderedDict()
+    report['allocations'] = OrderedDict()
+    
+    report['timings']['title'] = 'Timings (microseconds)'
+    report['timings']['scale'] = 1000000.0
+    report['timings']['unit']  = 'us'
+    report['memory']['title'] = 'Memory (kb)'
+    report['memory']['scale'] = 1 / 1024.0
+    report['memory']['unit']  = 'kb'
+    report['allocations']['title'] = '# Allocations'
+    report['allocations']['scale'] = 1
+    report['allocations']['unit']  = ''
+    
+    make_report(counts, '_small', report)
+    collect_table_data(counts, report, tabledata)
+
+    counts = [1000, 2000, 5000, 10000, 20000]
+    report = OrderedDict()
+    report['timings'] = OrderedDict()
+    report['memory'] = OrderedDict()
+    report['allocations'] = OrderedDict()
+    
+    report['timings']['title'] = 'Timings (milliseconds)'
+    report['timings']['scale'] = 1000.0
+    report['timings']['unit']  = 'ms'
+    report['memory']['title'] = 'Memory (kb)'
+    report['memory']['scale'] = 1 / 1024.0
+    report['memory']['unit']  = 'kb'
+    report['allocations']['title'] = '# Allocations'
+    report['allocations']['scale'] = 1
+    report['allocations']['unit']  = ''
+    
+    make_report(counts, '_large', report)
+    collect_table_data(counts, report, tabledata)
+    
+    tabledata['timings']['title'] = 'Timings'
+    tabledata['timings']['scale'] = 1000.0
+    tabledata['timings']['formatter'] = lambda x: '%.4f ms' % x
+    tabledata['memory']['title'] = 'Memory'
+    tabledata['memory']['scale'] = 1 / 1024.0
+    tabledata['memory']['formatter']  = lambda x: '%d kb' % x
+    tabledata['allocations']['title'] = '# Allocations'
+    tabledata['allocations']['scale'] = 1
+    tabledata['allocations']['formatter'] = lambda x: str(x)
+    make_table_report(tabledata)
     

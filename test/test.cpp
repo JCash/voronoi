@@ -78,7 +78,7 @@ struct Context
 
 
 
-#define MAP_DIMENSION 1024
+#define MAP_DIMENSION 4096
 
 void setup_sites(int count, Context* context)
 {
@@ -142,7 +142,7 @@ int new_voronoi(Context* context)
 
 	if( context->collectedges )
 	{
-		const struct jcv_edge* edge = jcv_diagram_get_edges( &diagram );
+		const jcv_edge* edge = jcv_diagram_get_edges( &diagram );
 		while( edge )
 		{
 			context->collectededges.push_back( std::make_pair( PointF(edge->pos[0].x, edge->pos[0].y), PointF(edge->pos[1].x, edge->pos[1].y) ) );
@@ -151,14 +151,14 @@ int new_voronoi(Context* context)
 
 		context->collectedcells.reserve(context->count);
 
-		const struct jcv_site* sites = jcv_diagram_get_sites( &diagram );
+		const jcv_site* sites = jcv_diagram_get_sites( &diagram );
 		for( int i = 0; i < context->count; ++i )
 		{
-			const struct jcv_site& site = sites[i];
+			const jcv_site& site = sites[i];
 
 			std::vector< std::pair<PointF, PointF> > collectedsiteedges;
 
-			const struct jcv_graphedge* e = site.edges;
+			const jcv_graphedge* e = site.edges;
 			while( e )
 			{
 				collectedsiteedges.push_back( std::make_pair(PointF(e->pos[0].x, e->pos[0].y), PointF(e->pos[1].x, e->pos[1].y)) );
@@ -536,16 +536,18 @@ int main(int argc, const char** argv)
 	run_test("jc_voronoi", &context, null_setup, new_voronoi);
 
 #ifndef ONLYNEWIMPL
-	run_test("voronoi++", &context, null_setup, voronoiplusplus_voronoi);
-
-	fflush(stdout);
-	run_test("boost", &context, null_setup, boost_voronoi);
 
 	fflush(stdout);
 	run_test("fastjet", &context, null_setup, fastjet_voronoi);
 
 	fflush(stdout);
-	run_test("osullivan", &context, null_setup, shaneosullivan_voronoi);
+	run_test("boost", &context, null_setup, boost_voronoi);
+
+	fflush(stdout);
+	run_test("voronoi++", &context, null_setup, voronoiplusplus_voronoi);
+
+	//fflush(stdout);
+	//run_test("osullivan", &context, null_setup, shaneosullivan_voronoi);
 
 	fflush(stdout);
 #endif

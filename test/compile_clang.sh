@@ -5,4 +5,4 @@ VORONOIPP="$VORONOIPPSRC/fortune/Arc.cpp $VORONOIPPSRC/fortune/BeachLine.cpp $VO
 
 BOOSTINC=boost/polygon/include
 
-clang++ -o test -g -O3 -m64 -std=c++11 -I.. test.cpp ../src/voronoi.cpp fastjet/voronoi.cpp shaneosullivan/VoronoiDiagramGenerator.cpp -I$VORONOIPPINC -DVORONOI_STATIC $VORONOIPP -I$BOOSTINC
+clang++ -o test -g -O3 -m64 -std=c++11 -I.. test.cpp fastjet/voronoi.cpp shaneosullivan/VoronoiDiagramGenerator.cpp -I$VORONOIPPINC -DVORONOI_STATIC $VORONOIPP -I$BOOSTINC
