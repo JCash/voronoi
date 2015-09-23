@@ -3,7 +3,7 @@ A fast C implementation for creating 2D Voronoi diagrams from a point set
 
 Uses [Fortune's sweep algorithm.](https://en.wikipedia.org/wiki/Fortune%27s_algorithm)
 
-![50 points](example1.png)
+![50 points](images/example1.png)
 
 
 Brief
@@ -209,18 +209,18 @@ Same numbers, as images
 
 Timings
 
-<img src="timings_small.svg" alt="timings small" width="350">
-<img src="timings_large.svg" alt="timings large" width="350">
+<img src="images/timings_small.png" alt="timings small" width="350">
+<img src="images/timings_large.png" alt="timings large" width="350">
 
 Memory Usage
 
-<img src="memory_small.svg" alt="memory small" width="350">
-<img src="memory_large.svg" alt="memory large" width="350">
+<img src="images/memory_small.png" alt="memory small" width="350">
+<img src="images/memory_large.png" alt="memory large" width="350">
 
 Number of Allocations
 
-<img src="allocations_small.svg" alt="allocations small" width="350">
-<img src="allocations_large.svg" alt="allocations large" width="350">
+<img src="images/allocations_small.png" alt="allocations small" width="350">
+<img src="images/allocations_large.png" alt="allocations large" width="350">
 
 
 General thoughts

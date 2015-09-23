@@ -1,10 +1,11 @@
 #! /usr/bin/python
 
 import os
-import pygal
 import sys
 import subprocess
 from collections import OrderedDict
+import plotly.plotly as py
+from plotly.graph_objs import Data, Figure, XAxis, YAxis, Bar, Layout, Font, Legend
 
 
 def find_time_unit(t):
@@ -147,7 +148,7 @@ def make_table_report(data):
 
 
 
-def make_report(counts, suffix, report):
+def make_report_pygal(counts, suffix, report):
     for count in counts:
         run_test( report, count )
         
@@ -169,9 +170,54 @@ def make_report(counts, suffix, report):
             chart.add(name, map(lambda x: x * scale, values))
             
         chart.render()
-        outpath = '../%s%s.svg' % (category, suffix)
+        outpath = '../images/%s%s.svg' % (category, suffix)
         chart.render_to_file(outpath)
+        outpath = '../images/%s%s.png' % (category, suffix)
+        chart.render_to_png(outpath)
         print "Wrote", outpath
+
+def make_report_plotly(counts, suffix, report):
+    
+    for count in counts:
+        run_test( report, count )
+        
+    for category, results in report.iteritems():
+        
+        #formatter = results['formatter']
+        scale = results['scale']
+        unit = results['unit']
+        
+        bars = []
+        for name, values in results.iteritems():
+            if name in ['title', 'scale', 'unit']:
+                continue
+
+            #values = map(formatter, map(lambda x: x * scale, values))
+            values = map(lambda x: x * scale, values)
+
+            bar = Bar(  x=counts,
+                        y=values,
+                        name=name )
+            bars.append(bar)
+    
+        layout = Layout(title=results['title'],
+                        font=Font(family='Raleway, sans-serif'),
+                        showlegend=True,
+                        barmode='group',
+                        bargap=0.15,
+                        bargroupgap=0.1,
+                        legend=Legend(x=0, y=1.0),
+                        xaxis=XAxis(title='Num Sites', type='category'),
+                        yaxis=YAxis(title=results['unit'])
+                        )
+        
+        data = Data(bars)
+        fig = Figure(data=data, layout=layout)
+        outpath = '../images/%s%s.png' % (category, suffix)
+        py.image.save_as(fig, outpath)
+        
+        print "Wrote", outpath
+        
 
 
 if __name__ == '__main__':
@@ -198,7 +244,7 @@ if __name__ == '__main__':
     report['allocations']['scale'] = 1
     report['allocations']['unit']  = ''
     
-    make_report(counts, '_small', report)
+    make_report_plotly(counts, '_small', report)
     collect_table_data(counts, report, tabledata)
 
     counts = [1000, 2000, 5000, 10000, 20000]
@@ -217,7 +263,7 @@ if __name__ == '__main__':
     report['allocations']['scale'] = 1
     report['allocations']['unit']  = ''
     
-    make_report(counts, '_large', report)
+    make_report_plotly(counts, '_large', report)
     collect_table_data(counts, report, tabledata)
     
     tabledata['timings']['title'] = 'Timings'

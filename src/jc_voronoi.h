@@ -35,6 +35,18 @@ DISCLAIMER:
 
 USAGE:
 
+	The api is very small:
+
+	void jcv_diagram_generate( int num_points, const jcv_point* points, int img_width, int img_height, jcv_diagram* diagram );
+	void jcv_diagram_generate_useralloc( int num_points, const jcv_point* points, int img_width, int img_height, void* userallocctx, FJCVAllocFn allocfn, FJCVFreeFn freefn, jcv_diagram* diagram );
+	void jcv_diagram_free( jcv_diagram* diagram );
+
+	const jcv_site* jcv_diagram_get_sites( const jcv_diagram* diagram );
+	const jcv_edge* jcv_diagram_get_edges( const jcv_diagram* diagram );
+
+
+	An example usage:
+
 	#define JC_VORONOI_IMPLEMENTATION
 	// If you wish to use doubles
 	//#define JCV_REAL_TYPE double
