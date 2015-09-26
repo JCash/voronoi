@@ -231,6 +231,10 @@ extern const jcv_edge* jcv_diagram_get_edges( const jcv_diagram* diagram );
 
 // INTERNAL FUNCTIONS
 
+#if defined(_MSC_VER) && !defined(__cplusplus)
+	#define inline __inline
+#endif
+
 // jcv_point
 
 static inline int jcv_point_cmp(const void *p1, const void *p2)
