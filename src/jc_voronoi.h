@@ -128,6 +128,9 @@ USAGE:
 #ifndef JC_VORONOI_H
 #define JC_VORONOI_H
 
+#include <math.h>
+#include <stddef.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
