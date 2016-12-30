@@ -1,4 +1,5 @@
-[![Build Status](https://travis-ci.org/JCash/voronoi.svg?branch=master)](https://travis-ci.org/JCash/voronoi?branch=master)
+*master* [![Build Status](https://travis-ci.org/JCash/voronoi.svg?branch=master)](https://travis-ci.org/JCash/voronoi?branch=master)
+*dev* [![Build Status](https://travis-ci.org/JCash/voronoi.svg?branch=dev)](https://travis-ci.org/JCash/voronoi?branch=dev)
 
 # jc_voronoi
 A fast C implementation for creating 2D Voronoi diagrams from a point set

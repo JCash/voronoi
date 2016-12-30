@@ -26,3 +26,11 @@
 *.exe
 *.out
 *.app
+
+build/**
+test/boost/**
+test/fastjet/**
+test/voronoi++/**
+test/ivank/**
+test/shaneosullivan/**
+
