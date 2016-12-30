@@ -4,6 +4,14 @@ ABOUT:
 
 	A fast single file 2D voronoi diagram generator.
 
+HISTORY:
+
+	0.2     2016-12-30  - Fixed issue of edges not being closed properly
+                        - Fixed issue when having many events
+                        - Fixed edge sorting
+                        - Code cleanup
+	0.1                 Initial version
+
 LICENSE:
 
 	The MIT License (MIT)
@@ -131,6 +139,8 @@ USAGE:
 #include <math.h>
 #include <stddef.h>
 
+#include <assert.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -145,6 +155,10 @@ extern "C" {
 
 #ifndef JCV_FABS
 	#define JCV_FABS(_X_)		fabsf(_X_)
+#endif
+
+#ifndef JCV_PI
+	#define JCV_PI 3.14159265358979323846264338327950288f
 #endif
 
 typedef JCV_REAL_TYPE jcv_real;
@@ -405,15 +419,10 @@ static jcv_edge* jcv_alloc_edge(jcv_context_internal* internal)
 	{
 		jcv_edge* edge = internal->edgepool;
 		internal->edgepool = internal->edgepool->next;
-		//memset(edge, 0, sizeof(struct jcv_edge));
-		//edge = new(edge) jcv_edge;
 		return edge;
 	}
 
-	jcv_edge* edge = (jcv_edge*)jcv_alloc(internal, sizeof(jcv_edge));
-	//memset(edge, 0, sizeof(struct jcv_edge));
-	//edge = new(edge) jcv_edge;
-	return edge;
+	return (jcv_edge*)jcv_alloc(internal, sizeof(jcv_edge));
 }
 
 static jcv_halfedge* jcv_alloc_halfedge(jcv_context_internal* internal)
@@ -425,10 +434,7 @@ static jcv_halfedge* jcv_alloc_halfedge(jcv_context_internal* internal)
 		return edge;
 	}
 
-	jcv_halfedge* edge = (jcv_halfedge*)jcv_alloc(internal, sizeof(jcv_halfedge));
-	memset(edge, 0, sizeof(jcv_halfedge));
-	//edge = new(edge) jcv_halfedge;
-	return edge;
+	return (jcv_halfedge*)jcv_alloc(internal, sizeof(jcv_halfedge));
 }
 
 static jcv_graphedge* jcv_alloc_graphedge(jcv_context_internal* internal)
@@ -450,13 +456,20 @@ static void jcv_free_fn(void* memctx, void* p)
 
 // jcv_edge
 
+static inline int jcv_is_valid(jcv_point* p)
+{
+	return (p->x != JCV_INVALID_VALUE || p->y != JCV_INVALID_VALUE) ? 1 : 0;
+}
+
 static void jcv_edge_create(jcv_edge* e, jcv_site* s1, jcv_site* s2)
 {
 	e->next = 0;
 	e->sites[0] = s1;
 	e->sites[1] = s2;
 	e->pos[0].x = JCV_INVALID_VALUE;
+	e->pos[0].y = JCV_INVALID_VALUE;
 	e->pos[1].x = JCV_INVALID_VALUE;
+	e->pos[1].y = JCV_INVALID_VALUE;
 
 	// Create line equation between S1 and S2:
 	// jcv_real a = -1 * (s2->p.y - s1->p.y);
@@ -505,13 +518,13 @@ static int jcv_edge_clipline(jcv_edge* e, jcv_real width, jcv_real height)
 	jcv_point* s2;
 	if (e->a == (jcv_real)1 && e->b >= (jcv_real)0)
 	{
-		s1 = e->pos[1].x != JCV_INVALID_VALUE ? &e->pos[1] : 0;
-		s2 = e->pos[0].x != JCV_INVALID_VALUE ? &e->pos[0] : 0;
+		s1 = jcv_is_valid(&e->pos[1]) ? &e->pos[1] : 0;
+		s2 = jcv_is_valid(&e->pos[0]) ? &e->pos[0] : 0;
 	}
 	else
 	{
-		s1 = e->pos[0].x != JCV_INVALID_VALUE ? &e->pos[0] : 0;
-		s2 = e->pos[1].x != JCV_INVALID_VALUE ? &e->pos[1] : 0;
+		s1 = jcv_is_valid(&e->pos[0]) ? &e->pos[0] : 0;
+		s2 = jcv_is_valid(&e->pos[1]) ? &e->pos[1] : 0;
 	};
 
 	if (e->a == (jcv_real)1)
@@ -646,6 +659,7 @@ static void jcv_halfedge_create(jcv_halfedge* he, jcv_edge* e, int dir)
 	he->direction	= dir;
 	he->pqpos		= 0;
 	he->y			= 0;
+	//he->vertex is initialized outside
 }
 
 static jcv_halfedge* jcv_halfedge_new(jcv_context_internal* internal, jcv_edge* e, int direction)
@@ -850,6 +864,7 @@ static int jcv_pq_empty(jcv_priorityqueue* pq)
 
 static int jcv_pq_push(jcv_priorityqueue* pq, void* node)
 {
+	assert(pq->numitems < pq->maxnumitems);
 	int n = pq->numitems++;
 	pq->items[n] = node;
 	return jcv_pq_moveup(pq, n);
@@ -984,13 +999,14 @@ static inline jcv_real jcv_determinant(const jcv_point* a, const jcv_point* b, c
 	return (b->x - a->x)*(c->y - a->y) - (b->y - a->y)*(c->x - a->x);
 }
 
-static jcv_real jcv_calc_sort_metric(const jcv_site* site, const jcv_graphedge* edge)
+static inline jcv_real jcv_calc_sort_metric(const jcv_site* site, const jcv_graphedge* edge)
 {
-	jcv_real diffy = edge->pos[0].y - site->p.y;
-	jcv_real angle = JCV_ATAN2( diffy, edge->pos[0].x - site->p.x );
-	if( diffy < 0 )
-		angle = 2 * (jcv_real)3.14159265358979323846264338327950288f + angle;
-	return angle;
+	jcv_real diffy1 = edge->pos[0].y - site->p.y;
+	jcv_real angle1 = JCV_ATAN2( diffy1, edge->pos[0].x - site->p.x );
+	jcv_real diffy2 = edge->pos[1].y - site->p.y;
+	jcv_real angle2 = JCV_ATAN2( diffy2, edge->pos[1].x - site->p.x );
+	// We take the average of the two angles, since we can better distinguish between very small edges
+	return (jcv_real)((angle1 + angle2) * 0.5f);
 }
 
 static void jcv_sortedges_insert(jcv_graphedge** sortedlist, jcv_graphedge* edge)
@@ -1019,7 +1035,7 @@ static void jcv_finishline(jcv_context_internal* internal, jcv_edge* e)
 	if( !jcv_edge_clipline( e, internal->width, internal->height) )
 		return;
 
-	if( e->pos[0].x == e->pos[1].x && e->pos[0].y == e->pos[1].y )
+	if( jcv_point_eq(&e->pos[0], &e->pos[1]) )
 		return;
 
 	// Make sure the graph edges are CCW
@@ -1054,10 +1070,10 @@ static void jcv_endpos(jcv_context_internal* internal, jcv_edge* e, const jcv_po
 {
 	e->pos[direction] = *p;
 
-	if( e->pos[0].x != JCV_INVALID_VALUE && e->pos[1].x != JCV_INVALID_VALUE )
-	{
-		jcv_finishline(internal, e);
-	}
+	if( !jcv_is_valid(&e->pos[1 - direction]) )
+		return;
+
+	jcv_finishline(internal, e);
 }
 
 static inline void jcv_create_corner_edge(jcv_context_internal* internal, const jcv_site* site, jcv_graphedge* current, jcv_graphedge* gap)
@@ -1099,6 +1115,25 @@ static void jcv_fillgaps(jcv_diagram* diagram)
 
 		// They're sorted CCW, so if the current->pos[1] != next->pos[0], then we have a gap
 		jcv_graphedge* current = site->edges;
+		if( !current )
+		{
+			// No edges, then it should be a single cell
+			assert( internal->numsites == 1 );
+
+			jcv_graphedge* gap = jcv_alloc_graphedge(diagram->internal);
+			gap->edge 		= 0; // not really true (should be 0)
+			gap->neighbor	= 0;
+			gap->pos[0].x 	= 0;
+			gap->pos[0].y 	= 0;
+			gap->pos[1].x 	= internal->width;
+			gap->pos[1].y 	= 0;
+			gap->angle 		= jcv_calc_sort_metric(site, gap);
+			gap->next 		= 0;
+			
+			current = gap;
+			site->edges = gap;
+		}
+
 		jcv_graphedge* next = current->next;
 		if( !next )
 		{
@@ -1112,9 +1147,9 @@ static void jcv_fillgaps(jcv_diagram* diagram)
 			current = gap;
 			next = site->edges;
 		}
+
 		while( current && next )
 		{
-			//if( jcv_point_on_edge(&current->pos[1], internal->width, internal->height) && jcv_point_dist_sq(&current->pos[1], &next->pos[0]) > (jcv_real)1 )
 			if( jcv_point_on_edge(&current->pos[1], internal->width, internal->height) && !jcv_point_eq(&current->pos[1], &next->pos[0]) )
 			{
 				// Border gap
@@ -1130,13 +1165,19 @@ static void jcv_fillgaps(jcv_diagram* diagram)
 					gap->next = current->next;
 					current->next = gap;
 				}
-				else // Corner gap
+				else if( jcv_point_on_edge(&current->pos[1], internal->width, internal->height) &&
+						 jcv_point_on_edge(&next->pos[0], internal->width, internal->height) )
 				{
 					jcv_graphedge* gap = jcv_alloc_graphedge(diagram->internal);
 					gap->edge = current->edge; // not really true (should be 0)
 					jcv_create_corner_edge(internal, site, current, gap);
 					gap->next = current->next;
 					current->next = gap;
+				}
+				else
+				{
+					// something went wrong, abort instead of looping indefinitely
+					break;
 				}
 			}
 
@@ -1226,7 +1267,7 @@ void jcv_diagram_generate_useralloc( int num_points, const jcv_point* points, in
 	if( d->internal )
 		jcv_diagram_free( d );
 
-	int max_num_events = (int)(sqrtf(num_points)) * 4;
+	int max_num_events = num_points; // in rare cases, it is almost as large as the number of points
 	size_t sitessize = (size_t)num_points * sizeof(jcv_site);
 	size_t memsize = 8u + (size_t)max_num_events * sizeof(void*) + sizeof(jcv_priorityqueue) + sitessize + sizeof(jcv_context_internal);
 
@@ -1246,6 +1287,8 @@ void jcv_diagram_generate_useralloc( int num_points, const jcv_point* points, in
 
 	internal->beachline_start = jcv_alloc_halfedge(internal);
 	internal->beachline_end	= jcv_alloc_halfedge(internal);
+	jcv_halfedge_create(internal->beachline_start, 0, 0);
+	jcv_halfedge_create(internal->beachline_end, 0, 0);
 
 	internal->beachline_start->left 	= 0;
 	internal->beachline_start->right 	= internal->beachline_end;

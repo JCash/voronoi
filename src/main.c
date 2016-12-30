@@ -14,6 +14,11 @@
 //#define JCV_ATAN2 atan2
 #include "jc_voronoi.h"
 
+#ifdef HAS_MODE_FASTJET
+#include <vector>
+#include "../test/fastjet/voronoi.h"
+#endif
+
 static void plot(int x, int y, unsigned char* image, int width, int height, int nchannels, unsigned char* color)
 {
 	if( x < 0 || y < 0 || x > (width-1) || y > (height-1) )
@@ -145,10 +150,16 @@ int main(int argc, const char** argv)
 	// Image dimension
 	int width = 512;
 	int height = 512;
-	int mode = 0;
 	int numrelaxations = 0;
+	int mode = 0;
 	const char* inputfile = 0;
 	const char* outputfile = "example.png";
+
+	if( argc == 1 )
+	{
+		Usage();
+		return 1;
+	}
 
 	for( int i = 1; i < argc; ++i )
 	{
@@ -202,6 +213,16 @@ int main(int argc, const char** argv)
 				return 1;
 			}
 		}
+		else if(strcmp(argv[i], "-r") == 0)
+		{
+			if( i+1 < argc )
+				numrelaxations = (int)atol(argv[i+1]);
+			else
+			{
+				Usage();
+				return 1;
+			}
+		}
 		else if(strcmp(argv[i], "-m") == 0)
 		{
 			if( i+1 < argc )
@@ -212,15 +233,10 @@ int main(int argc, const char** argv)
 				return 1;
 			}
 		}
-		else if(strcmp(argv[i], "-r") == 0)
+		else if(strcmp(argv[i], "-?") == 0 || strcmp(argv[i], "--help") == 0)
 		{
-			if( i+1 < argc )
-				numrelaxations = (int)atol(argv[i+1]);
-			else
-			{
-				Usage();
-				return 1;
-			}
+			Usage();
+			return 1;
 		}
 	}
 
@@ -258,6 +274,29 @@ int main(int argc, const char** argv)
 		}
 
 		printf("Read %d points from %s\n", count, inputfile);
+
+		float minx = 0;
+		float maxx = width;
+		float miny = 0;
+		float maxy = height;
+		// for debugging
+		// float minx = 0;
+		// float maxx = 200;
+		// float miny = 210;
+		// float maxy = 270;
+
+		int newcount = 0;
+		for( int i = 0; i < count; ++i )
+		{
+			if( points[i].x >= minx && points[i].x <= maxx &&
+				points[i].y >= miny && points[i].y <= maxy )
+			{
+				points[newcount] = points[i];	
+				newcount++;
+			}
+		}
+		printf("Kept %d points out of %d\n", newcount, count);
+		count = newcount;
 	}
 	else
 	{
@@ -291,44 +330,74 @@ int main(int argc, const char** argv)
 	memset(image, 0, imagesize);
 
 	unsigned char color_pt[] = {255, 255, 255};
-	unsigned char color_line[] = {255, 255, 255};
+	unsigned char color_line[] = {220, 220, 220};
 
-	jcv_diagram diagram;
-	memset(&diagram, 0, sizeof(jcv_diagram));
-	jcv_diagram_generate(count, (const jcv_point*)points, width, height, &diagram );
-
-	// If you want to draw triangles, or relax the diagram,
-	// you can iterate over the sites and get all edges easily
-	const jcv_site* sites = jcv_diagram_get_sites( &diagram );
-	for( int i = 0; i < diagram.numsites; ++i )
+	if( mode == 0 )
 	{
-		const jcv_site* site = &sites[i];
+		jcv_diagram diagram;
+		memset(&diagram, 0, sizeof(jcv_diagram));
+		jcv_diagram_generate(count, (const jcv_point*)points, width, height, &diagram );
 
-		srand((unsigned int)site->index); // for generating colors for the triangles
-
-		unsigned char color_tri[3];
-		unsigned char basecolor = 120;
-		color_tri[0] = basecolor + (unsigned char)(rand() % (235 - basecolor));
-		color_tri[1] = basecolor + (unsigned char)(rand() % (235 - basecolor));
-		color_tri[2] = basecolor + (unsigned char)(rand() % (235 - basecolor));
-
-		const jcv_graphedge* e = site->edges;
-		while( e )
+		// If you want to draw triangles, or relax the diagram,
+		// you can iterate over the sites and get all edges easily
+		const jcv_site* sites = jcv_diagram_get_sites( &diagram );
+		for( int i = 0; i < diagram.numsites; ++i )
 		{
-			draw_triangle( &site->p, &e->pos[0], &e->pos[1], image, width, height, 3, color_tri);
-			e = e->next;
+			const jcv_site* site = &sites[i];
+
+			srand((unsigned int)site->index); // for generating colors for the triangles
+
+			unsigned char color_tri[3];
+			unsigned char basecolor = 120;
+			color_tri[0] = basecolor + (unsigned char)(rand() % (235 - basecolor));
+			color_tri[1] = basecolor + (unsigned char)(rand() % (235 - basecolor));
+			color_tri[2] = basecolor + (unsigned char)(rand() % (235 - basecolor));
+
+			const jcv_graphedge* e = site->edges;
+			while( e )
+			{
+				draw_triangle( &site->p, &e->pos[0], &e->pos[1], image, width, height, 3, color_tri);
+				e = e->next;
+			}
+		}
+
+		// If all you need are the edges
+		const jcv_edge* edge = jcv_diagram_get_edges( &diagram );
+		while( edge )
+		{
+			draw_line((int)edge->pos[0].x, (int)edge->pos[0].y, (int)edge->pos[1].x, (int)edge->pos[1].y, image, width, height, 3, color_line);
+			edge = edge->next;
+		}
+
+		jcv_diagram_free( &diagram );
+	}
+#ifdef HAS_MODE_FASTJET
+	else if( mode == 1 )
+	{
+		std::vector<fastjet::VPoint> fastjet_sites;
+		fastjet_sites.resize(count);
+		for( int i = 0; i < count; ++i )
+		{
+			fastjet_sites[i].x = points[i].x;
+			fastjet_sites[i].y = points[i].y;
+		}
+		fastjet::VoronoiDiagramGenerator generator;
+		generator.generateVoronoi(&fastjet_sites, 0, width, 0, height );
+
+		generator.resetIterator();
+
+		fastjet::GraphEdge* e = 0;
+		while( generator.getNext(&e) )
+		{
+			draw_line(e->x1, e->y1, e->x2, e->y2, image, width, height, 3, color_line);
 		}
 	}
-
-	// If all you need are the edges
-	const jcv_edge* edge = jcv_diagram_get_edges( &diagram );
-	while( edge )
+#endif // HAS_MODE_FASTJET
+	else
 	{
-		draw_line((int)edge->pos[0].x, (int)edge->pos[0].y, (int)edge->pos[1].x, (int)edge->pos[1].y, image, width, height, 3, color_line);
-		edge = edge->next;
+		Usage();
+		return 1;
 	}
-
-	jcv_diagram_free( &diagram );
 
 	// Plot the sites
 	for( int i = 0; i < count; ++i )
@@ -338,9 +407,19 @@ int main(int argc, const char** argv)
 
 	free(points);
 
+	// flip image
+	int stride = width*3;
+	uint8_t* row = (uint8_t*)malloc((size_t)stride);
+	for( int y = 0; y < height/2; ++y )
+	{
+		memcpy(row, &image[y*stride], stride);
+		memcpy(&image[y*stride], &image[(height-1-y)*stride], stride);
+		memcpy(&image[(height-1-y)*stride], row, stride);
+	}
+
 	char path[512];
 	sprintf(path, "%s", outputfile);
-	stbi_write_png(path, width, height, 3, image, width*3);
+	stbi_write_png(path, width, height, 3, image, stride);
 	printf("wrote %s\n", path);
 
 	free(image);
