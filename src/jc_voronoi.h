@@ -153,6 +153,10 @@ extern "C" {
 	#define JCV_ATAN2(_Y_, _X_)	atan2f(_Y_, _X_)
 #endif
 
+#ifndef JCV_SQRT
+	#define JCV_SQRT(_X_)		sqrtf(_X_)
+#endif
+
 #ifndef JCV_FABS
 	#define JCV_FABS(_X_)		fabsf(_X_)
 #endif
@@ -244,8 +248,6 @@ extern const jcv_edge* jcv_diagram_get_edges( const jcv_diagram* diagram );
 
 #ifdef JC_VORONOI_IMPLEMENTATION
 
-#include <math.h>	// sqrt
-
 // INTERNAL FUNCTIONS
 
 #if defined(_MSC_VER) && !defined(__cplusplus)
@@ -287,7 +289,7 @@ static inline jcv_real jcv_point_dist( const jcv_point* pt1, const jcv_point* pt
 {
 	jcv_real dx = pt1->x - pt2->x;
 	jcv_real dy = pt1->y - pt2->y;
-	return (jcv_real) sqrt(dx*dx + dy*dy);
+	return (jcv_real)(JCV_SQRT(dx*dx + dy*dy));
 }
 
 // Structs
@@ -1345,7 +1347,7 @@ void jcv_diagram_generate_useralloc( int num_points, const jcv_point* points, in
 	internal->width 		= width;
 	internal->height 		= height;
 	internal->numsites 		= num_points;
-	internal->numsites_sqrt	= (int)(sqrtf(num_points));
+	internal->numsites_sqrt	= (int)(JCV_SQRT(num_points));
 	internal->currentsite 	= 0;
 
 	internal->bottomsite = jcv_nextsite(internal);
