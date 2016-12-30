@@ -1,6 +1,33 @@
 echo off
 
-if NOT DEFINED VCINSTALLDIR call "C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\vcvarsall.bat"
+if NOT DEFINED VCINSTALLDIR (
+    if exist "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat" (
+        call "C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC\vcvarsall.bat"
+        echo "USING VISUAL STUDIO 14"
+    )
+)
 
-cl.exe /O2 /I.. ../src/voronoi.cpp test.cpp
+if NOT DEFINED VCINSTALLDIR (
+    if exist "C:\Program Files (x86)\Microsoft Visual Studio 13.0\VC\vcvarsall.bat" (
+        call "C:\Program Files (x86)\Microsoft Visual Studio 13.0\VC\vcvarsall.bat"
+        echo "USING VISUAL STUDIO 13"
+    )
+)
+
+if NOT DEFINED VCINSTALLDIR (
+    if exist "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat" (
+        call "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat"
+        echo "USING VISUAL STUDIO 12"
+    )
+)
+
+if NOT DEFINED VCINSTALLDIR (
+    echo "No compatible visual studio found! run vcvarsall.bat first!"
+)
+
+mkdir build
+
+cl.exe /O2 /WX /W4 /I. test.c /link /OUT:../build/test.exe
+
+del *.obj
 
