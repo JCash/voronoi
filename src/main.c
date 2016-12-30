@@ -413,9 +413,9 @@ int main(int argc, const char** argv)
 	uint8_t* row = (uint8_t*)malloc((size_t)stride);
 	for( int y = 0; y < height/2; ++y )
 	{
-		memcpy(row, &image[y*stride], stride);
-		memcpy(&image[y*stride], &image[(height-1-y)*stride], stride);
-		memcpy(&image[(height-1-y)*stride], row, stride);
+		memcpy(row, &image[y*stride], (size_t)stride);
+		memcpy(&image[y*stride], &image[(height-1-y)*stride], (size_t)stride);
+		memcpy(&image[(height-1-y)*stride], row, (size_t)stride);
 	}
 
 	char path[512];

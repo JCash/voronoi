@@ -4,5 +4,6 @@ compiler:
 
 script:
   - ./compile_clang.sh
-  - (cd test; ./compile_clang.sh; ../build/test)
-  
+  - cd test
+  - ./compile_clang.sh
+  - ../build/test
