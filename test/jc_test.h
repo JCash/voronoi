@@ -1,4 +1,4 @@
-/* jc_test.h	v0.1	Copyright 2016- Mathias Westerdahl
+/* jc_test.h	Copyright 2016- Mathias Westerdahl
  *
  * https://github.com/JCash
  *
@@ -9,7 +9,8 @@
  *
  * HISTORY:
  *
- * 		0.1		Initial version
+ *		0.2		2016-12-29 	Added stdbool.h. Some C99 compile warnings
+ * 		0.1					Initial version
  *
  * USAGE:
  *
@@ -20,6 +21,7 @@
 #define JC_TEST_H
 
 #include <stdlib.h>
+#include <stdbool.h>
 
 #ifdef __cplusplus
 #define JC_TEST_CAST(_TYPE_, _EXPR_)			reinterpret_cast< _TYPE_ >( _EXPR_ )
@@ -138,7 +140,7 @@ extern jc_test_state jc_test_global_state;
 extern void jc_test_run_test_fixture(jc_test_fixture* fixture);
 extern void jc_test_run_all_tests(jc_test_state* state);
 extern void jc_test_assert(jc_test_fixture* fixture, bool cond, const char* msg);
-extern double jc_test_get_time();
+extern double jc_test_get_time(void);
 
 #define TEST_RUN(_NAME_)	jc_test_run_test_fixture( & __jc_test_fixture_##_NAME_ )
 #define TEST_RUN_ALL()		jc_test_run_all_tests( &jc_test_global_state )
@@ -314,7 +316,7 @@ void jc_test_run_all_tests(jc_test_state* state)
 		JC_TEST_PRINTF("%d tests %sPASSED%s\n", state->stats.num_pass, JC_TEST_CLR_GREEN, JC_TEST_CLR_DEFAULT);
 }
 
-double jc_test_get_time()
+double jc_test_get_time(void)
 {
     struct timeval tv;
     gettimeofday(&tv, NULL);
