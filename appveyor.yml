@@ -1,10 +1,12 @@
 platform:
   - x86
 
-install:
+install: OFF
+
+build_script:
   - compile_cl.bat
   - cd test
   - compile_cl.bat
-  - ../build/test.exe
 
-build: OFF
+test_script:
+  - build/test.exe
