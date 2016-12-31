@@ -1003,12 +1003,14 @@ static inline jcv_real jcv_determinant(const jcv_point* a, const jcv_point* b, c
 
 static inline jcv_real jcv_calc_sort_metric(const jcv_site* site, const jcv_graphedge* edge)
 {
-	jcv_real diffy1 = edge->pos[0].y - site->p.y;
-	jcv_real angle1 = JCV_ATAN2( diffy1, edge->pos[0].x - site->p.x );
-	jcv_real diffy2 = edge->pos[1].y - site->p.y;
-	jcv_real angle2 = JCV_ATAN2( diffy2, edge->pos[1].x - site->p.x );
-	// We take the average of the two angles, since we can better distinguish between very small edges
-	return (jcv_real)((angle1 + angle2) * 0.5f);
+	// We take the average of the two points, since we can better distinguish between very small edges
+	float x = (edge->pos[0].x + edge->pos[1].x) * 0.5f;
+	float y = (edge->pos[0].y + edge->pos[1].y) * 0.5f;
+	jcv_real diffy = y - site->p.y;
+	jcv_real angle = JCV_ATAN2( diffy, x - site->p.x );
+	if( diffy < 0 )
+		angle = angle + 2 * JCV_PI;
+	return (jcv_real)angle;
 }
 
 static void jcv_sortedges_insert(jcv_graphedge** sortedlist, jcv_graphedge* edge)

@@ -79,7 +79,7 @@ static void check_edges(const jcv_graphedge* edges, int num_expected,
         const jcv_graphedge* e = edges;
         while( e )
         {
-            if( check_edge_eq(e, &expected_points[i*2+0], &expected_points[i*2+1]) )
+            if( check_edge_eq(e, &expected_points[i], &expected_points[(i+1)%num_expected]) )
             {
                 ASSERT_EQ( expected_neighbors[i], e->neighbor );
                 num_matched++;
@@ -106,17 +106,26 @@ static void voronoi_test_parallel_horiz_2(Context* ctx)
     ASSERT_POINT_EQ( points[0], sites[0].p );
     ASSERT_POINT_EQ( points[1], sites[1].p );
 
-    jcv_point expected_edges_0[] = {    {IMAGE_SIZE/2, 0}, {IMAGE_SIZE/2, IMAGE_SIZE},
-                                        {IMAGE_SIZE/2, IMAGE_SIZE}, {0, IMAGE_SIZE},
-                                        {0, IMAGE_SIZE}, {0, 0},
-                                        {0, 0}, {IMAGE_SIZE/2, 0} };
+    jcv_point expected_edges_0[4];
+    expected_edges_0[0].x = IMAGE_SIZE/2;
+    expected_edges_0[0].y = 0;
+    expected_edges_0[1].x = IMAGE_SIZE/2;
+    expected_edges_0[1].y = IMAGE_SIZE;
+    expected_edges_0[2].x = 0;
+    expected_edges_0[2].y = IMAGE_SIZE;
+    expected_edges_0[3].x = 0;
+    expected_edges_0[3].y = 0;
     const jcv_site* expected_neighbors_0[] = { &sites[1], 0, 0, 0 };
 
-
-    jcv_point expected_edges_1[] = {    {IMAGE_SIZE/2, IMAGE_SIZE}, {IMAGE_SIZE/2, 0},
-                                        {IMAGE_SIZE/2, 0}, {IMAGE_SIZE, 0},
-                                        {IMAGE_SIZE, 0}, {IMAGE_SIZE, IMAGE_SIZE},
-                                        {IMAGE_SIZE, IMAGE_SIZE}, {IMAGE_SIZE/2, IMAGE_SIZE} };
+    jcv_point expected_edges_1[4];
+    expected_edges_1[0].x = IMAGE_SIZE/2;
+    expected_edges_1[0].y = IMAGE_SIZE;
+    expected_edges_1[1].x = IMAGE_SIZE/2;
+    expected_edges_1[1].y = 0;
+    expected_edges_1[2].x = IMAGE_SIZE;
+    expected_edges_1[2].y = 0;
+    expected_edges_1[3].x = IMAGE_SIZE;
+    expected_edges_1[3].y = IMAGE_SIZE;
     const jcv_site* expected_neighbors_1[] = { &sites[0], 0, 0, 0 };
 
     check_edges( sites[0].edges, 4, expected_edges_0, expected_neighbors_0 );
@@ -149,10 +158,15 @@ static void voronoi_test_one_site(Context* ctx)
     ASSERT_EQ( 1, ctx->diagram.numsites );
 
 
-    jcv_point expected_edges_0[] = {    {0, 0}, {IMAGE_SIZE, 0},
-                                        {IMAGE_SIZE, 0}, {IMAGE_SIZE, IMAGE_SIZE},
-                                        {IMAGE_SIZE, IMAGE_SIZE}, {0, IMAGE_SIZE},
-                                        {0, IMAGE_SIZE}, {0, 0} };
+    jcv_point expected_edges_0[4];
+    expected_edges_0[0].x = 0;
+    expected_edges_0[0].y = 0;
+    expected_edges_0[1].x = IMAGE_SIZE;
+    expected_edges_0[1].y = 0;
+    expected_edges_0[2].x = IMAGE_SIZE;
+    expected_edges_0[2].y = IMAGE_SIZE;
+    expected_edges_0[3].x = 0;
+    expected_edges_0[3].y = IMAGE_SIZE;
     const jcv_site* expected_neighbors_0[] = { 0, 0, 0, 0 };
 
     const jcv_site* sites = jcv_diagram_get_sites( &ctx->diagram );
