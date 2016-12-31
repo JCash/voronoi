@@ -268,7 +268,7 @@ int main(int argc, const char** argv)
 		size_t nread = fread(points, (size_t)count * sizeof(jcv_point), 1, file);
 		if( nread != 1 )
 		{
-			fprintf(stderr, "Failed to read %lu bytes from %s\n", (size_t)count * sizeof(jcv_point), inputfile);
+			fprintf(stderr, "Failed to read %zu bytes from %s\n", (size_t)count * sizeof(jcv_point), inputfile);
 			fclose(file);
 			free(points);
 			return 1;
