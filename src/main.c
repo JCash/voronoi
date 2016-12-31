@@ -93,8 +93,8 @@ static void draw_triangle(const jcv_point* v0, const jcv_point* v1, const jcv_po
 
     // Rasterize
     jcv_point p;
-    for (p.y = minY; p.y <= maxY; p.y++) {
-        for (p.x = minX; p.x <= maxX; p.x++) {
+    for (p.y = (jcv_real)minY; p.y <= maxY; p.y++) {
+        for (p.x = (jcv_real)minX; p.x <= maxX; p.x++) {
             // Determine barycentric coordinates
         	int w0 = orient2d(v1, v2, &p);
         	int w1 = orient2d(v2, v0, &p);
@@ -277,9 +277,9 @@ int main(int argc, const char** argv)
 		printf("Read %d points from %s\n", count, inputfile);
 
 		float minx = 0;
-		float maxx = width;
+		float maxx = (jcv_real)width;
 		float miny = 0;
-		float maxy = height;
+		float maxy = (jcv_real)height;
 		// for debugging
 		// float minx = 0;
 		// float maxx = 200;

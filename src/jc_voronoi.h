@@ -832,13 +832,13 @@ static int jcv_pq_movedown(jcv_priorityqueue* pq, int pos)
 {
 	void* node = pq->items[pos];
 
-	int child;
-	while( (child = jcv_pq_maxchild(pq, pos)) &&
-			pq->compare( node, pq->items[child] ) )
+	int child = jcv_pq_maxchild(pq, pos);
+	while( child && pq->compare( node, pq->items[child] ) )
 	{
 		pq->items[pos] = pq->items[child];
 		pq->setpos( (void*)pq->items[pos], pos );
 		pos = child;
+		child = jcv_pq_maxchild(pq, pos);
 	}
 
 	pq->items[pos] = node;
@@ -1340,14 +1340,14 @@ void jcv_diagram_generate_useralloc( int num_points, const jcv_point* points, in
 	num_points -= offset;
 
 	d->internal = internal;
-	d->width	= width;
-	d->height	= height;
+	d->width	= (jcv_real)width;
+	d->height	= (jcv_real)height;
 	d->numsites = num_points;
 
-	internal->width 		= width;
-	internal->height 		= height;
+	internal->width 		= (jcv_real)width;
+	internal->height 		= (jcv_real)height;
 	internal->numsites 		= num_points;
-	internal->numsites_sqrt	= (int)(JCV_SQRT(num_points));
+	internal->numsites_sqrt	= (int)(JCV_SQRT((jcv_real)num_points));
 	internal->currentsite 	= 0;
 
 	internal->bottomsite = jcv_nextsite(internal);

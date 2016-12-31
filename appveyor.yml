@@ -2,7 +2,6 @@ platform:
   - x86
 
 install:
-  - echo install done
 
 build_script:
   - compile_cl.bat

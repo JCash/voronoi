@@ -240,7 +240,10 @@ void jc_test_run_test_fixture(jc_test_fixture* fixture)
 		double teststart = 0;
 		double testend = 0;
 
-		jc_test_func fns[3] = {fixture->test_setup, test->test, fixture->test_teardown};
+		jc_test_func fns[3];
+		fns[0] = fixture->test_setup;
+		fns[1] = test->test;
+		fns[2] = fixture->test_teardown;
 		for( int i = 0; i < 3; ++i )
 		{
 			if( !fns[i] )
