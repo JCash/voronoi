@@ -45,7 +45,11 @@
 
 
 #ifndef JC_TEST_TIMING_FUNC
-#include <sys/time.h>
+	#if defined(_MSC_VER)
+		#include <Windows.h>
+	#else
+		#include <sys/time.h>
+	#endif
 #define JC_TEST_TIMING_FUNC jc_test_get_time
 #endif
 
@@ -316,6 +320,19 @@ void jc_test_run_all_tests(jc_test_state* state)
 		JC_TEST_PRINTF("%d tests %sPASSED%s\n", state->stats.num_pass, JC_TEST_CLR_GREEN, JC_TEST_CLR_DEFAULT);
 }
 
+#if defined(_MSC_VER)
+
+double jc_test_get_time(void)
+{
+    LARGE_INTEGER tickPerSecond;
+    LARGE_INTEGER tick;
+    QueryPerformanceFrequency(&tickPerSecond);
+    QueryPerformanceCounter(&tick);
+    return JC_TEST_STATIC_CAST(double, tick.QuadPart % tickPerSecond.QuadPart);
+}
+
+#else
+
 double jc_test_get_time(void)
 {
     struct timeval tv;
@@ -323,5 +340,6 @@ double jc_test_get_time(void)
     return JC_TEST_STATIC_CAST(double, tv.tv_sec) + JC_TEST_STATIC_CAST(double, tv.tv_usec) / 1000000.0;
 }
 
+#endif
 
 #endif

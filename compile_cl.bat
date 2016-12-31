@@ -27,7 +27,7 @@ if NOT DEFINED VCINSTALLDIR (
 
 mkdir build
 
-cl.exe /O2 /WX /W4 /I. src/main.c /link /OUT:build/main.exe
+cl.exe /O2 /W4 /I. src/main.c /link /OUT:build/main.exe
 
 del *.obj
 
