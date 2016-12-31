@@ -9,4 +9,5 @@ build_script:
   - compile_cl.bat
 
 test_script:
+  - dir
   - build/test.exe

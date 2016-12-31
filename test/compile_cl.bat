@@ -34,7 +34,7 @@ if NOT DEFINED VCINSTALLDIR (
 
 mkdir build
 
-cl.exe /O2 /D_CRT_SECURE_NO_WARNINGS /WX /W4 /I../src /I. test.c /link /OUT:../build/test.exe
+cl.exe /O2 /D_CRT_SECURE_NO_WARNINGS /WX /W4 /I../src /I. test.c /link /out:../build/test.exe
 
 del *.obj
 
