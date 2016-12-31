@@ -237,7 +237,7 @@ int main(int argc, const char** argv)
 		else if(strcmp(argv[i], "-?") == 0 || strcmp(argv[i], "--help") == 0)
 		{
 			Usage();
-			return 1;
+			return 0;
 		}
 	}
 

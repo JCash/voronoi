@@ -1013,18 +1013,18 @@ static inline jcv_real jcv_calc_sort_metric(const jcv_site* site, const jcv_grap
 	return (jcv_real)angle;
 }
 
-static void jcv_sortedges_insert(jcv_graphedge** sortedlist, jcv_graphedge* edge)
+static void jcv_sortedges_insert(jcv_site* site, jcv_graphedge* edge)
 {
     // Special case for the head end
-    if (*sortedlist == 0 || (*sortedlist)->angle >= edge->angle)
+    if (site->edges == 0 || site->edges->angle >= edge->angle)
     {
-        edge->next = *sortedlist;
-        *sortedlist = edge;
+        edge->next = site->edges;
+        site->edges = edge;
     }
     else
     {
         // Locate the node before the point of insertion
-    	jcv_graphedge* current = *sortedlist;
+    	jcv_graphedge* current = site->edges;
         while(current->next != 0 && current->next->angle < edge->angle)
         {
             current = current->next;
@@ -1056,7 +1056,7 @@ static void jcv_finishline(jcv_context_internal* internal, jcv_edge* e)
 		ge->pos[1-flip] = e->pos[1-i];
 		ge->angle = jcv_calc_sort_metric(e->sites[i], ge);
 
-		jcv_sortedges_insert( &e->sites[i]->edges, ge );
+		jcv_sortedges_insert( e->sites[i], ge );
 
 		// check that we didn't accidentally add a duplicate (rare), then remove it
 		if( ge->next && ge->angle == ge->next->angle )
@@ -1356,7 +1356,8 @@ void jcv_diagram_generate_useralloc( int num_points, const jcv_point* points, in
 
 	jcv_site* site = jcv_nextsite(internal);
 
-	while( 1 )
+	int finished = 0;
+	while( !finished )
 	{
 		jcv_point lowest_pq_point;
 		if( !jcv_pq_empty(internal->eventqueue) )
@@ -1377,7 +1378,7 @@ void jcv_diagram_generate_useralloc( int num_points, const jcv_point* points, in
 		}
 		else
 		{
-			break;
+			finished = 1;
 		}
 	}
 
