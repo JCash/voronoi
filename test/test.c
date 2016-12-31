@@ -115,7 +115,11 @@ static void voronoi_test_parallel_horiz_2(Context* ctx)
     expected_edges_0[2].y = IMAGE_SIZE;
     expected_edges_0[3].x = 0;
     expected_edges_0[3].y = 0;
-    const jcv_site* expected_neighbors_0[] = { &sites[1], 0, 0, 0 };
+    const jcv_site* expected_neighbors_0[4];
+    expected_neighbors_0[0] = &sites[1];
+    expected_neighbors_0[1] = 0;
+    expected_neighbors_0[2] = 0;
+    expected_neighbors_0[3] = 0;
 
     jcv_point expected_edges_1[4];
     expected_edges_1[0].x = IMAGE_SIZE/2;
@@ -126,7 +130,11 @@ static void voronoi_test_parallel_horiz_2(Context* ctx)
     expected_edges_1[2].y = 0;
     expected_edges_1[3].x = IMAGE_SIZE;
     expected_edges_1[3].y = IMAGE_SIZE;
-    const jcv_site* expected_neighbors_1[] = { &sites[0], 0, 0, 0 };
+    const jcv_site* expected_neighbors_1[4];
+    expected_neighbors_1[0] = &sites[0];
+    expected_neighbors_1[1] = 0;
+    expected_neighbors_1[2] = 0;
+    expected_neighbors_1[3] = 0;
 
     check_edges( sites[0].edges, 4, expected_edges_0, expected_neighbors_0 );
     check_edges( sites[1].edges, 4, expected_edges_1, expected_neighbors_1 );
@@ -167,7 +175,11 @@ static void voronoi_test_one_site(Context* ctx)
     expected_edges_0[2].y = IMAGE_SIZE;
     expected_edges_0[3].x = 0;
     expected_edges_0[3].y = IMAGE_SIZE;
-    const jcv_site* expected_neighbors_0[] = { 0, 0, 0, 0 };
+    const jcv_site* expected_neighbors_0[4];
+    expected_neighbors_0[0] = 0;
+    expected_neighbors_0[1] = 0;
+    expected_neighbors_0[2] = 0;
+    expected_neighbors_0[3] = 0;
 
     const jcv_site* sites = jcv_diagram_get_sites( &ctx->diagram );
     check_edges( sites[0].edges, 4, expected_edges_0, expected_neighbors_0 );

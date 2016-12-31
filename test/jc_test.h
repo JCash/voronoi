@@ -106,6 +106,7 @@ extern jc_test_state jc_test_global_state;
 #endif
 
 #if defined(_MSC_VER)
+  #pragma section(".CRT$XCU",read)
   #define JC_TEST_INITIALIZER(_NAME_) \
     static void __cdecl jc_test_global_init_##_NAME_(void); \
     __declspec(allocate(".CRT$XCU")) void (__cdecl* jc_test_global_init_##_NAME_##_)(void) = jc_test_global_init_##_NAME_; \
