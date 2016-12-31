@@ -32,9 +32,9 @@ if NOT DEFINED VCINSTALLDIR (
     echo "No compatible visual studio found! run vcvarsall.bat first!"
 )
 
-mkdir build
+mkdir ..\build
 
-cl.exe /O2 /D_CRT_SECURE_NO_WARNINGS /WX /W4 /I../src /I. test.c /link /out:../build/test.exe
+cl.exe /O2 /D_CRT_SECURE_NO_WARNINGS /WX /W4 /I../src /I. test.c /link /out:..\build\test.exe
 
 del *.obj
 
