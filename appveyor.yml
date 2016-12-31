@@ -11,5 +11,5 @@ build_script:
 
 test_script:
   - dir
-  - build\main.exe -h
+  - build\main.exe -?
   - build\test.exe
