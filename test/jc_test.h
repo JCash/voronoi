@@ -45,7 +45,11 @@
 
 
 #ifndef JC_TEST_TIMING_FUNC
-#include <sys/time.h>
+	#if defined(_MSC_VER)
+		#include <Windows.h>
+	#else
+		#include <sys/time.h>
+	#endif
 #define JC_TEST_TIMING_FUNC jc_test_get_time
 #endif
 
@@ -102,6 +106,7 @@ extern jc_test_state jc_test_global_state;
 #endif
 
 #if defined(_MSC_VER)
+  #pragma section(".CRT$XCU",read)
   #define JC_TEST_INITIALIZER(_NAME_) \
     static void __cdecl jc_test_global_init_##_NAME_(void); \
     __declspec(allocate(".CRT$XCU")) void (__cdecl* jc_test_global_init_##_NAME_##_)(void) = jc_test_global_init_##_NAME_; \
@@ -236,7 +241,10 @@ void jc_test_run_test_fixture(jc_test_fixture* fixture)
 		double teststart = 0;
 		double testend = 0;
 
-		jc_test_func fns[3] = {fixture->test_setup, test->test, fixture->test_teardown};
+		jc_test_func fns[3];
+		fns[0] = fixture->test_setup;
+		fns[1] = test->test;
+		fns[2] = fixture->test_teardown;
 		for( int i = 0; i < 3; ++i )
 		{
 			if( !fns[i] )
@@ -316,6 +324,19 @@ void jc_test_run_all_tests(jc_test_state* state)
 		JC_TEST_PRINTF("%d tests %sPASSED%s\n", state->stats.num_pass, JC_TEST_CLR_GREEN, JC_TEST_CLR_DEFAULT);
 }
 
+#if defined(_MSC_VER)
+
+double jc_test_get_time(void)
+{
+    LARGE_INTEGER tickPerSecond;
+    LARGE_INTEGER tick;
+    QueryPerformanceFrequency(&tickPerSecond);
+    QueryPerformanceCounter(&tick);
+    return JC_TEST_STATIC_CAST(double, tick.QuadPart % tickPerSecond.QuadPart);
+}
+
+#else
+
 double jc_test_get_time(void)
 {
     struct timeval tv;
@@ -323,5 +344,6 @@ double jc_test_get_time(void)
     return JC_TEST_STATIC_CAST(double, tv.tv_sec) + JC_TEST_STATIC_CAST(double, tv.tv_usec) / 1000000.0;
 }
 
+#endif
 
 #endif

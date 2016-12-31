@@ -1,0 +1,15 @@
+platform:
+  - x64
+
+install:
+
+build_script:
+  - compile_cl.bat
+  - cd test
+  - compile_cl.bat
+  - cd ..
+
+test_script:
+  - dir
+  - build\main.exe
+  - build\test.exe
