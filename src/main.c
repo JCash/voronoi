@@ -14,6 +14,8 @@ VERSION
 #if defined(_MSC_VER)
 #include <malloc.h>
 #define alloca _alloca
+#else
+#include <alloca.h>
 #endif
 
 // I wrapped it in a library because it spams too many warnings
