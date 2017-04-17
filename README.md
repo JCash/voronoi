@@ -6,7 +6,7 @@
 
 
 # jc_voronoi
-A fast C implementation for creating 2D Voronoi diagrams from a point set
+A fast C/C++ header only implementation for creating 2D Voronoi diagrams from a point set
 
 Uses [Fortune's sweep algorithm.](https://en.wikipedia.org/wiki/Fortune%27s_algorithm)
 
@@ -55,13 +55,20 @@ Usage
 The api is very small
 
 ```C
-void jcv_diagram_generate( int num_points, const jcv_point* points, int img_width, int img_height, jcv_diagram* diagram );
-void jcv_diagram_generate_useralloc( int num_points, const jcv_point* points, int img_width, int img_height, void* userallocctx, FJCVAllocFn allocfn, FJCVFreeFn freefn, jcv_diagram* diagram );
+void jcv_diagram_generate( int num_points, const jcv_point* points, const jcv_rect* rect, jcv_diagram* diagram );
+void jcv_diagram_generate_useralloc( int num_points, const jcv_point* points, const jcv_rect* rect, void* userallocctx, FJCVAllocFn allocfn, FJCVFreeFn freefn, jcv_diagram* diagram );
 void jcv_diagram_free( jcv_diagram* diagram );
 
 const jcv_site* jcv_diagram_get_sites( const jcv_diagram* diagram );
 const jcv_edge* jcv_diagram_get_edges( const jcv_diagram* diagram );
 ```
+
+The input points are pruned if
+
+    * There are duplicates points
+    * The input points are outside of the bounding box
+
+The input bounding box is optional
 
 Example implementation (see main.c for actual code)
 ```C
@@ -80,7 +87,7 @@ void generate_and_draw(int numpoints, const jcv_point* points, int imagewidth, i
 {
     jcv_diagram diagram;
     memset(&diagram, 0, sizeof(jcv_diagram));
-    jcv_diagram_generate(count, points, imagewidth, imageheight, &diagram );
+    jcv_diagram_generate(count, points, 0, &diagram );
 
     draw_edges(diagram);
     draw_cells(diagram);

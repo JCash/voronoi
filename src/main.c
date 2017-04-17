@@ -13,7 +13,7 @@ VERSION
 
 #if defined(_MSC_VER)
 #include <malloc.h>
-#define _alloca alloca
+#define alloca _alloca
 #endif
 
 // I wrapped it in a library because it spams too many warnings
@@ -324,7 +324,9 @@ static int read_input(const char* path, jcv_point** points, uint32_t* length)
 // Remaps the point from the input space to image space
 static inline jcv_point remap(const jcv_point* pt, const jcv_point* min, const jcv_point* max, const jcv_point* scale)
 {
-	jcv_point p = { (pt->x - min->x)/(max->x - min->x) * scale->x, (pt->y - min->y)/(max->y - min->y) * scale->y };
+	jcv_point p;
+	p.x = (pt->x - min->x)/(max->x - min->x) * scale->x;
+	p.y = (pt->y - min->y)/(max->y - min->y) * scale->y;
 	return p;
 }
 
@@ -476,7 +478,9 @@ int main(int argc, const char** argv)
 	unsigned char color_line[] = {220, 220, 220};
 
 	jcv_diagram diagram;
-	jcv_point dimensions = { width, height };
+	jcv_point dimensions;
+	dimensions.x = (jcv_real)width;
+	dimensions.y = (jcv_real)height;
 	{
 		memset(&diagram, 0, sizeof(jcv_diagram));
 		jcv_diagram_generate(count, (const jcv_point*)points, rect, &diagram);
