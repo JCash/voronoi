@@ -7,4 +7,4 @@
 
 # clang++ -o ../build/perftest -g -O3 -m64 -std=c++11 -I.. perftest.cpp fastjet/voronoi.cpp shaneosullivan/VoronoiDiagramGenerator.cpp -I$VORONOIPPINC -DVORONOI_STATIC $VORONOIPP -I$BOOSTINC
 
-clang -o ../build/test -std=c99 -g -O0 -m64 -Wall -Weverything -Wno-float-equal -pedantic -I../src -lm test.c
+clang -o ../build/test -std=c99 -g -O0 -m64 -Wall -Weverything -Wno-float-equal -Wno-double-promotion -pedantic -I../src -lm test.c

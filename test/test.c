@@ -51,7 +51,7 @@ static void debug_edges(const jcv_graphedge* e)
 {
     while( e )
     {
-        printf("  E: %f, %f -> %f, %f   neigh: %p\n", e->pos[0].x, e->pos[0].y, e->pos[1].x, e->pos[1].y, e->neighbor);
+        printf("  E: %f, %f -> %f, %f   neigh: %p\n", e->pos[0].x, e->pos[0].y, e->pos[1].x, e->pos[1].y, (void*)e->neighbor);
         e = e->next;
     }
 }
@@ -98,7 +98,7 @@ static void voronoi_test_parallel_horiz_2(Context* ctx)
     jcv_point points[] = { {IMAGE_SIZE/4, IMAGE_SIZE/2}, {(IMAGE_SIZE*3)/4, IMAGE_SIZE/2} };
     int num_points = sizeof(points) / sizeof(points[0]);
 
-    jcv_diagram_generate( num_points, points, ctx->width, ctx->width, &ctx->diagram);
+    jcv_diagram_generate(num_points, points, 0, &ctx->diagram);
 
     ASSERT_EQ( 2, ctx->diagram.numsites );
 
@@ -108,13 +108,13 @@ static void voronoi_test_parallel_horiz_2(Context* ctx)
 
     jcv_point expected_edges_0[4];
     expected_edges_0[0].x = IMAGE_SIZE/2;
-    expected_edges_0[0].y = 0;
+    expected_edges_0[0].y = ctx->diagram.min.y;
     expected_edges_0[1].x = IMAGE_SIZE/2;
-    expected_edges_0[1].y = IMAGE_SIZE;
-    expected_edges_0[2].x = 0;
-    expected_edges_0[2].y = IMAGE_SIZE;
-    expected_edges_0[3].x = 0;
-    expected_edges_0[3].y = 0;
+    expected_edges_0[1].y = ctx->diagram.max.y;
+    expected_edges_0[2].x = ctx->diagram.min.x;
+    expected_edges_0[2].y = ctx->diagram.max.y;
+    expected_edges_0[3].x = ctx->diagram.min.x;
+    expected_edges_0[3].y = ctx->diagram.min.y;
     const jcv_site* expected_neighbors_0[4];
     expected_neighbors_0[0] = &sites[1];
     expected_neighbors_0[1] = 0;
@@ -123,13 +123,13 @@ static void voronoi_test_parallel_horiz_2(Context* ctx)
 
     jcv_point expected_edges_1[4];
     expected_edges_1[0].x = IMAGE_SIZE/2;
-    expected_edges_1[0].y = IMAGE_SIZE;
+    expected_edges_1[0].y = ctx->diagram.max.y;
     expected_edges_1[1].x = IMAGE_SIZE/2;
-    expected_edges_1[1].y = 0;
-    expected_edges_1[2].x = IMAGE_SIZE;
-    expected_edges_1[2].y = 0;
-    expected_edges_1[3].x = IMAGE_SIZE;
-    expected_edges_1[3].y = IMAGE_SIZE;
+    expected_edges_1[1].y = ctx->diagram.min.y;
+    expected_edges_1[2].x = ctx->diagram.max.x;
+    expected_edges_1[2].y = ctx->diagram.min.y;
+    expected_edges_1[3].x = ctx->diagram.max.x;
+    expected_edges_1[3].y = ctx->diagram.max.y;
     const jcv_site* expected_neighbors_1[4];
     expected_neighbors_1[0] = &sites[0];
     expected_neighbors_1[1] = 0;
@@ -146,7 +146,7 @@ static void voronoi_test_parallel_vert_2(Context* ctx)
     jcv_point points[] = { {IMAGE_SIZE/2, (IMAGE_SIZE*1)/4}, {IMAGE_SIZE/2, (IMAGE_SIZE*3)/4} };
     int num_points = sizeof(points) / sizeof(points[0]);
 
-    jcv_diagram_generate( num_points, points, ctx->width, ctx->width, &ctx->diagram);
+    jcv_diagram_generate(num_points, points, 0, &ctx->diagram);
 
     ASSERT_EQ( 2, ctx->diagram.numsites );
 
@@ -161,10 +161,39 @@ static void voronoi_test_one_site(Context* ctx)
     jcv_point points[] = { {IMAGE_SIZE/2, IMAGE_SIZE/2} };
     int num_points = sizeof(points) / sizeof(points[0]);
 
-    jcv_diagram_generate( num_points, points, ctx->width, ctx->width, &ctx->diagram);
+    jcv_diagram_generate(num_points, points, 0, &ctx->diagram);
 
     ASSERT_EQ( 1, ctx->diagram.numsites );
 
+
+    jcv_point expected_edges_0[4];
+    expected_edges_0[0].x = ctx->diagram.min.x;
+    expected_edges_0[0].y = ctx->diagram.min.y;
+    expected_edges_0[1].x = ctx->diagram.max.x;
+    expected_edges_0[1].y = ctx->diagram.min.y;
+    expected_edges_0[2].x = ctx->diagram.max.x;
+    expected_edges_0[2].y = ctx->diagram.max.y;
+    expected_edges_0[3].x = ctx->diagram.min.x;
+    expected_edges_0[3].y = ctx->diagram.max.y;
+    const jcv_site* expected_neighbors_0[4];
+    expected_neighbors_0[0] = 0;
+    expected_neighbors_0[1] = 0;
+    expected_neighbors_0[2] = 0;
+    expected_neighbors_0[3] = 0;
+
+    const jcv_site* sites = jcv_diagram_get_sites( &ctx->diagram );
+    check_edges( sites[0].edges, 4, expected_edges_0, expected_neighbors_0 );
+}
+
+static void voronoi_test_culling(Context* ctx)
+{
+    jcv_point points[] = { {IMAGE_SIZE/2, -IMAGE_SIZE/2}, {IMAGE_SIZE/2, IMAGE_SIZE/2} };
+    int num_points = sizeof(points) / sizeof(points[0]);
+
+    jcv_rect rect = { {0, 0}, {IMAGE_SIZE, IMAGE_SIZE} };
+    jcv_diagram_generate(num_points, points, &rect, &ctx->diagram);
+
+    ASSERT_EQ( 1, ctx->diagram.numsites );
 
     jcv_point expected_edges_0[4];
     expected_edges_0[0].x = 0;
@@ -202,7 +231,7 @@ static void voronoi_test_same_site(Context* ctx)
     jcv_point points[] = { {IMAGE_SIZE/2, IMAGE_SIZE/2}, {IMAGE_SIZE/2, IMAGE_SIZE/2} };
     int num_points = sizeof(points) / sizeof(points[0]);
 
-    jcv_diagram_generate( num_points, points, ctx->width, ctx->width, &ctx->diagram);
+    jcv_diagram_generate(num_points, points, 0, &ctx->diagram);
 
     ASSERT_EQ( 1, ctx->diagram.numsites );
 }
@@ -225,7 +254,7 @@ static void voronoi_test_many(Context* ctx)
             points[i].y = (float) (pointoffset + rand() % (IMAGE_SIZE-2*pointoffset));
         }
 
-        jcv_diagram_generate( num_points, points, ctx->width, ctx->width, &ctx->diagram);
+        jcv_diagram_generate(num_points, points, 0, &ctx->diagram);
 
         //ASSERT_EQ( num_points, ctx->diagram.numsites );
 
@@ -248,7 +277,7 @@ static void voronoi_test_many_diagonal(Context* ctx)
         points[i].y = points[i].x;
     }
 
-    jcv_diagram_generate( num_points, points, ctx->width, ctx->width, &ctx->diagram);
+    jcv_diagram_generate(num_points, points, 0, &ctx->diagram);
 
     ASSERT_EQ( num_points, ctx->diagram.numsites );
 }
@@ -267,7 +296,7 @@ static void voronoi_test_many_circle(Context* ctx)
         points[i].y = half_size + half_size * 0.75f * sinf(a);
     }
 
-    jcv_diagram_generate( num_points, points, ctx->width, ctx->width, &ctx->diagram);
+    jcv_diagram_generate(num_points, points, 0, &ctx->diagram);
 
     ASSERT_EQ( num_points, ctx->diagram.numsites );
 }
@@ -280,6 +309,7 @@ TEST_BEGIN(voronoi_test, voronoi_main_setup, voronoi_main_teardown, test_setup, 
     TEST(voronoi_test_many)
     TEST(voronoi_test_many_diagonal)
     TEST(voronoi_test_many_circle)
+    TEST(voronoi_test_culling)
 TEST_END(voronoi_test)
 
 
