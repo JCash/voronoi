@@ -10,6 +10,6 @@ build_script:
   - cd ..
 
 test_script:
-  - dir
   - build\main.exe -?
+  - build\main.exe -w 512 -h 512 -n 100 -o citest.png
   - build\test.exe

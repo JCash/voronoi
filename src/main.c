@@ -1,12 +1,26 @@
 /*
  * A simple test program to display the output of the voronoi generator
+
+VERSION
+    0.2     2017-04-16  - Added support for reading .csv files
+    0.1                 - Initial version
+
  */
 
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdio.h> // printf
 
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "stb_image_write.h"
+#if defined(_MSC_VER)
+#include <malloc.h>
+#define alloca _alloca
+#else
+#include <alloca.h>
+#endif
+
+// I wrapped it in a library because it spams too many warnings
+extern int wrap_stbi_write_png(char const *filename, int w, int h, int comp, const void *data, int stride_in_bytes);
+
 
 #define JC_VORONOI_IMPLEMENTATION
 // If you wish to use doubles
@@ -144,6 +158,180 @@ static void Usage()
 	printf("\t-h <height>\n");
 }
 
+// Search for any of the common characters: \n,; 
+static inline int is_csv(const char* chars, uint32_t len)
+{
+	for( uint32_t i = 0; i < len; ++i )
+	{
+		char c = chars[i];
+		if( c == '\n' || c == ',' || c == ' ' || c == ';' || c == '\t' )
+			return 1;
+	}
+	return 0;
+}
+
+static int debug_skip_point(const jcv_point* pt)
+{
+	(void)pt;
+	return 0;
+}
+
+static int read_input(const char* path, jcv_point** points, uint32_t* length)
+{
+    if( !path )
+    {
+    	return 1;
+    }
+
+    FILE* file = 0;
+    if( strcmp(path, "-") == 0 )
+        file = stdin;
+    else
+        file = fopen(path, "rb");
+
+    if( !file )
+    {
+        fprintf(stderr, "Failed to open %s for reading\n", path);
+        *length = 0;
+        return 1;
+    }
+
+    uint32_t capacity = 0;
+    uint32_t len = 0;
+	jcv_point* pts = 0;
+
+	int mode = -1;
+	const uint32_t buffersize = 64;
+	char* buffer = (char*)alloca(buffersize);
+	uint32_t bufferoffset = 0;
+
+    while( !feof(file) )
+    {
+        size_t num_read = fread((void*)&buffer[bufferoffset], 1, buffersize - bufferoffset, file);
+        num_read += bufferoffset;
+
+        if( mode == -1 )
+        {
+        	mode = is_csv(buffer, (uint32_t)num_read);
+        }
+
+        if( mode == 0 ) // binary
+        {
+        	uint32_t num_points = (uint32_t) num_read / sizeof(jcv_point);
+        	if( capacity < (len + num_points))
+        	{
+        		capacity += 1024;
+        		pts = (jcv_point*)realloc(pts, sizeof(jcv_point) * capacity);
+        	}
+        	for( uint32_t i = 0; i < num_points; ++i )
+        	{
+        		jcv_point* pt = &((jcv_point*)buffer)[i];
+        		if( debug_skip_point(pt) )
+        		{
+        			continue;
+        		}
+        		pts[len].x = pt->x;
+        		pts[len].y = pt->y;
+        		++len;
+        	}
+        	bufferoffset = (uint32_t) num_read - num_points * sizeof(jcv_point);
+        	memmove(buffer, &buffer[num_points * sizeof(jcv_point)], bufferoffset);
+        }
+        else if( mode == 1 ) // CSV mode
+        {
+        	char* p = buffer;
+        	char* end = &buffer[num_read];
+
+        	while( p < end )
+        	{
+        		char* r = p;
+        		int end_of_line = 0;
+	        	while( r < end )
+	        	{
+	        		if (*r == '\0')
+	        		{
+	        			end_of_line = 1;
+	        			break;
+	        		}
+	        		if (*r == '\n')
+	        		{
+	        			end_of_line = 1;
+	        			*r = 0;
+	        			r += 1;
+	        			break;
+	        		}
+	        		else if( (*r == '\r' && *(r+1) == '\n') )
+	        		{
+	        			end_of_line = 1;
+	        			*r = 0;
+	        			r += 2;
+	        			break;
+	        		}
+	        		else if( *r == ',' || *r == ';' || *r == ':' )
+	        		{
+	        			*r = ' ';
+	        		}
+	        		++r;
+	        	}
+
+	        	if( end_of_line )
+	        	{
+		        	jcv_point pt;
+	        		int numscanned = sscanf(p, "%f %f\n", &pt.x, &pt.y);
+
+	        		if( numscanned == 2 )
+	        		{
+	        			if( debug_skip_point(&pt) )
+		        		{
+		        			continue;
+		        		}
+			        	if( capacity < (len + 1))
+			        	{
+			        		capacity += 1024;
+			        		pts = (jcv_point*)realloc(pts, sizeof(jcv_point) * capacity);
+			        	}
+
+		        		pts[len].x = pt.x;
+		        		pts[len].y = pt.y;
+			        	++len;
+			        	p = r;
+			        }
+			        else
+			        {
+			        	fprintf(stderr, "Failed to read point on line %u\n", len);
+			        	return 1;
+			        }
+				}
+				else
+				{
+		        	bufferoffset = (uint32_t)(uintptr_t) (r - p);
+		        	memmove(buffer, p, bufferoffset);
+		        	break;
+				}
+        	}
+        }
+    }
+
+	printf("Read %d points from %s\n", len, path);
+
+	if( strcmp(path, "-") != 0 )
+    	fclose(file);
+
+    *points = pts;
+    *length = len;
+
+    return 0;
+}
+
+// Remaps the point from the input space to image space
+static inline jcv_point remap(const jcv_point* pt, const jcv_point* min, const jcv_point* max, const jcv_point* scale)
+{
+	jcv_point p;
+	p.x = (pt->x - min->x)/(max->x - min->x) * scale->x;
+	p.y = (pt->y - min->y)/(max->y - min->y) * scale->y;
+	return p;
+}
+
 int main(int argc, const char** argv)
 {
 	// Number of sites to generate
@@ -241,66 +429,22 @@ int main(int argc, const char** argv)
 		}
 	}
 
-	FILE* file = 0;
-	if( inputfile )
-	{
-		if( strcmp(inputfile, "-") == 0 )
-			file = stdin;
-		file = fopen(inputfile, "rb");
-		if( !file )
-		{
-			fprintf(stderr, "Failed to open %s for reading\n", inputfile);
-			return 1;
-		}
-
-		fseek(file, 0, SEEK_END);
-		size_t size = (size_t)ftell(file);
-		fseek(file, 0, SEEK_SET);
-		count = (int)(size / sizeof(jcv_point));
-	}
-
-	jcv_point* points = (jcv_point*)malloc( sizeof(jcv_point) * (size_t)count);
-	if( !points )
-		return 1;
+	jcv_point* points = 0;
 
 	if( inputfile )
 	{
-		size_t nread = fread(points, (size_t)count * sizeof(jcv_point), 1, file);
-		if( nread != 1 )
+		if( read_input(inputfile, &points, (uint32_t*)&count) )
 		{
-			fprintf(stderr, "Failed to read %zu bytes from %s\n", (size_t)count * sizeof(jcv_point), inputfile);
-			fclose(file);
-			free(points);
+			fprintf(stderr, "Failed to read from %s\n", inputfile);
 			return 1;
 		}
-
-		printf("Read %d points from %s\n", count, inputfile);
-
-		float minx = 0;
-		float maxx = (jcv_real)width;
-		float miny = 0;
-		float maxy = (jcv_real)height;
-		// for debugging
-		// float minx = 0;
-		// float maxx = 200;
-		// float miny = 210;
-		// float maxy = 270;
-
-		int newcount = 0;
-		for( int i = 0; i < count; ++i )
-		{
-			if( points[i].x >= minx && points[i].x <= maxx &&
-				points[i].y >= miny && points[i].y <= maxy )
-			{
-				points[newcount] = points[i];	
-				newcount++;
-			}
-		}
-		printf("Kept %d points out of %d\n", newcount, count);
-		count = newcount;
 	}
 	else
 	{
+		points = (jcv_point*)malloc( sizeof(jcv_point) * (size_t)count);
+		if( !points )
+			return 1;
+
 		int pointoffset = 10; // move the points inwards, for aestetic reasons
 
 		srand(0);
@@ -315,11 +459,13 @@ int main(int argc, const char** argv)
 	printf("Width/Height is %d, %d\n", width, height);
 	printf("Count is %d, num relaxations is %d\n", count, numrelaxations);
 
+	jcv_rect* rect = 0;
+
 	for( int i = 0; i < numrelaxations; ++i )
 	{
 		jcv_diagram diagram;
 		memset(&diagram, 0, sizeof(jcv_diagram));
-		jcv_diagram_generate(count, (const jcv_point*)points, width, height, &diagram );
+		jcv_diagram_generate(count, (const jcv_point*)points, rect, &diagram);
 
 		relax_points(&diagram, points);
 
@@ -333,11 +479,13 @@ int main(int argc, const char** argv)
 	unsigned char color_pt[] = {255, 255, 255};
 	unsigned char color_line[] = {220, 220, 220};
 
-	if( mode == 0 )
+	jcv_diagram diagram;
+	jcv_point dimensions;
+	dimensions.x = (jcv_real)width;
+	dimensions.y = (jcv_real)height;
 	{
-		jcv_diagram diagram;
 		memset(&diagram, 0, sizeof(jcv_diagram));
-		jcv_diagram_generate(count, (const jcv_point*)points, width, height, &diagram );
+		jcv_diagram_generate(count, (const jcv_point*)points, rect, &diagram);
 
 		// If you want to draw triangles, or relax the diagram,
 		// you can iterate over the sites and get all edges easily
@@ -354,10 +502,15 @@ int main(int argc, const char** argv)
 			color_tri[1] = basecolor + (unsigned char)(rand() % (235 - basecolor));
 			color_tri[2] = basecolor + (unsigned char)(rand() % (235 - basecolor));
 
+			jcv_point s = remap(&site->p, &diagram.min, &diagram.max, &dimensions );
+
 			const jcv_graphedge* e = site->edges;
 			while( e )
 			{
-				draw_triangle( &site->p, &e->pos[0], &e->pos[1], image, width, height, 3, color_tri);
+				jcv_point p0 = remap(&e->pos[0], &diagram.min, &diagram.max, &dimensions );
+				jcv_point p1 = remap(&e->pos[1], &diagram.min, &diagram.max, &dimensions );
+
+				draw_triangle( &s, &p0, &p1, image, width, height, 3, color_tri);
 				e = e->next;
 			}
 		}
@@ -366,44 +519,20 @@ int main(int argc, const char** argv)
 		const jcv_edge* edge = jcv_diagram_get_edges( &diagram );
 		while( edge )
 		{
-			draw_line((int)edge->pos[0].x, (int)edge->pos[0].y, (int)edge->pos[1].x, (int)edge->pos[1].y, image, width, height, 3, color_line);
+			jcv_point p0 = remap(&edge->pos[0], &diagram.min, &diagram.max, &dimensions );
+			jcv_point p1 = remap(&edge->pos[1], &diagram.min, &diagram.max, &dimensions );
+			draw_line((int)p0.x, (int)p0.y, (int)p1.x, (int)p1.y, image, width, height, 3, color_line);
 			edge = edge->next;
 		}
 
 		jcv_diagram_free( &diagram );
 	}
-#ifdef HAS_MODE_FASTJET
-	else if( mode == 1 )
-	{
-		std::vector<fastjet::VPoint> fastjet_sites;
-		fastjet_sites.resize(count);
-		for( int i = 0; i < count; ++i )
-		{
-			fastjet_sites[i].x = points[i].x;
-			fastjet_sites[i].y = points[i].y;
-		}
-		fastjet::VoronoiDiagramGenerator generator;
-		generator.generateVoronoi(&fastjet_sites, 0, width, 0, height );
-
-		generator.resetIterator();
-
-		fastjet::GraphEdge* e = 0;
-		while( generator.getNext(&e) )
-		{
-			draw_line(e->x1, e->y1, e->x2, e->y2, image, width, height, 3, color_line);
-		}
-	}
-#endif // HAS_MODE_FASTJET
-	else
-	{
-		Usage();
-		return 1;
-	}
 
 	// Plot the sites
 	for( int i = 0; i < count; ++i )
 	{
-		plot((int)points[i].x, (int)points[i].y, image, width, height, 3, color_pt);
+		jcv_point p = remap(&points[i], &diagram.min, &diagram.max, &dimensions );
+		plot((int)p.x, (int)p.y, image, width, height, 3, color_pt);
 	}
 
 	free(points);
@@ -420,7 +549,7 @@ int main(int argc, const char** argv)
 
 	char path[512];
 	sprintf(path, "%s", outputfile);
-	stbi_write_png(path, width, height, 3, image, stride);
+	wrap_stbi_write_png(path, width, height, 3, image, stride);
 	printf("wrote %s\n", path);
 
 	free(image);

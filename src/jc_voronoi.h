@@ -6,11 +6,13 @@ ABOUT:
 
 HISTORY:
 
-	0.2     2016-12-30  - Fixed issue of edges not being closed properly
+    0.3     2017-04-16	- Added clipping box as input argument (Automatically calcuated if needed)
+                        - Input points are pruned based on bounding box
+    0.2     2016-12-30  - Fixed issue of edges not being closed properly
                         - Fixed issue when having many events
                         - Fixed edge sorting
                         - Code cleanup
-	0.1                 Initial version
+    0.1                 Initial version
 
 LICENSE:
 
@@ -43,15 +45,21 @@ DISCLAIMER:
 
 USAGE:
 
+	The input points are pruned if
+
+		* There are duplicates points
+		* The input points are outside of the bounding box
+
+	The input bounding box is optional
+
 	The api is very small:
 
-	void jcv_diagram_generate( int num_points, const jcv_point* points, int img_width, int img_height, jcv_diagram* diagram );
-	void jcv_diagram_generate_useralloc( int num_points, const jcv_point* points, int img_width, int img_height, void* userallocctx, FJCVAllocFn allocfn, FJCVFreeFn freefn, jcv_diagram* diagram );
+	void jcv_diagram_generate( int num_points, const jcv_point* points, const jcv_rect* rect, jcv_diagram* diagram );
+	void jcv_diagram_generate_useralloc( int num_points, const jcv_point* points, const jcv_rect* rect, void* userallocctx, FJCVAllocFn allocfn, FJCVFreeFn freefn, jcv_diagram* diagram );
 	void jcv_diagram_free( jcv_diagram* diagram );
 
 	const jcv_site* jcv_diagram_get_sites( const jcv_diagram* diagram );
 	const jcv_edge* jcv_diagram_get_edges( const jcv_diagram* diagram );
-
 
 	An example usage:
 
@@ -65,11 +73,11 @@ USAGE:
 	void draw_edges(const jcv_diagram* diagram);
 	void draw_cells(const jcv_diagram* diagram);
 
-	void generate_and_draw(int numpoints, const jcv_point* points, int imagewidth, int imageheight)
+	void generate_and_draw(int numpoints, const jcv_point* points)
 	{
 		jcv_diagram diagram;
 		memset(&diagram, 0, sizeof(jcv_diagram));
-		jcv_diagram_generate(count, points, imagewidth, imageheight, &diagram );
+		jcv_diagram_generate(count, points, 0, &diagram);
 
 		draw_edges(diagram);
 		draw_cells(diagram);
@@ -201,14 +209,20 @@ typedef struct _jcv_edge
 	jcv_real			c;
 } jcv_edge;
 
+typedef struct _jcv_rect
+{
+	jcv_point 	min;
+	jcv_point 	max;
+} jcv_rect;
+
 typedef struct _jcv_diagram
 {
 	struct _jcv_context_internal* internal;
 	jcv_edge*	edges;
 	jcv_site*	sites;
 	int			numsites;
-	jcv_real 	width;
-	jcv_real 	height;
+	jcv_point 	min;
+	jcv_point 	max;
 } jcv_diagram;
 
 #pragma pack(pop)
@@ -216,15 +230,17 @@ typedef struct _jcv_diagram
 
 /** 
  * Uses malloc
+ * If rect is null, an automatic bounding box is calculated, with an extra padding of 10 units
+ * If rect is non null, all points will be culled against the bounding rect, and all edges will be clipped against it.
  */
-extern void jcv_diagram_generate( int num_points, const jcv_point* points, int img_width, int img_height, jcv_diagram* diagram );
+extern void jcv_diagram_generate( int num_points, const jcv_point* points, const jcv_rect* rect, jcv_diagram* diagram );
 
 typedef void* (*FJCVAllocFn)(void* userctx, size_t size);
 typedef void (*FJCVFreeFn)(void* userctx, void* p);
 
 /** Same as above, but allows the client to use a custom allocator
  */
-extern void jcv_diagram_generate_useralloc( int num_points, const jcv_point* points, int img_width, int img_height, void* userallocctx, FJCVAllocFn allocfn, FJCVFreeFn freefn, jcv_diagram* diagram );
+extern void jcv_diagram_generate_useralloc( int num_points, const jcv_point* points, const jcv_rect* rect, void* userallocctx, FJCVAllocFn allocfn, FJCVFreeFn freefn, jcv_diagram* diagram );
 
 
 /** Uses free (or the registered custom free function)
@@ -247,6 +263,8 @@ extern const jcv_edge* jcv_diagram_get_edges( const jcv_diagram* diagram );
 #endif // JC_VORONOI_H
 
 #ifdef JC_VORONOI_IMPLEMENTATION
+
+#include <memory.h>
 
 // INTERNAL FUNCTIONS
 
@@ -273,9 +291,9 @@ static inline int jcv_point_eq( const jcv_point* pt1, const jcv_point* pt2 )
 	return (pt1->y == pt2->y) && (pt1->x == pt2->x);
 }
 
-static inline int jcv_point_on_edge( const jcv_point* pt, jcv_real max_x, jcv_real max_y )
+static inline int jcv_point_on_edge( const jcv_point* pt, const jcv_point* min, const jcv_point* max )
 {
-	return pt->x == (jcv_real)0 || pt->y == (jcv_real)0 || pt->x == max_x || pt->y == max_y;
+	return pt->x == min->x || pt->y == min->y || pt->x == max->x || pt->y == max->y;
 }
 
 static inline jcv_real jcv_point_dist_sq( const jcv_point* pt1, const jcv_point* pt2)
@@ -357,8 +375,8 @@ typedef struct _jcv_context_internal
 	FJCVAllocFn			alloc;
 	FJCVFreeFn			free;
 
-	jcv_real 			width;
-	jcv_real 			height;
+	jcv_point 			min;
+	jcv_point 			max;
 } jcv_context_internal;
 
 #pragma pack(pop)
@@ -508,12 +526,12 @@ static void jcv_edge_create(jcv_edge* e, jcv_site* s1, jcv_site* s2)
 	}
 }
 
-static int jcv_edge_clipline(jcv_edge* e, jcv_real width, jcv_real height)
+static int jcv_edge_clipline(jcv_edge* e, jcv_point* min, jcv_point* max)
 {
-	jcv_real pxmin = 0;
-	jcv_real pxmax = width;
-	jcv_real pymin = 0;
-	jcv_real pymax = height;
+	jcv_real pxmin = min->x;
+	jcv_real pxmax = max->x;
+	jcv_real pymin = min->y;
+	jcv_real pymax = max->y;
 
 	jcv_real x1, y1, x2, y2;
 	jcv_point* s1;
@@ -921,7 +939,7 @@ static jcv_halfedge* jcv_get_edge_above_x(jcv_context_internal* internal, const 
 	jcv_halfedge* he = internal->last_inserted;
     if( !he )
     {
-        if( p->x < internal->width / 2 )
+        if( p->x < (internal->max.x - internal->min.x) / 2 )
             he = internal->beachline_start;
         else
             he = internal->beachline_end;
@@ -1036,7 +1054,7 @@ static void jcv_sortedges_insert(jcv_site* site, jcv_graphedge* edge)
 
 static void jcv_finishline(jcv_context_internal* internal, jcv_edge* e)
 {
-	if( !jcv_edge_clipline( e, internal->width, internal->height) )
+	if( !jcv_edge_clipline( e, &internal->min, &internal->max ) )
 		return;
 
 	if( jcv_point_eq(&e->pos[0], &e->pos[1]) )
@@ -1085,25 +1103,25 @@ static inline void jcv_create_corner_edge(jcv_context_internal* internal, const 
 	gap->neighbor	= 0;
 	gap->pos[0]		= current->pos[1];
 
-	if( current->pos[1].x < internal->width && current->pos[1].y == (jcv_real)0 )
+	if( current->pos[1].x < internal->max.x && current->pos[1].y == internal->min.y )
 	{
-		gap->pos[1].x = internal->width;
-		gap->pos[1].y = (jcv_real)0;
+		gap->pos[1].x = internal->max.x;
+		gap->pos[1].y = internal->min.y;
 	}
-	else if( current->pos[1].x > (jcv_real)0 && current->pos[1].y == internal->height )
+	else if( current->pos[1].x > internal->min.x && current->pos[1].y == internal->max.y )
 	{
-		gap->pos[1].x = (jcv_real)0;
-		gap->pos[1].y = internal->height;
+		gap->pos[1].x = internal->min.x;
+		gap->pos[1].y = internal->max.y;
 	}
-	else if( current->pos[1].y > (jcv_real)0 && current->pos[1].x == (jcv_real)0 )
+	else if( current->pos[1].y > internal->min.y && current->pos[1].x == internal->min.x )
 	{
-		gap->pos[1].x = (jcv_real)0;
-		gap->pos[1].y = (jcv_real)0;
+		gap->pos[1].x = internal->min.x;
+		gap->pos[1].y = internal->min.y;
 	}
-	else if( current->pos[1].y < internal->height && current->pos[1].x == internal->width )
+	else if( current->pos[1].y < internal->max.y && current->pos[1].x == internal->max.x )
 	{
-		gap->pos[1].x = internal->width;
-		gap->pos[1].y = internal->height;
+		gap->pos[1].x = internal->max.x;
+		gap->pos[1].y = internal->max.y;
 	}
 
 	gap->angle = jcv_calc_sort_metric(site, gap);
@@ -1127,10 +1145,9 @@ static void jcv_fillgaps(jcv_diagram* diagram)
 			jcv_graphedge* gap = jcv_alloc_graphedge(diagram->internal);
 			gap->edge 		= 0; // not really true (should be 0)
 			gap->neighbor	= 0;
-			gap->pos[0].x 	= 0;
-			gap->pos[0].y 	= 0;
-			gap->pos[1].x 	= internal->width;
-			gap->pos[1].y 	= 0;
+			gap->pos[0] 	= internal->min;
+			gap->pos[1].x 	= internal->max.x;
+			gap->pos[1].y 	= internal->min.y;
 			gap->angle 		= jcv_calc_sort_metric(site, gap);
 			gap->next 		= 0;
 			
@@ -1154,7 +1171,7 @@ static void jcv_fillgaps(jcv_diagram* diagram)
 
 		while( current && next )
 		{
-			if( jcv_point_on_edge(&current->pos[1], internal->width, internal->height) && !jcv_point_eq(&current->pos[1], &next->pos[0]) )
+			if( jcv_point_on_edge(&current->pos[1], &diagram->min, &diagram->max) && !jcv_point_eq(&current->pos[1], &next->pos[0]) )
 			{
 				// Border gap
 				if( current->pos[1].x == next->pos[0].x || current->pos[1].y == next->pos[0].y)
@@ -1169,8 +1186,8 @@ static void jcv_fillgaps(jcv_diagram* diagram)
 					gap->next = current->next;
 					current->next = gap;
 				}
-				else if( jcv_point_on_edge(&current->pos[1], internal->width, internal->height) &&
-						 jcv_point_on_edge(&next->pos[0], internal->width, internal->height) )
+				else if( jcv_point_on_edge(&current->pos[1], &diagram->min, &diagram->max) &&
+						 jcv_point_on_edge(&next->pos[0], &diagram->min, &diagram->max) )
 				{
 					jcv_graphedge* gap = jcv_alloc_graphedge(diagram->internal);
 					gap->edge = current->edge; // not really true (should be 0)
@@ -1255,9 +1272,31 @@ static void jcv_circle_event(jcv_context_internal* internal)
 	}
 }
 
-void jcv_diagram_generate( int num_points, const jcv_point* points, int width, int height, jcv_diagram* d )
+static inline void _jcv_calc_bounds(int num_points, const jcv_point* points, jcv_point* min, jcv_point* max)
 {
-	jcv_diagram_generate_useralloc(num_points, points, width, height, 0, jcv_alloc_fn, jcv_free_fn, d);
+	jcv_point _min = points[0];
+	jcv_point _max = points[0];
+	for( int i = 1; i < num_points; ++i )
+	{
+		if( points[i].x < _min.x )
+			_min.x = points[i].x;
+		else if( points[i].x > _max.x )
+			_max.x = points[i].x;
+
+		if( points[i].y < _min.y )
+			_min.y = points[i].y;
+		else if( points[i].y > _max.y )
+			_max.y = points[i].y;
+	}
+	min->x = floorf(_min.x);
+	min->y = floorf(_min.y);
+	max->x = ceilf(_max.x);
+	max->y = ceilf(_max.y);
+}
+
+void jcv_diagram_generate( int num_points, const jcv_point* points, const jcv_rect* rect, jcv_diagram* d )
+{
+	jcv_diagram_generate_useralloc(num_points, points, rect, 0, jcv_alloc_fn, jcv_free_fn, d);
 }
 
 typedef union _jcv_cast_align_struct
@@ -1266,7 +1305,7 @@ typedef union _jcv_cast_align_struct
 	void**	voidpp;
 } jcv_cast_align_struct;
 
-void jcv_diagram_generate_useralloc( int num_points, const jcv_point* points, int width, int height, void* userallocctx, FJCVAllocFn allocfn, FJCVFreeFn freefn, jcv_diagram* d )
+void jcv_diagram_generate_useralloc( int num_points, const jcv_point* points, const jcv_rect* rect, void* userallocctx, FJCVAllocFn allocfn, FJCVFreeFn freefn, jcv_diagram* d )
 {
 	if( d->internal )
 		jcv_diagram_free( d );
@@ -1323,31 +1362,52 @@ void jcv_diagram_generate_useralloc( int num_points, const jcv_point* points, in
 		internal->sites[i].index	= i;
 	}
 
-	// Remove duplicates, to avoid anomalies
 	qsort(internal->sites, (size_t)num_points, sizeof(jcv_site), jcv_point_cmp);
 
 	int offset = 0;
-	for (int is = 1; is < num_points; is++)
+	for (int i = 0; i < num_points; i++)
 	{
-		if( internal->sites[is].p.y == internal->sites[is - 1].p.y && internal->sites[is].p.x == internal->sites[is - 1].p.x )
+		const jcv_site* s = &internal->sites[i];
+		// Remove duplicates, to avoid anomalies
+		if( i > 0 && s->p.y == internal->sites[i - 1].p.y && s->p.x == internal->sites[i - 1].p.x )
 		{
 			offset++;
 			continue;
 		}
-		else if (offset > 0)
+		// Remove points outside of the bounding box to avoid bad edge clipping later on
+		if( rect != 0 )
 		{
-			internal->sites[is - offset] = internal->sites[is];
+			if( s->p.x < rect->min.x || s->p.x > rect->max.x || 
+				s->p.y < rect->min.y || s->p.y > rect->max.y )
+			{
+				offset++;
+				continue;
+			}
 		}
+		
+		internal->sites[i - offset] = internal->sites[i];
 	}
 	num_points -= offset;
 
+	if( rect == 0 )
+	{
+		_jcv_calc_bounds(num_points, points, &d->min, &d->max);
+		d->min.x -= 10;
+		d->min.y -= 10;
+		d->max.x += 10;
+		d->max.y += 10;
+	}
+	else
+	{
+		d->min = rect->min;
+		d->max = rect->max;
+	}
+	internal->min = d->min;
+	internal->max = d->max;
+
 	d->internal = internal;
-	d->width	= (jcv_real)width;
-	d->height	= (jcv_real)height;
 	d->numsites = num_points;
 
-	internal->width 		= (jcv_real)width;
-	internal->height 		= (jcv_real)height;
 	internal->numsites 		= num_points;
 	internal->numsites_sqrt	= (int)(JCV_SQRT((jcv_real)num_points));
 	internal->currentsite 	= 0;

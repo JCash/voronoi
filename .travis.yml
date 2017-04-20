@@ -2,6 +2,10 @@ language: cpp
 compiler:
   - clang
 
+os:
+  - linux
+  - osx
+  
 script:
   - ./compile_clang.sh
   - cd test

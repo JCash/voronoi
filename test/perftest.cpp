@@ -138,7 +138,8 @@ void null_setup(Context* context)
 int new_voronoi(Context* context)
 {
 	jcv_diagram diagram = { 0 };
-	jcv_diagram_generate(context->count, (const jcv_point*)context->fsites, MAP_DIMENSION, MAP_DIMENSION, &diagram );
+	jcv_rect rect = { {0, 0}, {MAP_DIMENSION, MAP_DIMENSION} };
+	jcv_diagram_generate(context->count, (const jcv_point*)context->fsites, &rect, &diagram );
 
 	if( context->collectedges )
 	{

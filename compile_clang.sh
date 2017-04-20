@@ -1,2 +1,4 @@
 mkdir -p build
-clang -o build/main -g -O0 -m64 -std=c99 -Wall -Weverything -Wno-float-equal -pedantic -lm src/main.c
+
+clang -c src/stb_wrapper.c -o build/stb_wrapper.o
+clang -o build/main -g -O2 -m64 -std=c99 -Wall -Weverything -Wno-float-equal -pedantic -lm build/stb_wrapper.o src/main.c
