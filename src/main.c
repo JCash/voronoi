@@ -28,6 +28,8 @@ extern int wrap_stbi_write_png(char const *filename, int w, int h, int comp, con
 //#define JCV_FABS fabs
 //#define JCV_ATAN2 atan2
 #include "jc_voronoi.h"
+//#include "mk_cell_size_distribution.h"
+
 
 #ifdef HAS_MODE_FASTJET
 #include <vector>
