@@ -6,24 +6,27 @@
   - compares G to gamma function for point distributed randomly (uniform distribution)
  */
 
-#include <stdlib.h>
-#include <stdint.h>
-#include <stdio.h> // printf
-
-#if defined(_MSC_VER)
-#include <malloc.h>
-#define alloca _alloca
-#else
-#include <alloca.h>
-#endif
-
-
-
-#define JC_VORONOI_IMPLEMENTATION
-// If you wish to use doubles
-//#define JCV_REAL_TYPE double
-//#define JCV_FABS fabs
-//#define JCV_ATAN2 atan2
-#include "jc_voronoi.h"
 
 #include "mk_cell_size_distribution.h"
+
+
+
+double* mk_polygons_area ( int num_points, const jcv_point* points, jcv_diagram* diagram )
+{
+    double* result;
+    double number;
+    for (int i=0; i<num_points; i++)
+    {
+	    printf ("point number %d: (%f,%f) \n",i,points[i].x,points[i].y);
+
+
+	    printf ("xxxxx %d: %lu \n",i,sizeof(diagram->sites[i].index), );
+
+
+
+	    number = 0.01;
+	    result = &number;
+    }
+
+   return result;
+}

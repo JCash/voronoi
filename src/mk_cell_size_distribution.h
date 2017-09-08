@@ -12,12 +12,15 @@
 
 #include <math.h>
 #include <stddef.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdio.h> // printf
 
 #pragma once
 
 #include <assert.h>
 
-//#include "jc_voronoi.h"
+#include "jc_voronoi.h"
 
 #ifndef VORONOI_HIST
 #define VORONOI_HIST

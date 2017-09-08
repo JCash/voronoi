@@ -27,8 +27,8 @@ extern int wrap_stbi_write_png(char const *filename, int w, int h, int comp, con
 //#define JCV_REAL_TYPE double
 //#define JCV_FABS fabs
 //#define JCV_ATAN2 atan2
-#include "jc_voronoi.h"
-//#include "mk_cell_size_distribution.h"
+//#include "jc_voronoi.h"
+#include "mk_cell_size_distribution.h"
 
 
 #ifdef HAS_MODE_FASTJET
@@ -474,6 +474,9 @@ int main(int argc, const char** argv)
 		jcv_diagram_free( &diagram );
 	}
 
+
+
+
 	size_t imagesize = (size_t)(width*height*3);
 	unsigned char* image = (unsigned char*)malloc(imagesize);
 	memset(image, 0, imagesize);
@@ -529,6 +532,14 @@ int main(int argc, const char** argv)
 
 		jcv_diagram_free( &diagram );
 	}
+
+
+        //mk - compute histogram
+
+        double* polygons_areas = mk_polygons_area (count, points, &diagram );
+
+        printf (" polygon areas %f \n",polygons_areas[0]);
+
 
 	// Plot the sites
 	for( int i = 0; i < count; ++i )
