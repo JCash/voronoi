@@ -13,3 +13,4 @@ script:
   - cd ./build
   - ./test
   - ./simple
+  - sleep 1 # wait for output
