@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 mkdir -p build
 
 clang -c src/stb_wrapper.c -o build/stb_wrapper.o

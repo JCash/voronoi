@@ -42,7 +42,7 @@ static void debug_points(int num, const jcv_point* points)
     printf("\nNUM POINTS: %d\n", num);
     for( int i = 0; i < num; ++i)
     {
-        printf("  %d: %f, %f\n", i, points[i].x, points[i].y);
+        printf("  %d: %f, %f\n", i, (double)points[i].x, (double)points[i].y);
     }
     printf("\n");
 }
@@ -51,7 +51,7 @@ static void debug_edges(const jcv_graphedge* e)
 {
     while( e )
     {
-        printf("  E: %f, %f -> %f, %f   neigh: %p\n", e->pos[0].x, e->pos[0].y, e->pos[1].x, e->pos[1].y, (void*)e->neighbor);
+        printf("  E: %f, %f -> %f, %f   neigh: %p\n", (double)e->pos[0].x, (double)e->pos[0].y, (double)e->pos[1].x, (double)e->pos[1].y, (void*)e->neighbor);
         e = e->next;
     }
 }
