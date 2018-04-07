@@ -9,6 +9,7 @@ build_script:
   - compile_cl.bat
   - cd ..\src\examples
   - compile_cl.bat
+  - cd ..\..\
 
 test_script:
   - build\main.exe -?
