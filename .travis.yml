@@ -8,6 +8,8 @@ os:
   
 script:
   - ./compile_clang.sh
-  - cd test
-  - ./compile_clang.sh
-  - ../build/test
+  - (cd test && ./compile_clang.sh)
+  - (cd src/examples && ./compile_clang.sh)
+  - cd ./build
+  - ./test
+  - ./simple

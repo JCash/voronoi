@@ -7,9 +7,11 @@ build_script:
   - compile_cl.bat
   - cd test
   - compile_cl.bat
-  - cd ..
+  - cd ..\src\examples
+  - compile_cl.bat
 
 test_script:
   - build\main.exe -?
   - build\main.exe -w 512 -h 512 -n 100 -o citest.png
   - build\test.exe
+  - build\simple.exe

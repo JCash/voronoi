@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 
 # VORONOIPPINC=voronoi++/source/voronoi/include
 # VORONOIPPSRC=voronoi++/source/voronoi/source
