@@ -146,6 +146,7 @@ USAGE:
 
 #include <math.h>
 #include <stddef.h>
+#include <stdlib.h>
 
 #include <assert.h>
 
