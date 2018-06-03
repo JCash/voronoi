@@ -229,7 +229,7 @@ typedef struct _jcv_diagram
 #pragma pack(pop)
 
 
-/** 
+/**
  * Uses malloc
  * If rect is null, an automatic bounding box is calculated, with an extra padding of 10 units
  * If rect is non null, all points will be culled against the bounding rect, and all edges will be clipped against it.
@@ -1151,7 +1151,7 @@ static void jcv_fillgaps(jcv_diagram* diagram)
 			gap->pos[1].y 	= internal->min.y;
 			gap->angle 		= jcv_calc_sort_metric(site, gap);
 			gap->next 		= 0;
-			
+
 			current = gap;
 			site->edges = gap;
 		}
@@ -1311,7 +1311,7 @@ void jcv_diagram_generate_useralloc( int num_points, const jcv_point* points, co
 	if( d->internal )
 		jcv_diagram_free( d );
 
-	int max_num_events = num_points; // in rare cases, it is almost as large as the number of points
+	int max_num_events = num_points*2; // beachline can have max 2*n-5 parabolas
 	size_t sitessize = (size_t)num_points * sizeof(jcv_site);
 	size_t memsize = 8u + (size_t)max_num_events * sizeof(void*) + sizeof(jcv_priorityqueue) + sitessize + sizeof(jcv_context_internal);
 
@@ -1378,14 +1378,14 @@ void jcv_diagram_generate_useralloc( int num_points, const jcv_point* points, co
 		// Remove points outside of the bounding box to avoid bad edge clipping later on
 		if( rect != 0 )
 		{
-			if( s->p.x < rect->min.x || s->p.x > rect->max.x || 
+			if( s->p.x < rect->min.x || s->p.x > rect->max.x ||
 				s->p.y < rect->min.y || s->p.y > rect->max.y )
 			{
 				offset++;
 				continue;
 			}
 		}
-		
+
 		internal->sites[i - offset] = internal->sites[i];
 	}
 	num_points -= offset;
