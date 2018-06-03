@@ -42,7 +42,7 @@ static void debug_points(int num, const jcv_point* points)
     printf("\nNUM POINTS: %d\n", num);
     for( int i = 0; i < num; ++i)
     {
-        printf("  %d: %f, %f\n", i, points[i].x, points[i].y);
+        printf("  %d: %f, %f\n", i, (double)points[i].x, (double)points[i].y);
     }
     printf("\n");
 }
@@ -51,7 +51,7 @@ static void debug_edges(const jcv_graphedge* e)
 {
     while( e )
     {
-        printf("  E: %f, %f -> %f, %f   neigh: %p\n", e->pos[0].x, e->pos[0].y, e->pos[1].x, e->pos[1].y, (void*)e->neighbor);
+        printf("  E: %f, %f -> %f, %f   neigh: %p\n", (double)e->pos[0].x, (double)e->pos[0].y, (double)e->pos[1].x, (double)e->pos[1].y, (void*)e->neighbor);
         e = e->next;
     }
 }
@@ -301,6 +301,15 @@ static void voronoi_test_many_circle(Context* ctx)
     ASSERT_EQ( num_points, ctx->diagram.numsites );
 }
 
+static void voronoi_test_crash1(Context* ctx)
+{
+    jcv_point points[] = { {-0.148119405f, 0.307878017f}, {-0.0949054062f, -0.37929377f}, {0.170877606f, 0.477409601f}, {-0.0634334087f, 0.0787638053f}, {-0.244908407f, 0.402904421f}, {-0.0830767974f, 0.442425013f} };
+    int num_points = (int)(sizeof(points) / sizeof(jcv_point));
+
+    jcv_diagram_generate(num_points, points, 0, &ctx->diagram);
+    ASSERT_EQ( num_points, ctx->diagram.numsites );
+}
+
 TEST_BEGIN(voronoi_test, voronoi_main_setup, voronoi_main_teardown, test_setup, test_teardown)
     TEST(voronoi_test_parallel_horiz_2)
     TEST(voronoi_test_parallel_vert_2)
@@ -310,6 +319,7 @@ TEST_BEGIN(voronoi_test, voronoi_main_setup, voronoi_main_teardown, test_setup, 
     TEST(voronoi_test_many_diagonal)
     TEST(voronoi_test_many_circle)
     TEST(voronoi_test_culling)
+    TEST(voronoi_test_crash1)
 TEST_END(voronoi_test)
 
 
