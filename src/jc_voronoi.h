@@ -1182,6 +1182,7 @@ static void jcv_fillgaps(jcv_diagram* diagram)
                     			new_edge->next = internal->edges;
                     			internal->edges = new_edge;
                     			new_edge->sites[0] = site;
+					new_edge->sites[1] = NULL;
                     			new_edge->pos[0] = current->pos[1];
                     			new_edge->pos[1] = next->pos[0];
 					
@@ -1202,6 +1203,7 @@ static void jcv_fillgaps(jcv_diagram* diagram)
                     			new_edge->next = internal->edges;
                     			internal->edges = new_edge;
                     			new_edge->sites[0] = site;
+					new_edge->sites[1] = NULL;
 					
 					jcv_graphedge* gap = jcv_alloc_graphedge(diagram->internal);
 					gap->edge = new_edge;
