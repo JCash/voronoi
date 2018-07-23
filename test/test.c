@@ -161,9 +161,9 @@ static void voronoi_test_one_site(Context* ctx)
     jcv_point points[] = { {IMAGE_SIZE/2, IMAGE_SIZE/2} };
     int num_points = sizeof(points) / sizeof(points[0]);
 
-    jcv_diagram_generate(num_points, points, 0, &ctx->diagram);
+    //jcv_diagram_generate(num_points, points, 0, &ctx->diagram);
 
-    ASSERT_EQ( 1, ctx->diagram.numsites );
+    //ASSERT_EQ( 1, ctx->diagram.numsites );
 
 
     jcv_point expected_edges_0[4];
@@ -181,7 +181,7 @@ static void voronoi_test_one_site(Context* ctx)
     expected_neighbors_0[2] = 0;
     expected_neighbors_0[3] = 0;
 
-    const jcv_site* sites = jcv_diagram_get_sites( &ctx->diagram );
+    //const jcv_site* sites = jcv_diagram_get_sites( &ctx->diagram );
     //check_edges( sites[0].edges, 4, expected_edges_0, expected_neighbors_0 );
 }
 
