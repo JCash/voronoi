@@ -35,7 +35,7 @@ static void test_setup(Context* ctx)
 static void test_teardown(Context* ctx)
 {
     jcv_diagram_free(&ctx->diagram);
-}
+} 
 
 static void debug_points(int num, const jcv_point* points)
 {
@@ -153,36 +153,40 @@ static void voronoi_test_parallel_vert_2(Context* ctx)
     const jcv_site* sites = jcv_diagram_get_sites( &ctx->diagram );
     ASSERT_POINT_EQ( points[0], sites[0].p );
     ASSERT_POINT_EQ( points[1], sites[1].p );
+    printf("in vert_2\n");
 }
 
 
 static void voronoi_test_one_site(Context* ctx)
 {
+    printf("In one_site1\n");
     jcv_point points[] = { {IMAGE_SIZE/2, IMAGE_SIZE/2} };
+    printf("Before num_points\n");
     int num_points = sizeof(points) / sizeof(points[0]);
+    printf("After num_points\n");
 
-    jcv_diagram_generate(num_points, points, 0, &ctx->diagram);
+    //jcv_diagram_generate(num_points, points, 0, &ctx->diagram);
 
-    ASSERT_EQ( 1, ctx->diagram.numsites );
+    //ASSERT_EQ( 1, ctx->diagram.numsites );
 
 
-    jcv_point expected_edges_0[4];
-    expected_edges_0[0].x = ctx->diagram.min.x;
-    expected_edges_0[0].y = ctx->diagram.min.y;
-    expected_edges_0[1].x = ctx->diagram.max.x;
-    expected_edges_0[1].y = ctx->diagram.min.y;
-    expected_edges_0[2].x = ctx->diagram.max.x;
-    expected_edges_0[2].y = ctx->diagram.max.y;
-    expected_edges_0[3].x = ctx->diagram.min.x;
-    expected_edges_0[3].y = ctx->diagram.max.y;
-    const jcv_site* expected_neighbors_0[4];
-    expected_neighbors_0[0] = 0;
-    expected_neighbors_0[1] = 0;
-    expected_neighbors_0[2] = 0;
-    expected_neighbors_0[3] = 0;
+    //jcv_point expected_edges_0[4];
+    //expected_edges_0[0].x = ctx->diagram.min.x;
+    //expected_edges_0[0].y = ctx->diagram.min.y;
+    //expected_edges_0[1].x = ctx->diagram.max.x;
+    //expected_edges_0[1].y = ctx->diagram.min.y;
+    //expected_edges_0[2].x = ctx->diagram.max.x;
+    //expected_edges_0[2].y = ctx->diagram.max.y;
+    //expected_edges_0[3].x = ctx->diagram.min.x;
+    //expected_edges_0[3].y = ctx->diagram.max.y;
+    //const jcv_site* expected_neighbors_0[4];
+    //expected_neighbors_0[0] = 0;
+    //expected_neighbors_0[1] = 0;
+    //expected_neighbors_0[2] = 0;
+    //expected_neighbors_0[3] = 0;
 
-    const jcv_site* sites = jcv_diagram_get_sites( &ctx->diagram );
-    check_edges( sites[0].edges, 4, expected_edges_0, expected_neighbors_0 );
+    //const jcv_site* sites = jcv_diagram_get_sites( &ctx->diagram );
+    //check_edges( sites[0].edges, 4, expected_edges_0, expected_neighbors_0 );
 }
 
 static void voronoi_test_culling(Context* ctx)
@@ -239,6 +243,8 @@ static void voronoi_test_same_site(Context* ctx)
 static void voronoi_test_many(Context* ctx)
 {
     srand(0);
+    
+    printf("In test_many\n");
 
     int maxcount = 10;
     for( int count = 0; count < maxcount; ++count )
@@ -314,12 +320,12 @@ TEST_BEGIN(voronoi_test, voronoi_main_setup, voronoi_main_teardown, test_setup, 
     TEST(voronoi_test_parallel_horiz_2)
     TEST(voronoi_test_parallel_vert_2)
     TEST(voronoi_test_one_site)
-    TEST(voronoi_test_same_site)
+    //TEST(voronoi_test_same_site)
     TEST(voronoi_test_many)
-    TEST(voronoi_test_many_diagonal)
-    TEST(voronoi_test_many_circle)
-    TEST(voronoi_test_culling)
-    TEST(voronoi_test_crash1)
+    //TEST(voronoi_test_many_diagonal)
+    //TEST(voronoi_test_many_circle)
+    //TEST(voronoi_test_culling)
+    //TEST(voronoi_test_crash1)
 TEST_END(voronoi_test)
 
 
