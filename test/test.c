@@ -159,7 +159,9 @@ static void voronoi_test_parallel_vert_2(Context* ctx)
 static void voronoi_test_one_site(Context* ctx)
 {
     jcv_point points[] = { {IMAGE_SIZE/2, IMAGE_SIZE/2} };
+    printf("Before num_points\n");
     int num_points = sizeof(points) / sizeof(points[0]);
+    printf("After num_points\n");
 
     //jcv_diagram_generate(num_points, points, 0, &ctx->diagram);
 
