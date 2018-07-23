@@ -153,11 +153,13 @@ static void voronoi_test_parallel_vert_2(Context* ctx)
     const jcv_site* sites = jcv_diagram_get_sites( &ctx->diagram );
     ASSERT_POINT_EQ( points[0], sites[0].p );
     ASSERT_POINT_EQ( points[1], sites[1].p );
+    printf("in vert_2\n");
 }
 
 
 static void voronoi_test_one_site(Context* ctx)
 {
+    printf("In one_site\n");
     jcv_point points[] = { {IMAGE_SIZE/2, IMAGE_SIZE/2} };
     printf("Before num_points\n");
     int num_points = sizeof(points) / sizeof(points[0]);
