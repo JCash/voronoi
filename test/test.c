@@ -35,7 +35,7 @@ static void test_setup(Context* ctx)
 static void test_teardown(Context* ctx)
 {
     jcv_diagram_free(&ctx->diagram);
-}
+} 
 
 static void debug_points(int num, const jcv_point* points)
 {
