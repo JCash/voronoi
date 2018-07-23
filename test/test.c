@@ -243,6 +243,8 @@ static void voronoi_test_same_site(Context* ctx)
 static void voronoi_test_many(Context* ctx)
 {
     srand(0);
+    
+    printf("In test_many\n");
 
     int maxcount = 10;
     for( int count = 0; count < maxcount; ++count )
@@ -319,7 +321,7 @@ TEST_BEGIN(voronoi_test, voronoi_main_setup, voronoi_main_teardown, test_setup, 
     TEST(voronoi_test_parallel_vert_2)
     TEST(voronoi_test_one_site)
     //TEST(voronoi_test_same_site)
-    //TEST(voronoi_test_many)
+    TEST(voronoi_test_many)
     //TEST(voronoi_test_many_diagonal)
     //TEST(voronoi_test_many_circle)
     //TEST(voronoi_test_culling)
