@@ -12,5 +12,6 @@ script:
   - (cd src/examples && ./compile_clang.sh)
   - cd ./build
   - ./test
+  - ./test_double
   - ./simple
   - sleep 1 # wait for output

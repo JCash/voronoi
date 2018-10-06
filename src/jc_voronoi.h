@@ -61,6 +61,7 @@ USAGE:
 
 	const jcv_site* jcv_diagram_get_sites( const jcv_diagram* diagram );
 	const jcv_edge* jcv_diagram_get_edges( const jcv_diagram* diagram );
+	const jcv_edge* jcv_diagram_get_next_edge( const jcv_edge* edge );
 
 	An example usage:
 
@@ -69,6 +70,8 @@ USAGE:
 	//#define JCV_REAL_TYPE double
 	//#define JCV_FABS fabs
 	//#define JCV_ATAN2 atan2
+	//#define JCV_CEIL ceil
+	//#define JCV_FLOOR floor
 	#include "jc_voronoi.h"
 
 	void draw_edges(const jcv_diagram* diagram);
@@ -93,7 +96,7 @@ USAGE:
 		while( edge )
 		{
 			draw_line(edge->pos[0], edge->pos[1]);
-			edge = edge->next;
+			edge = jcv_diagram_get_next_edge(edge);
 		}
 	}
 
@@ -171,6 +174,14 @@ extern "C" {
 	#define JCV_FABS(_X_)		fabsf(_X_)
 #endif
 
+#ifndef JCV_FLOOR
+	#define JCV_FLOOR(_X_)		floorf(_X_)
+#endif
+
+#ifndef JCV_CEIL
+	#define JCV_CEIL(_X_)		ceilf(_X_)
+#endif
+
 #ifndef JCV_PI
 	#define JCV_PI 3.14159265358979323846264338327950288f
 #endif
@@ -240,23 +251,22 @@ extern void jcv_diagram_generate( int num_points, const jcv_point* points, const
 typedef void* (*FJCVAllocFn)(void* userctx, size_t size);
 typedef void (*FJCVFreeFn)(void* userctx, void* p);
 
-/** Same as above, but allows the client to use a custom allocator
- */
+// Same as above, but allows the client to use a custom allocator
 extern void jcv_diagram_generate_useralloc( int num_points, const jcv_point* points, const jcv_rect* rect, void* userallocctx, FJCVAllocFn allocfn, FJCVFreeFn freefn, jcv_diagram* diagram );
 
-
-/** Uses free (or the registered custom free function)
- */
+// Uses free (or the registered custom free function)
 extern void jcv_diagram_free( jcv_diagram* diagram );
 
-/** Returns an array of sites, where each index is the same as the original input point array.
- */
+// Returns an array of sites, where each index is the same as the original input point array.
 extern const jcv_site* jcv_diagram_get_sites( const jcv_diagram* diagram );
 
-/** Returns a linked list of all the voronoi edges
- */
+// Returns a linked list of all the voronoi edges
+// excluding the ones that lie on the borders of the bounding box.
+// For a full list of edges, you need to iterate over the sites, and their graph edges.
 extern const jcv_edge* jcv_diagram_get_edges( const jcv_diagram* diagram );
 
+// Iterates over a list of edges, skipping invalid edges (where p0==p1)
+extern const jcv_edge* jcv_diagram_get_next_edge( const jcv_edge* edge );
 
 #ifdef __cplusplus
 }
@@ -410,6 +420,15 @@ const jcv_site* jcv_diagram_get_sites( const jcv_diagram* diagram )
 const jcv_edge* jcv_diagram_get_edges( const jcv_diagram* diagram )
 {
 	return diagram->internal->edges;
+}
+
+const jcv_edge* jcv_diagram_get_next_edge( const jcv_edge* edge )
+{
+	const jcv_edge* e = edge->next;
+	while (e != 0 && jcv_point_eq(&e->pos[0], &e->pos[1])) {
+		e = e->next;
+	}
+	return e;
 }
 
 static void* jcv_alloc(jcv_context_internal* internal, size_t size)
@@ -1022,8 +1041,9 @@ static inline jcv_real jcv_determinant(const jcv_point* a, const jcv_point* b, c
 static inline jcv_real jcv_calc_sort_metric(const jcv_site* site, const jcv_graphedge* edge)
 {
 	// We take the average of the two points, since we can better distinguish between very small edges
-	float x = (edge->pos[0].x + edge->pos[1].x) * 0.5f;
-	float y = (edge->pos[0].y + edge->pos[1].y) * 0.5f;
+	jcv_real half = 1/(jcv_real)2;
+	jcv_real x = (edge->pos[0].x + edge->pos[1].x) * half;
+	jcv_real y = (edge->pos[0].y + edge->pos[1].y) * half;
 	jcv_real diffy = y - site->p.y;
 	jcv_real angle = JCV_ATAN2( diffy, x - site->p.x );
 	if( diffy < 0 )
@@ -1288,10 +1308,10 @@ static inline void _jcv_calc_bounds(int num_points, const jcv_point* points, jcv
 		else if( points[i].y > _max.y )
 			_max.y = points[i].y;
 	}
-	min->x = floorf(_min.x);
-	min->y = floorf(_min.y);
-	max->x = ceilf(_max.x);
-	max->y = ceilf(_max.y);
+	min->x = JCV_FLOOR(_min.x);
+	min->y = JCV_FLOOR(_min.y);
+	max->x = JCV_CEIL(_max.x);
+	max->y = JCV_CEIL(_max.y);
 }
 
 void jcv_diagram_generate( int num_points, const jcv_point* points, const jcv_rect* rect, jcv_diagram* d )

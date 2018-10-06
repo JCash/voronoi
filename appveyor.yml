@@ -15,4 +15,5 @@ test_script:
   - build\main.exe -?
   - build\main.exe -w 512 -h 512 -n 100 -o citest.png
   - build\test.exe
+  - build\test_double.exe
   - build\simple.exe
