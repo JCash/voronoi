@@ -159,7 +159,7 @@ int jc_voronoi(Context* context)
 		while( edge )
 		{
 			context->collectededges.push_back( std::make_pair( PointF(edge->pos[0].x, edge->pos[0].y), PointF(edge->pos[1].x, edge->pos[1].y) ) );
-			edge = edge->next;
+			edge = jcv_diagram_get_next_edge(edge);
 		}
 
 		context->collectedcells.reserve(context->count);

@@ -70,6 +70,9 @@ static bool check_edge_eq(const jcv_graphedge* e, const jcv_point* p1, const jcv
     ASSERT_EQ( (_P1).x, (_P2).x ) \
     ASSERT_EQ( (_P1).y, (_P2).y ) \
 
+#define ASSERT_POINT_NE( _P1, _P2 ) \
+    ASSERT_TRUE( !check_point_eq( &_P1, &_P2) )
+
 static void check_edges(const jcv_graphedge* edges, int num_expected,
                         const jcv_point* expected_points, const jcv_site** expected_neighbors)
 {
@@ -310,6 +313,29 @@ static void voronoi_test_crash1(Context* ctx)
     ASSERT_EQ( num_points, ctx->diagram.numsites );
 }
 
+// Issue: https://github.com/JCash/voronoi/issues/10
+static void voronoi_test_issue10_zero_edge_length(Context* ctx)
+{
+    jcv_point points[] = {
+        { -5.544f, -3.492f },
+        { -5.010f, -4.586f },
+        { 3.030f, -3.045f },
+        { -5.279f, -5.474f },
+    };
+    jcv_rect rect = { {-6.418f, -5.500f}, {3.140f, 0.009f} };
+    int num_points = (int)(sizeof(points) / sizeof(jcv_point));
+
+    jcv_diagram_generate(num_points, points, &rect, &ctx->diagram);
+    ASSERT_EQ( num_points, ctx->diagram.numsites );
+
+    const jcv_edge* edge = jcv_diagram_get_edges( &ctx->diagram );
+    while( edge )
+    {
+        ASSERT_POINT_NE(edge->pos[0], edge->pos[1]);
+        edge = jcv_diagram_get_next_edge(edge);
+    }
+}
+
 TEST_BEGIN(voronoi_test, voronoi_main_setup, voronoi_main_teardown, test_setup, test_teardown)
     TEST(voronoi_test_parallel_horiz_2)
     TEST(voronoi_test_parallel_vert_2)
@@ -320,6 +346,7 @@ TEST_BEGIN(voronoi_test, voronoi_main_setup, voronoi_main_teardown, test_setup, 
     TEST(voronoi_test_many_circle)
     TEST(voronoi_test_culling)
     TEST(voronoi_test_crash1)
+    TEST(voronoi_test_issue10_zero_edge_length)
 TEST_END(voronoi_test)
 
 

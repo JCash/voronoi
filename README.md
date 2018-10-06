@@ -124,7 +124,7 @@ void draw_edges(const jcv_diagram* diagram)
     while( edge )
     {
         draw_line(edge->pos[0], edge->pos[1]);
-        edge = edge->next;
+        edge = jcv_diagram_get_next_edge(edge);
     }
 }
 

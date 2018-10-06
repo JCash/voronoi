@@ -176,7 +176,7 @@ static int debug_skip_point(const jcv_point* pt)
 	return 0;
 }
 
-static int read_input(const char* path, jcv_point** points, uint32_t* length)
+static int read_input(const char* path, jcv_point** points, uint32_t* length, jcv_rect** rect)
 {
     if( !path )
     {
@@ -276,12 +276,20 @@ static int read_input(const char* path, jcv_point** points, uint32_t* length)
 
 	        	if( end_of_line )
 	        	{
-		        	jcv_point pt;
-	        		int numscanned = sscanf(p, "%f %f\n", &pt.x, &pt.y);
+		        	jcv_point pt1;
+                    jcv_point pt2;
+	        		int numscanned = sscanf(p, "%f %f %f %f\n", &pt1.x, &pt1.y, &pt2.x, &pt2.y);
 
-	        		if( numscanned == 2 )
+                    if( numscanned == 4 )
+                    {
+                        *rect = malloc(sizeof(jcv_rect));
+                        (*rect)->min = pt1;
+                        (*rect)->max = pt2;
+                        p = r;
+                    }
+	        		else if( numscanned == 2 )
 	        		{
-	        			if( debug_skip_point(&pt) )
+	        			if( debug_skip_point(&pt1) )
 		        		{
 		        			continue;
 		        		}
@@ -291,8 +299,8 @@ static int read_input(const char* path, jcv_point** points, uint32_t* length)
 			        		pts = (jcv_point*)realloc(pts, sizeof(jcv_point) * capacity);
 			        	}
 
-		        		pts[len].x = pt.x;
-		        		pts[len].y = pt.y;
+		        		pts[len].x = pt1.x;
+		        		pts[len].y = pt1.y;
 			        	++len;
 			        	p = r;
 			        }
@@ -430,10 +438,11 @@ int main(int argc, const char** argv)
 	}
 
 	jcv_point* points = 0;
+    jcv_rect* rect = 0;
 
 	if( inputfile )
 	{
-		if( read_input(inputfile, &points, (uint32_t*)&count) )
+		if( read_input(inputfile, &points, (uint32_t*)&count, &rect) )
 		{
 			fprintf(stderr, "Failed to read from %s\n", inputfile);
 			return 1;
@@ -458,8 +467,6 @@ int main(int argc, const char** argv)
 
 	printf("Width/Height is %d, %d\n", width, height);
 	printf("Count is %d, num relaxations is %d\n", count, numrelaxations);
-
-	jcv_rect* rect = 0;
 
 	for( int i = 0; i < numrelaxations; ++i )
 	{
@@ -522,7 +529,7 @@ int main(int argc, const char** argv)
 			jcv_point p0 = remap(&edge->pos[0], &diagram.min, &diagram.max, &dimensions );
 			jcv_point p1 = remap(&edge->pos[1], &diagram.min, &diagram.max, &dimensions );
 			draw_line((int)p0.x, (int)p0.y, (int)p1.x, (int)p1.y, image, width, height, 3, color_line);
-			edge = edge->next;
+			edge = jcv_diagram_get_next_edge(edge);
 		}
 
 		jcv_diagram_free( &diagram );
@@ -536,6 +543,7 @@ int main(int argc, const char** argv)
 	}
 
 	free(points);
+    free(rect);
 
 	// flip image
 	int stride = width*3;
