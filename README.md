@@ -82,6 +82,7 @@ void jcv_diagram_free( jcv_diagram* diagram );
 
 const jcv_site* jcv_diagram_get_sites( const jcv_diagram* diagram );
 const jcv_edge* jcv_diagram_get_edges( const jcv_diagram* diagram );
+const jcv_edge* jcv_diagram_get_next_edge( const jcv_edge* edge );
 ```
 
 The input points are pruned if
