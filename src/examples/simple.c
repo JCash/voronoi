@@ -2,6 +2,11 @@
 // To compile:
 // gcc -Wall -Weverything -Wno-float-equal src/examples/simple.c -Isrc -o simple
 //
+// About:
+// 
+// This example outputs 10 random 2D coordinates, and all the generated edges, to standard output.
+// Note that the edges have duplicates, but you can easily filter them out.
+//
 
 #include <stdio.h>
 #include <stdlib.h>
