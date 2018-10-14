@@ -1,5 +1,6 @@
 #include <cstring>
 #include <cstdlib>
+#include <float.h>
 
 static size_t g_MallocCount = 0;
 static size_t g_MallocSize 	= 0;
@@ -17,22 +18,26 @@ void* operator new(std::size_t sz)
     return override_alloc(sz);
 }
 
-
+#if defined(USE_JC_VORONOI)
 #define JC_VORONOI_IMPLEMENTATION
 #include "src/jc_voronoi.h"
+#endif
 
-//#define ONLYNEWIMPL
-#ifndef ONLYNEWIMPL
-
-// Before the fastjet version pollutes the namespace
+#if defined(USE_BOOST)
 #include "boost/polygon/voronoi.hpp"
+#endif
 
+#if defined(USE_SHANEOSULLIVAN)
 #include "shaneosullivan/VoronoiDiagramGenerator.h"
-#include "fastjet/voronoi.h"
+#endif
 
+#if defined(USE_FASTJET)
+#include "fastjet/internal/Voronoi.hh"
+#endif
+
+#if defined(USE_VORONOIPP)
 #include "voronoi/VoronoiDiagram.h"
-
-#endif // ONLYNEWIMPL
+#endif
 
 #include "timeit.h"
 #include <iostream>
@@ -59,16 +64,22 @@ struct Context
 	int numiterations;
 	bool collectedges;
 	int count;
+	int generate_images;
 	PointF* fsites;
 	PointD* dsites;
 	float* sitesx;
 	float* sitesy;
+	PointF dgmin;
+	PointF dgmax;
+
+	const char* testname;
 
 	std::vector<PointD> dpoints;
 
-#ifndef ONLYNEWIMPL
+#if defined(USE_VORONOIPP)
 	std::vector<voronoi::VoronoiSite*> vpp_sites;
-
+#endif
+#if defined(USE_BOOST)
 	std::vector<boost::polygon::point_data<float> > boost_points;
 #endif
 
@@ -88,10 +99,15 @@ void setup_sites(int count, Context* context)
 	context->sitesx = new float[count];
 	context->sitesy = new float[count];
 	context->dpoints.resize(count);
-#ifndef ONLYNEWIMPL
+#if defined(USE_VORONOIPP)
 	context->vpp_sites.resize(count);
+#endif
+#if defined(USE_BOOST)
 	context->boost_points.resize(count);
 #endif
+
+	context->dgmin = PointF(FLT_MAX, FLT_MAX);
+	context->dgmax = PointF(-FLT_MAX, -FLT_MAX);
 
     int pointoffset = 10; // move the points inwards, for aestetic reasons
 	srand(0);
@@ -108,12 +124,23 @@ void setup_sites(int count, Context* context)
 		context->dpoints[i].x = x;
 		context->dpoints[i].y = y;
 
-#ifndef ONLYNEWIMPL
-		context->vpp_sites[i] = new voronoi::VoronoiSite(x, y);
+		context->dgmin.x = std::min(context->dgmin.x, x);
+		context->dgmin.y = std::min(context->dgmin.y, y);
+		context->dgmax.x = std::max(context->dgmax.x, x);
+		context->dgmax.y = std::max(context->dgmax.y, y);
 
+#if defined(USE_VORONOIPP)
+		context->vpp_sites[i] = new voronoi::VoronoiSite(x, y);
+#endif
+#if defined(USE_BOOST)
 		context->boost_points[i] = boost::polygon::point_data<float>(x, y);
 #endif
 	}
+
+	context->dgmin.x -= 1;
+	context->dgmin.y -= 1;
+	context->dgmax.x += 1;
+	context->dgmax.y += 1;
 
 	context->collectedges = false;
 }
@@ -135,10 +162,11 @@ void null_setup(Context* context)
 {
 }
 
-int new_voronoi(Context* context)
+#if defined(USE_JC_VORONOI)
+int jc_voronoi(Context* context)
 {
 	jcv_diagram diagram = { 0 };
-	jcv_rect rect = { {0, 0}, {MAP_DIMENSION, MAP_DIMENSION} };
+	jcv_rect rect = { {context->dgmin.x, context->dgmin.y}, {context->dgmax.x, context->dgmax.y} };
 	jcv_diagram_generate(context->count, (const jcv_point*)context->fsites, &rect, &diagram );
 
 	if( context->collectedges )
@@ -147,7 +175,7 @@ int new_voronoi(Context* context)
 		while( edge )
 		{
 			context->collectededges.push_back( std::make_pair( PointF(edge->pos[0].x, edge->pos[0].y), PointF(edge->pos[1].x, edge->pos[1].y) ) );
-			edge = edge->next;
+			edge = jcv_diagram_get_next_edge(edge);
 		}
 
 		context->collectedcells.reserve(context->count);
@@ -174,12 +202,13 @@ int new_voronoi(Context* context)
 	jcv_diagram_free( &diagram );
 	return 0;
 }
+#endif
 
-#ifndef ONLYNEWIMPL
+#if defined(USE_SHANEOSULLIVAN)
 int shaneosullivan_voronoi(Context* context)
 {
-	shaneosullivan::VoronoiDiagramGenerator generator;
-	generator.generateVoronoi(context->sitesx, context->sitesy, context->count, 0, MAP_DIMENSION, 0, MAP_DIMENSION);
+	VoronoiDiagramGenerator generator;
+	generator.generateVoronoi(context->sitesx, context->sitesy, context->count, context->dgmin.x, context->dgmax.x, context->dgmin.y, context->dgmax.y);
 
 	if( context->collectedges )
 	{
@@ -193,11 +222,13 @@ int shaneosullivan_voronoi(Context* context)
 
 	return 0;
 }
+#endif
 
+#if defined(USE_FASTJET)
 int fastjet_voronoi(Context* context)
 {
 	fastjet::VoronoiDiagramGenerator generator;
-	generator.generateVoronoi((std::vector<fastjet::VPoint>*)&context->dpoints, 0, MAP_DIMENSION, 0, MAP_DIMENSION);
+	generator.generateVoronoi((std::vector<fastjet::VPoint>*)&context->dpoints, context->dgmin.x, context->dgmax.x, context->dgmin.y, context->dgmax.y);
 
 	if( context->collectedges )
 	{
@@ -210,7 +241,9 @@ int fastjet_voronoi(Context* context)
 	}
 	return 0;
 }
+#endif
 
+#if defined(USE_VORONOIPP)
 int voronoiplusplus_voronoi(Context* context)
 {
 	voronoi::VoronoiDiagram diagram;
@@ -220,7 +253,7 @@ int voronoiplusplus_voronoi(Context* context)
 
 	if( context->collectedges )
 	{
-		const geometry::Rectangle rect(0, 0, MAP_DIMENSION, MAP_DIMENSION);
+		const geometry::Rectangle rect(context->dgmin.x, context->dgmin.y, context->dgmax.x, context->dgmax.y);
 		geometry::ConvexPolygon boundingPolygon;
 	    boundingPolygon << rect.topLeft();
 	    boundingPolygon << rect.topRight();
@@ -254,7 +287,10 @@ int voronoiplusplus_voronoi(Context* context)
 	}
 	return 0;
 }
+#endif
 
+
+#if defined(USE_BOOST)
 // http://www.boost.org/doc/libs/1_55_0/libs/polygon/example/voronoi_visualizer.cpp
 static void clip_infinite_edge( Context* context, const boost::polygon::voronoi_diagram<double>::edge_type& edge, std::vector<PointF>& clipped_edge)
 {
@@ -355,7 +391,7 @@ static void plot(int x, int y, unsigned char* image, int width, int height, int 
 {
 	if( x < 0 || y < 0 || x > (width-1) || y > (height-1) )
 		return;
-	int index = y * width * nchannels + x * nchannels;
+	int index = (height - y) * width * nchannels + x * nchannels;
 	for( int i = 0; i < nchannels; ++i )
 	{
 		image[index+i] = color[i];
@@ -392,6 +428,16 @@ static inline int min3(int a, int b, int c)
 static inline int max3(int a, int b, int c)
 {
 	return std::max(a, std::max(b, c));
+}
+
+// Remaps the point from the input space to image space
+template<typename PT>
+static inline PT remap(const PT& pt, const PT& min, const PT& max, const PT& scale)
+{
+	PT p;
+	p.x = (pt.x - min.x)/(max.x - min.x) * scale.x;
+	p.y = (pt.y - min.y)/(max.y - min.y) * scale.y;
+	return p;
 }
 
 template<typename PT>
@@ -433,6 +479,7 @@ static void draw_triangle(const PT& v0, const PT& v1, const PT& v2, unsigned cha
 
 static void output_image(const char* name, Context* context)
 {
+	printf("# Generating image: %s\n", name);
 	size_t datasize = MAP_DIMENSION*MAP_DIMENSION*3;
 	unsigned char* data = new unsigned char[datasize];
 	memset(data, 0, datasize);
@@ -441,6 +488,8 @@ static void output_image(const char* name, Context* context)
 	unsigned char color_white[] = {255, 255, 255};
 
 	srand(0);
+
+	PointF dimensions(MAP_DIMENSION, MAP_DIMENSION);
 
 	for( size_t i = 0; i < context->collectedcells.size(); ++i )
 	{
@@ -459,34 +508,46 @@ static void output_image(const char* name, Context* context)
 
 			// Needed for voronoi++
 			float det = orient2d(site, edges[i].first, edges[i].second);
-			if( det > 0 )
-				draw_triangle( site, edges[i].first, edges[i].second, data, MAP_DIMENSION, MAP_DIMENSION, 3, color_tri);
-			else
-				draw_triangle( site, edges[i].second, edges[i].first, data, MAP_DIMENSION, MAP_DIMENSION, 3, color_tri);
+
+			const PointF& _p0 = site;
+			const PointF& _p1 = det > 0 ? edges[i].first : edges[i].second;
+			const PointF& _p2 = det > 0 ? edges[i].second : edges[i].first;
+
+			PointF p0 = remap(_p0, context->dgmin, context->dgmax, dimensions);
+			PointF p1 = remap(_p1, context->dgmin, context->dgmax, dimensions);
+			PointF p2 = remap(_p2, context->dgmin, context->dgmax, dimensions);
+			draw_triangle( p0, p1, p2, data, MAP_DIMENSION, MAP_DIMENSION, 3, color_tri);
 		}
 	}
 
 	for( size_t i = 0; i < context->collectededges.size(); ++i )
 	{
-		plot_line( (int)context->collectededges[i].first.x, (int)context->collectededges[i].first.y,
-				   (int)context->collectededges[i].second.x, (int)context->collectededges[i].second.y, data, MAP_DIMENSION, 3, color_blue);
+		PointF p0 = remap(context->collectededges[i].first, context->dgmin, context->dgmax, dimensions);
+		PointF p1 = remap(context->collectededges[i].second, context->dgmin, context->dgmax, dimensions);
+		plot_line( (int)p0.x, (int)p0.y,
+				   (int)p1.x, (int)p1.y, data, MAP_DIMENSION, 3, color_white);
 	}
 
 	for( int i = 0; i < context->count; ++i )
 	{
-		plot( (int)context->fsites[i].x, (int)context->fsites[i].y, data, MAP_DIMENSION, MAP_DIMENSION, 3, color_white);
+		PointF p = remap(context->fsites[i], context->dgmin, context->dgmax, dimensions);
+		plot( (int)p.x, (int)p.y, data, MAP_DIMENSION, MAP_DIMENSION, 3, color_white);
+		plot( (int)p.x+1, (int)p.y, data, MAP_DIMENSION, MAP_DIMENSION, 3, color_white);
+		plot( (int)p.x-1, (int)p.y, data, MAP_DIMENSION, MAP_DIMENSION, 3, color_white);
+		plot( (int)p.x, 1+(int)p.y, data, MAP_DIMENSION, MAP_DIMENSION, 3, color_white);
+		plot( (int)p.x, -1+(int)p.y, data, MAP_DIMENSION, MAP_DIMENSION, 3, color_white);
 	}
 
 	char path[512];
 	sprintf(path, "images/voronoi_%s_%d.png", name, context->count);
 	stbi_write_png(path, MAP_DIMENSION, MAP_DIMENSION, 3, data, MAP_DIMENSION*3);
-	//printf("wrote %s\n", path);
+	printf("wrote %s\n", path);
 
 	delete[] data;
 }
 
 template<typename SetupFunc, typename Func>
-void generate_image(const char* name, Context* context, SetupFunc setupfunc, Func func)
+void generate_diagram(const char* name, Context* context, SetupFunc setupfunc, Func func)
 {
 	context->collectededges.clear();
 	context->collectededges.resize(0);
@@ -499,17 +560,18 @@ void generate_image(const char* name, Context* context, SetupFunc setupfunc, Fun
 
 	context->collectedges = false;
 
-	output_image(name, context);
+	if (context->generate_images)
+		output_image(name, context);
 }
 
 template<typename SetupFunc, typename Func>
-void run_test(const char* name, Context* context, SetupFunc setupfunc, Func func)
+void run_test(const char* implname, const char* testname, Context* context, SetupFunc setupfunc, Func func)
 {
-	size_t len = strlen(name);
-	char buffer[18];
-	memset(buffer, ' ', sizeof(buffer));
-	memcpy( buffer, name, len < sizeof(buffer) ? len : sizeof(buffer)-1 );
+	char buffer[32];
+	snprintf(buffer, sizeof(buffer), "%s %s", implname, testname);
 	buffer[sizeof(buffer)-1] = 0;
+
+    printf("# n %d  it %d\n", context->count, context->numiterations);
 
 	CTimeIt timeit;
 	start_test(buffer, context);
@@ -517,7 +579,7 @@ void run_test(const char* name, Context* context, SetupFunc setupfunc, Func func
 	stop_test(buffer, context);
 
 	timeit.report(std::cout, buffer, 0.0f);
-	generate_image(name, context, null_setup, func);
+	generate_diagram(implname, context, null_setup, func);
 }
 
 int main(int argc, const char** argv)
@@ -526,32 +588,41 @@ int main(int argc, const char** argv)
 	if( argc > 1 )
 		count = atol(argv[1]);
 
+	uint iterations = 20;
+	if( argc > 2 )
+		iterations = atol(argv[2]);
+
 	Context context;
 	setup_sites(count, &context);
-	context.numiterations = 20;
+	context.numiterations = iterations;
 
-	std::cout << "Generating voronoi diagrams for " << count << " sites..." << std::endl;
+	context.testname = 0;
+	if( argc > 3 )
+		context.testname = argv[3];
 
-	fflush(stdout);
+	context.generate_images = 0;
+	if( argc > 4 )
+		context.generate_images = atol(argv[4]);
 
-	run_test("jc_voronoi", &context, null_setup, new_voronoi);
-
-#ifndef ONLYNEWIMPL
-
-	fflush(stdout);
-	run_test("fastjet", &context, null_setup, fastjet_voronoi);
-
-	fflush(stdout);
-	run_test("boost", &context, null_setup, boost_voronoi);
+	std::cout << "# Generating voronoi diagrams for " << count << " sites..." << std::endl;
 
 	fflush(stdout);
-	run_test("voronoi++", &context, null_setup, voronoiplusplus_voronoi);
 
-	//fflush(stdout);
-	//run_test("osullivan", &context, null_setup, shaneosullivan_voronoi);
 
-	fflush(stdout);
+#if defined(USE_JC_VORONOI)
+	run_test("jc_voronoi", context.testname, &context, null_setup, jc_voronoi);
+#elif defined(USE_FASTJET)
+	run_test("fastjet", context.testname, &context, null_setup, fastjet_voronoi);
+#elif defined(USE_BOOST)
+	run_test("boost", context.testname, &context, null_setup, boost_voronoi);
+#elif defined(USE_VORONOIPP)
+	run_test("voronoi++", context.testname, &context, null_setup, voronoiplusplus_voronoi);
+#elif defined(USE_SHANEOSULLIVAN)
+	run_test("osullivan", context.testname, &context, null_setup, shaneosullivan_voronoi);
+#else
+	#error "Unknown algorithm"
 #endif
+	fflush(stdout);
 
 	return 0;
 }

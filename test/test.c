@@ -61,7 +61,7 @@ static bool check_point_eq(const jcv_point* p1, const jcv_point* p2)
     return p1->x == p2->x && p1->y == p2->y;
 }
 
-static bool check_edge_eq(const jcv_graphedge* e, const jcv_point* p1, const jcv_point* p2)
+static bool check_graphedge_eq(const jcv_graphedge* e, const jcv_point* p1, const jcv_point* p2)
 {
     return check_point_eq(&e->pos[0], p1) && check_point_eq(&e->pos[1], p2);
 }
@@ -69,6 +69,9 @@ static bool check_edge_eq(const jcv_graphedge* e, const jcv_point* p1, const jcv
 #define ASSERT_POINT_EQ( _P1, _P2 ) \
     ASSERT_EQ( (_P1).x, (_P2).x ) \
     ASSERT_EQ( (_P1).y, (_P2).y ) \
+
+#define ASSERT_POINT_NE( _P1, _P2 ) \
+    ASSERT_TRUE( !check_point_eq( &_P1, &_P2) )
 
 static void check_edges(const jcv_graphedge* edges, int num_expected,
                         const jcv_point* expected_points, const jcv_site** expected_neighbors)
@@ -79,7 +82,7 @@ static void check_edges(const jcv_graphedge* edges, int num_expected,
         const jcv_graphedge* e = edges;
         while( e )
         {
-            if( check_edge_eq(e, &expected_points[i], &expected_points[(i+1)%num_expected]) )
+            if( check_graphedge_eq(e, &expected_points[i], &expected_points[(i+1)%num_expected]) )
             {
                 ASSERT_EQ( expected_neighbors[i], e->neighbor );
                 num_matched++;
@@ -310,6 +313,109 @@ static void voronoi_test_crash1(Context* ctx)
     ASSERT_EQ( num_points, ctx->diagram.numsites );
 }
 
+// Issue: https://github.com/JCash/voronoi/issues/10
+static void voronoi_test_issue10_zero_edge_length(Context* ctx)
+{
+    jcv_point points[] = {
+        { -5.544f, -3.492f },
+        { -5.010f, -4.586f },
+        { 3.030f, -3.045f },
+        { -5.279f, -5.474f },
+    };
+    jcv_rect rect = { {-6.418f, -5.500f}, {3.140f, 0.009f} };
+    int num_points = (int)(sizeof(points) / sizeof(jcv_point));
+
+    jcv_diagram_generate(num_points, points, &rect, &ctx->diagram);
+    ASSERT_EQ( num_points, ctx->diagram.numsites );
+
+    const jcv_edge* edge = jcv_diagram_get_edges( &ctx->diagram );
+    while( edge )
+    {
+        ASSERT_POINT_NE(edge->pos[0], edge->pos[1]);
+        edge = jcv_diagram_get_next_edge(edge);
+    }
+}
+
+
+// Issue: https://github.com/JCash/voronoi/issues/22
+static void voronoi_test_issue22_wrong_edge_count(Context* ctx)
+{
+    jcv_point points[] = {
+        { 0, 0 },
+        { 2, 0 },
+        { -2, 0 },
+        { 0, -2 },
+    };
+    int num_points = (int)(sizeof(points) / sizeof(jcv_point));
+
+    jcv_diagram_generate(num_points, points, 0, &ctx->diagram);
+    ASSERT_EQ( num_points, ctx->diagram.numsites );
+
+    const jcv_site *sites = jcv_diagram_get_sites(&ctx->diagram);
+    for( int i = 0; i < ctx->diagram.numsites; ++i )
+    {
+        const jcv_site* site = &sites[i];
+        const jcv_graphedge* e = site->edges;
+        int count = 0;
+        while (e) {
+            ++count;
+            e = e->next;
+        }
+        ASSERT_EQ( 4u, count );
+    }
+}
+
+
+// Issue: https://github.com/JCash/voronoi/issues/28
+static void voronoi_test_issue28_not_all_edges_returned(Context* ctx)
+{
+    jcv_point points[] = {
+        { 0, 0 },
+        { 2, 0 },
+        { -2, 0 },
+    };
+    int num_points = (int)(sizeof(points) / sizeof(jcv_point));
+
+    jcv_diagram_generate(num_points, points, 0, &ctx->diagram);
+    ASSERT_EQ( num_points, ctx->diagram.numsites );
+
+    // 1. count all graph edges
+    int count = 0;
+
+    const jcv_site *sites = jcv_diagram_get_sites(&ctx->diagram);
+    for( int i = 0; i < ctx->diagram.numsites; ++i )
+    {
+        const jcv_site* site = &sites[i];
+        const jcv_graphedge* e = site->edges;
+        while (e) {
+            // If it's a border edge
+            if (e->neighbor == 0)
+                ++count;
+            // or if the neighbor has a higher index (i.e. only count the edge once)
+            else if(e->neighbor->index > site->index)
+                ++count;
+
+            // 2. Make sure the graph edge points are the same as the edge points
+            ASSERT_TRUE(e->edge != 0);
+            bool eq =   check_graphedge_eq(e, &e->edge->pos[0], &e->edge->pos[1]) ||
+                        check_graphedge_eq(e, &e->edge->pos[1], &e->edge->pos[0]);
+            ASSERT_TRUE(eq);
+
+            e = e->next;
+        }
+    }
+    ASSERT_EQ( 10u, count );
+
+    // 3. count the edges
+    int count_edges = 0;
+    const jcv_edge* edge = jcv_diagram_get_edges(&ctx->diagram);
+    while (edge) {
+        ++count_edges;
+        edge = jcv_diagram_get_next_edge(edge);
+    }
+    ASSERT_EQ( 10u, count_edges );
+}
+
 TEST_BEGIN(voronoi_test, voronoi_main_setup, voronoi_main_teardown, test_setup, test_teardown)
     TEST(voronoi_test_parallel_horiz_2)
     TEST(voronoi_test_parallel_vert_2)
@@ -320,6 +426,9 @@ TEST_BEGIN(voronoi_test, voronoi_main_setup, voronoi_main_teardown, test_setup, 
     TEST(voronoi_test_many_circle)
     TEST(voronoi_test_culling)
     TEST(voronoi_test_crash1)
+    TEST(voronoi_test_issue10_zero_edge_length)
+    TEST(voronoi_test_issue22_wrong_edge_count)
+    TEST(voronoi_test_issue28_not_all_edges_returned)
 TEST_END(voronoi_test)
 
 

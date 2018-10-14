@@ -60,55 +60,16 @@ This software is supplied "AS IS" without any warranties and support
 
 # Some Numbers
 
-*Tests run on a Intel(R) Core(TM) i7-7567U CPU @ 3.50GHz MBP with 16 GB 2133 MHz LPDDR3 ram. Each test ran 20 times, and the average time is presented below*
+*Tests run on a Intel(R) Core(TM) i7-7567U CPU @ 3.50GHz MBP with 16 GB 2133 MHz LPDDR3 ram. Each test ran 20 times, and the minimum time is presented below*
 
-*I removed the voronoi++ from the results, since they were consistently 10x-15x slower than the rest and consumed way more memory*
+*I removed the voronoi++ from the results, since it was consistently 10x-15x slower than the rest and consumed way more memory*
 _
 <br/>
-<img src="images/timings_small.png" alt="timings small" width="350">
-<img src="images/memory_small.png" alt="memory small" width="350">
-_
-<br/>
-<img src="images/timings_medium.png" alt="timings medium" width="350">
-<img src="images/memory_medium.png" alt="memory medium" width="350">
-_
-<br/>
-<img src="images/timings_large.png" alt="timings large" width="350">
-<img src="images/memory_large.png" alt="memory large" width="350">
+<img src="test/images/timings_voronoi.png" alt="timings" width="350">
+<img src="test/images/memory_voronoi.png" alt="memory" width="350">
+<img src="test/images/num_allocations_voronoi.png" alt="num_allocations" width="350">
 
-Same stats, as tables
-
-## Timings medium
-
-| counts | jc_voronoi | fastjet   | boost      |
-|-------:|------------|-----------|------------|
-| 1000   | 0.9119 ms  | 0.8439 ms | 1.5290 ms  | 
-| 2000   | 1.7700 ms  | 1.7010 ms | 3.1100 ms  | 
-| 3000   | 2.7680 ms  | 2.5730 ms | 4.7400 ms  | 
-| 4000   | 3.8420 ms  | 3.4450 ms | 6.3510 ms  | 
-| 5000   | 4.9620 ms  | 4.3500 ms | 8.0390 ms  | 
-| 6000   | 6.1100 ms  | 5.2610 ms | 9.6720 ms  | 
-| 7000   | 7.3090 ms  | 6.2330 ms | 11.4420 ms | 
-| 8000   | 8.5580 ms  | 7.1420 ms | 13.2150 ms | 
-| 9000   | 10.0490 ms | 8.0130 ms | 15.0490 ms | 
-| 10000  | 11.0250 ms | 8.9560 ms | 16.8780 ms | 
-
-
-## Memory medium
-
-| counts | jc_voronoi | fastjet | boost   |
-|-------:|------------|---------|---------|
-| 1000   | 447 kb     | 137 kb  | 888 kb  | 
-| 2000   | 894 kb     | 275 kb  | 1779 kb | 
-| 3000   | 1325 kb    | 412 kb  | 2751 kb | 
-| 4000   | 1773 kb    | 549 kb  | 3567 kb | 
-| 5000   | 2220 kb    | 687 kb  | 4698 kb | 
-| 6000   | 2651 kb    | 824 kb  | 5508 kb | 
-| 7000   | 3098 kb    | 961 kb  | 6318 kb | 
-| 8000   | 3546 kb    | 1098 kb | 7125 kb | 
-| 9000   | 3977 kb    | 1235 kb | 8578 kb | 
-| 10000  | 4424 kb    | 1372 kb | 9383 kb | 
-
+[Same stats, as tables](./test/report.md)
 
 # Usage
 
@@ -121,6 +82,7 @@ void jcv_diagram_free( jcv_diagram* diagram );
 
 const jcv_site* jcv_diagram_get_sites( const jcv_diagram* diagram );
 const jcv_edge* jcv_diagram_get_edges( const jcv_diagram* diagram );
+const jcv_edge* jcv_diagram_get_next_edge( const jcv_edge* edge );
 ```
 
 The input points are pruned if
@@ -139,6 +101,8 @@ Example implementation (see main.c for actual code)
 //#define JCV_REAL_TYPE double
 //#define JCV_FABS fabs
 //#define JCV_ATAN2 atan2
+//#define JCV_FLOOR floor
+//#define JCV_CEIL ceil
 #include "jc_voronoi.h"
 
 void draw_edges(const jcv_diagram* diagram);
@@ -163,7 +127,7 @@ void draw_edges(const jcv_diagram* diagram)
     while( edge )
     {
         draw_line(edge->pos[0], edge->pos[1]);
-        edge = edge->next;
+        edge = jcv_diagram_get_next_edge(edge);
     }
 }
 

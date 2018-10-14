@@ -1,12 +1,11 @@
-#! /usr/bin/python
+#!/usr/bin/python
 
 import os
 import sys
+import time
 import subprocess
+import argparse
 from collections import OrderedDict
-import plotly.plotly as py
-from plotly.graph_objs import Data, Figure, XAxis, YAxis, Bar, Layout, Font, Legend
-
 
 def find_time_unit(t):
     if t < 0.000001:
@@ -26,209 +25,151 @@ def convert_time(t, unit):
         return t / 1000.0
     return t
 
+def parse_log(report, reportpath):
+    counts = []
+    with open(reportpath, 'rb') as f:
+        n = -1
+        iterations = -1
+        for line in f:
+            if line.startswith('# n '):
+                tokens = line.split()
+                n = int(tokens[2])
+                iterations = int(tokens[4])
+                if not n in counts:
+                    counts.append(n)
+                continue
+            if line.startswith('#'):
+                continue
 
-def run_test(report, *args):
-    cmd = ['./test']+map(str, args)
-    print "cmd:", ' '.join(cmd)
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
-    p.wait()
-    d = p.stdout.read()
-    
-    lines = d.replace('\r', '\n').split('\n')
-    
-    for line in lines[1:]:
-        tokens = line.split()
-        if not tokens:
-            continue
-        
-        name = tokens[0]
-        if not name in report['timings']:
-            report['memory'][name]      = list()
-            report['allocations'][name] = list()
-            report['timings'][name]     = list()
+            tokens = line.split()
+            name = tokens[0] # container name
+            testname = tokens[1]
+            if not testname in report['timings']:
+                report['memory'][testname]      = OrderedDict()
+                report['allocations'][testname] = OrderedDict()
+                report['timings'][testname]     = OrderedDict()
             
-        if 'used' == tokens[1]:
-            memory      = int(tokens[2])
-            allocations = int(tokens[5])
-            report['memory'][name].append(memory)
-            report['allocations'][name].append(allocations)
-            
-        else: # timings
-            timing      = float(tokens[4])
-            unit        = tokens[5]
-            timing      = convert_time(timing, unit)
-            report['timings'][name].append(timing)
-            
-        #print tokens
+            if not name in report['timings'][testname]:
+                report['memory'][testname][name]      = list()
+                report['allocations'][testname][name] = list()
+                report['timings'][testname][name]     = list()
+                
+            if 'used' == tokens[2]:
+                memory      = int(tokens[3])
+                allocations = int(tokens[6])
+                report['memory'][testname][name].append(memory)
+                report['allocations'][testname][name].append(allocations)
+                
+            else: # timings
+                index       = tokens.index("min:") # avg, median, min, max
+                timing      = float(tokens[index+1])
+                unit        = tokens[index+2]
+                timing      = convert_time(timing, unit)
+                report['timings'][testname][name].append(timing)
+    return counts
 
-
-
-"""
-
-* memory usage
-* num allocations
-* avg time
-
-
-fmt:
-jc_voronoi                  used 8371052 bytes in 497 allocations
-jc_voronoi                  iterations: 1    avg: 51.633 ms    median: 51.633 ms    min: 51.633 ms    max: 51.633 ms
-
-"""
 
 def collect_table_data(counts, report, tabledata):
-    for category, results in report.iteritems():
-        if not category in tabledata:
-            tabledata[category] = OrderedDict()
-        
-        if not 'counts' in tabledata[category]:
-            tabledata[category]['counts'] = list()
-        tabledata[category]['counts'].extend(counts)
-        
-        for name, values in results.iteritems():
-            if not name in tabledata[category]:
-                tabledata[category][name] = list()
-            if name in ['title', 'scale', 'unit']:
-                tabledata[category][name] = values
+
+    for category, tests in report.iteritems():
+        for testname, results in tests.iteritems():
+            if testname in ['title', 'scale', 'unit']:
                 continue
-            tabledata[category][name].extend(values)
+            
+            if not category in tabledata:
+                tabledata[category] = OrderedDict()
+            if not testname in tabledata[category]:
+                tabledata[category][testname] = OrderedDict()
+            
+            if not 'counts' in tabledata[category][testname]:
+                tabledata[category][testname]['counts'] = list()
+            tabledata[category][testname]['counts'].extend(counts)
+            
+            for name, values in results.iteritems():
+                if not name in tabledata[category][testname]:
+                    tabledata[category][testname][name] = list()
+                if name in ['title', 'scale', 'unit']:
+                    tabledata[category][testname][name] = values
+                    continue
+                tabledata[category][testname][name].extend(values)
             
 
 def make_table_report(data):
-    for category, results in data.iteritems():
-        columns = list()
-        for name, values in results.iteritems():
-            if name in ['title', 'scale', 'formatter', 'unit']:
+    usediff = False
+
+    for category, tests in data.iteritems():
+    
+        totaldiff = 0.0
+    
+        for testname, results in tests.iteritems():
+            if testname in ['title', 'scale', 'formatter', 'unit']:
                 continue
-            columns.append( [name]+values )
-        
-        formatter = results['formatter']
-        scale = results['scale']
-        title = results['title']
-        
-        matrix = zip(*columns)
-        
-        rows = [list(matrix[0])]
-        for row in matrix[1:]:
-            rows.append( [str(row[0])] + map(formatter, map(lambda x: scale * x, row[1:]) ) )
-        
-        lengths = [0] * len(rows[0])
-        for row in rows:
-            for ic, v in enumerate(row):
-                lengths[ic] = max(lengths[ic], len(v))
-        
-        # header
-        headers = []
-        headersunderline = []
-        for ic, v in enumerate(rows[0]):
-            length = lengths[ic]
-            headers.append( ' ' + v.ljust(length) + ' ' )
-            if ic == 0:
-                headersunderline.append( '-' * (length + 1) + ':' )
-            else:
-                headersunderline.append( '-' * (length + 2) )
-                
-        print title
-        print '-' * len(title)
-        print ""
-        print '|' + '|'.join(headers) + '|'
-        print '|' + '|'.join(headersunderline) + '|'
-
-        for row in rows[1:]:
-            values = []
-            for ic, v in enumerate(row):
-                length = lengths[ic]
-                value = v.ljust(length)
-                values.append( ' ' + value + ' ')
-                
-            print '|' + '|'.join(values) + '|'
-        
-        print ""
-        print ""
-
-
-
-def make_report_pygal(counts, suffix, report):
-    for count in counts:
-        run_test( report, count )
-        
-    for category, results in report.iteritems():
-        
-        chart = pygal.Bar()
-        chart.x_labels = map(str, counts)
-        chart.title = results['title']
-        
-        unit = results['unit']
-        chart.value_formatter = lambda x: '%.2f %s' % ((x if x is not None else ''), unit)
-        
-        scale = results['scale']
-        
-        for name, values in results.iteritems():
-            if name in ['title', 'scale', 'unit']:
-                continue
-
-            chart.add(name, map(lambda x: x * scale, values))
             
-        chart.render()
-        outpath = '../images/%s%s.svg' % (category, suffix)
-        chart.render_to_file(outpath)
-        outpath = '../images/%s%s.png' % (category, suffix)
-        chart.render_to_png(outpath)
-        print "Wrote", outpath
+            columns = list()
+            for name, values in results.iteritems():
+                if len(values) < len(results['counts']):
+                    values.extend( (len(results['counts']) - len(values)) * [0.0])
+                columns.append( [name]+values )
+            
+            formatter = tests['formatter']
+            scale = tests['scale']
+            title = tests['title']
+            
+            matrix = zip(*columns)
+            
+            rows = [list(matrix[0])]
+            for row in matrix[1:]:
+                rows.append( [str(row[0])] + map(formatter, map(lambda x: scale * x, row[1:]) ) )
+            
+            lengths = [0] * len(rows[0])
+            for row in rows:
+                for ic, v in enumerate(row):
+                    lengths[ic] = max(lengths[ic], len(v))
+            
+            # header
+            headers = []
+            headersunderline = []
+            for ic, v in enumerate(rows[0]):
+                length = lengths[ic]
+                headers.append( ' ' + v.ljust(length) + ' ' )
+                if ic == 0:
+                    headersunderline.append( '-' * (length + 1) + ':' )
+                else:
+                    headersunderline.append( '-' * (length + 2) )
+                    
+            print "## " + title + " " + testname
+            print ""
+            print '|' + '|'.join(headers) + '|'
+            print '|' + '|'.join(headersunderline) + '|'
 
-def make_report_plotly(counts, suffix, report):
-    
-    for count in counts:
-        run_test( report, count )
+            for row in rows[1:]:
+                values = []
+                for ic, v in enumerate(row):
+                    length = lengths[ic]
+                    value = v.ljust(length)
+                    values.append( ' ' + value + ' ')
+                
+                print '|' + '|'.join(values) + '|',
+                if not usediff:
+                    print ""
+                
+                diff = 0.0
+                if usediff:
+                    tokens = values[-1].split()
+                    diff = float(tokens[0]) - float(values[-2].split()[0])
+                    print diff, tokens[1]
         
-    for category, results in report.iteritems():
+            if usediff:            
+                totaldiff += diff
+            
+            print ""
+            print ""
         
-        #formatter = results['formatter']
-        scale = results['scale']
-        unit = results['unit']
-        
-        bars = []
-        for name, values in results.iteritems():
-            if name in ['title', 'scale', 'unit']:
-                continue
-
-            #values = map(formatter, map(lambda x: x * scale, values))
-            values = map(lambda x: x * scale, values)
-
-            bar = Bar(  x=counts,
-                        y=values,
-                        name=name )
-            bars.append(bar)
-    
-        layout = Layout(title=results['title'],
-                        font=Font(family='Raleway, sans-serif'),
-                        showlegend=True,
-                        barmode='group',
-                        bargap=0.15,
-                        bargroupgap=0.1,
-                        legend=Legend(x=0, y=1.0),
-                        xaxis=XAxis(title='Num Sites', type='category'),
-                        yaxis=YAxis(title=results['unit'])
-                        )
-        
-        data = Data(bars)
-        fig = Figure(data=data, layout=layout)
-        outpath = '../images/%s%s.png' % (category, suffix)
-        py.image.save_as(fig, outpath)
-        
-        print "Wrote", outpath
-        
+        if usediff:
+            print "Total diff:", totaldiff
 
 
-if __name__ == '__main__':
-    
-    counts = [3, 10, 50, 100, 200]
-    
-    tabledata = OrderedDict()
-    tabledata['timings'] = OrderedDict()
-    tabledata['memory'] = OrderedDict()
-    tabledata['allocations'] = OrderedDict()
-    
+def make_timings_report(input_path):
     report = OrderedDict()
     report['timings'] = OrderedDict()
     report['memory'] = OrderedDict()
@@ -238,42 +179,61 @@ if __name__ == '__main__':
     report['timings']['scale'] = 1000000.0
     report['timings']['unit']  = 'us'
     report['memory']['title'] = 'Memory (kb)'
-    report['memory']['scale'] = 1 / 1024.0
-    report['memory']['unit']  = 'kb'
-    report['allocations']['title'] = '# Allocations'
+    report['memory']['scale'] = 1 / (1024.0 * 1024.0)
+    report['memory']['unit']  = 'mb'
+    report['allocations']['title'] = 'Num Allocations'
     report['allocations']['scale'] = 1
     report['allocations']['unit']  = ''
+        
+    counts = parse_log(report, input_path)
+
+    tabledata = OrderedDict()
+    tabledata['timings'] = OrderedDict()
+    tabledata['memory'] = OrderedDict()
+    tabledata['allocations'] = OrderedDict()
     
-    make_report_plotly(counts, '_small', report)
     collect_table_data(counts, report, tabledata)
 
-    counts = [1000, 2000, 5000, 10000, 20000]
-    report = OrderedDict()
-    report['timings'] = OrderedDict()
-    report['memory'] = OrderedDict()
-    report['allocations'] = OrderedDict()
-    
-    report['timings']['title'] = 'Timings (milliseconds)'
-    report['timings']['scale'] = 1000.0
-    report['timings']['unit']  = 'ms'
-    report['memory']['title'] = 'Memory (kb)'
-    report['memory']['scale'] = 1 / 1024.0
-    report['memory']['unit']  = 'kb'
-    report['allocations']['title'] = '# Allocations'
-    report['allocations']['scale'] = 1
-    report['allocations']['unit']  = ''
-    
-    make_report_plotly(counts, '_large', report)
-    collect_table_data(counts, report, tabledata)
-    
+    #del tabledata['memory']
+    #del tabledata['allocations']
+
     tabledata['timings']['title'] = 'Timings'
     tabledata['timings']['scale'] = 1000.0
     tabledata['timings']['formatter'] = lambda x: '%.4f ms' % x
-    tabledata['memory']['title'] = 'Memory'
-    tabledata['memory']['scale'] = 1 / 1024.0
-    tabledata['memory']['formatter']  = lambda x: '%d kb' % x
-    tabledata['allocations']['title'] = '# Allocations'
-    tabledata['allocations']['scale'] = 1
-    tabledata['allocations']['formatter'] = lambda x: str(x)
+    if 'memory' in tabledata:
+        tabledata['memory']['title'] = 'Memory'
+        tabledata['memory']['scale'] = 1 / 1024.0
+        tabledata['memory']['formatter']  = lambda x: '%d kb' % x
+    if 'allocations' in tabledata:
+        tabledata['allocations']['title'] = 'Num Allocations'
+        tabledata['allocations']['scale'] = 1
+        tabledata['allocations']['formatter'] = lambda x: str(x)
+
+    # Render to output to table format
     make_table_report(tabledata)
-    
+
+
+def make_file_size_report(path, regex):
+    print path, regex
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser.add_argument('-m', '--mode', default='timings', choices=['timings', 'filesize'], help='Enables file size report')
+    parser.add_argument('--regex', nargs='+', help='Matches to be made')
+    parser.add_argument('-i', '--input', help='The input file/directory')
+    args = parser.parse_args()
+
+    if not args.input:
+        print("Need a log file from the test run")
+        sys.exit(1)
+
+    timestart = time.time()
+
+    if args.mode == 'filesize':
+        make_file_size_report(args.input, args.regex)
+    else:
+        make_timings_report(args.input)
+
+    timeend = time.time()
+    print "# Report made in %f seconds" % (timeend - timestart)
