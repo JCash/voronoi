@@ -190,7 +190,7 @@ extern "C" {
 #endif
 
 #ifndef JCV_FLT_MAX
-	#define JCV_FLT_MAX	3.40282347E+38F
+	#define JCV_FLT_MAX	3.402823466e+38F
 #endif
 
 typedef JCV_REAL_TYPE jcv_real;

@@ -1,5 +1,6 @@
 #include <cstring>
 #include <cstdlib>
+#include <float.h>
 
 static size_t g_MallocCount = 0;
 static size_t g_MallocSize 	= 0;
