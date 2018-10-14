@@ -6,6 +6,11 @@ ABOUT:
 
 HISTORY:
 
+    0.5     2018-10-14  - Fixed issue where the graph edge had the wrong edge assigned (issue #28)
+                        - Fixed issue where a point was falsely passing the jcv_is_valid() test (issue #22)
+                        - Fixed jcv_diagram_get_edges() so it now returns _all_ edges (issue #28)
+                        - Added jcv_diagram_get_next_edge() to skip zero length edges (issue #10)
+                        - Added defines JCV_CEIL/JCV_FLOOR/JCV_FLT_MAX for easier configuration
     0.4     2017-06-03  - Increased the max number of events that are preallocated
     0.3     2017-04-16  - Added clipping box as input argument (Automatically calcuated if needed)
                         - Input points are pruned based on bounding box
