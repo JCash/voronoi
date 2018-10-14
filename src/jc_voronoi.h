@@ -783,10 +783,11 @@ static int jcv_halfedge_rightof(const jcv_halfedge* he, const jcv_point* p)
     return (he->direction == JCV_DIRECTION_LEFT ? above : !above);
 }
 
-
+// Keeps the priority queue sorted with events sorted in ascending order
+// Return 1 if the edges needs to be swapped
 static inline int jcv_halfedge_compare( const jcv_halfedge* he1, const jcv_halfedge* he2 )
 {
-    return (he1->y > he2->y) ? 1 : ((he1->y < he2->y) ? 0 : (he1->vertex.x > he2->vertex.x) ? 1 : 0 );
+	return  (he1->y == he2->y) ? he1->vertex.x > he2->vertex.x : he1->y > he2->y;
 }
 
 static inline void jcv_halfedge_setpos( jcv_halfedge* he, int pos )
@@ -1040,6 +1041,7 @@ static void jcv_site_event(jcv_context_internal* internal, jcv_site* site)
     }
 }
 
+// https://cp-algorithms.com/geometry/oriented-triangle-area.html
 static inline jcv_real jcv_determinant(const jcv_point* a, const jcv_point* b, const jcv_point* c)
 {
     return (b->x - a->x)*(c->y - a->y) - (b->y - a->y)*(c->x - a->x);
