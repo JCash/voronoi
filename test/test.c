@@ -336,6 +336,35 @@ static void voronoi_test_issue10_zero_edge_length(Context* ctx)
     }
 }
 
+
+// Issue: https://github.com/JCash/voronoi/issues/22
+static void voronoi_test_issue22_wrong_edge_count(Context* ctx)
+{
+    jcv_point points[] = {
+        { 0, 0 },
+        { 2, 0 },
+        { -2, 0 },
+        { 0, -2 },
+    };
+    int num_points = (int)(sizeof(points) / sizeof(jcv_point));
+
+    jcv_diagram_generate(num_points, points, 0, &ctx->diagram);
+    ASSERT_EQ( num_points, ctx->diagram.numsites );
+
+    const jcv_site *sites = jcv_diagram_get_sites(&ctx->diagram);
+    for( int i = 0; i < ctx->diagram.numsites; ++i )
+    {
+        const jcv_site* site = &sites[i];
+        const jcv_graphedge* e = site->edges;
+        int count = 0;
+        while (e) {
+            ++count;
+            e = e->next;
+        }
+        ASSERT_EQ( 4u, count );
+    }
+}
+
 TEST_BEGIN(voronoi_test, voronoi_main_setup, voronoi_main_teardown, test_setup, test_teardown)
     TEST(voronoi_test_parallel_horiz_2)
     TEST(voronoi_test_parallel_vert_2)
@@ -347,6 +376,7 @@ TEST_BEGIN(voronoi_test, voronoi_main_setup, voronoi_main_teardown, test_setup, 
     TEST(voronoi_test_culling)
     TEST(voronoi_test_crash1)
     TEST(voronoi_test_issue10_zero_edge_length)
+    TEST(voronoi_test_issue22_wrong_edge_count)
 TEST_END(voronoi_test)
 
 
