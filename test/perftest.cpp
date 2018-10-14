@@ -68,6 +68,8 @@ struct Context
 	PointD* dsites;
 	float* sitesx;
 	float* sitesy;
+	PointF dgmin;
+	PointF dgmax;
 
 	const char* testname;
 
@@ -103,6 +105,9 @@ void setup_sites(int count, Context* context)
 	context->boost_points.resize(count);
 #endif
 
+	context->dgmin = PointF(FLT_MAX, FLT_MAX);
+	context->dgmax = PointF(-FLT_MAX, -FLT_MAX);
+
     int pointoffset = 10; // move the points inwards, for aestetic reasons
 	srand(0);
 	for( int i = 0; i < count; ++i )
@@ -118,6 +123,11 @@ void setup_sites(int count, Context* context)
 		context->dpoints[i].x = x;
 		context->dpoints[i].y = y;
 
+		context->dgmin.x = std::min(context->dgmin.x, x);
+		context->dgmin.y = std::min(context->dgmin.y, y);
+		context->dgmax.x = std::max(context->dgmax.x, x);
+		context->dgmax.y = std::max(context->dgmax.y, y);
+
 #if defined(USE_VORONOIPP)
 		context->vpp_sites[i] = new voronoi::VoronoiSite(x, y);
 #endif
@@ -125,6 +135,11 @@ void setup_sites(int count, Context* context)
 		context->boost_points[i] = boost::polygon::point_data<float>(x, y);
 #endif
 	}
+
+	context->dgmin.x -= 1;
+	context->dgmin.y -= 1;
+	context->dgmax.x += 1;
+	context->dgmax.y += 1;
 
 	context->collectedges = false;
 }
@@ -150,7 +165,7 @@ void null_setup(Context* context)
 int jc_voronoi(Context* context)
 {
 	jcv_diagram diagram = { 0 };
-	jcv_rect rect = { {0, 0}, {MAP_DIMENSION, MAP_DIMENSION} };
+	jcv_rect rect = { {context->dgmin.x, context->dgmin.y}, {context->dgmax.x, context->dgmax.y} };
 	jcv_diagram_generate(context->count, (const jcv_point*)context->fsites, &rect, &diagram );
 
 	if( context->collectedges )
@@ -192,7 +207,7 @@ int jc_voronoi(Context* context)
 int shaneosullivan_voronoi(Context* context)
 {
 	VoronoiDiagramGenerator generator;
-	generator.generateVoronoi(context->sitesx, context->sitesy, context->count, 0, MAP_DIMENSION, 0, MAP_DIMENSION);
+	generator.generateVoronoi(context->sitesx, context->sitesy, context->count, context->dgmin.x, context->dgmax.x, context->dgmin.y, context->dgmax.y);
 
 	if( context->collectedges )
 	{
@@ -212,7 +227,7 @@ int shaneosullivan_voronoi(Context* context)
 int fastjet_voronoi(Context* context)
 {
 	fastjet::VoronoiDiagramGenerator generator;
-	generator.generateVoronoi((std::vector<fastjet::VPoint>*)&context->dpoints, 0, MAP_DIMENSION, 0, MAP_DIMENSION);
+	generator.generateVoronoi((std::vector<fastjet::VPoint>*)&context->dpoints, context->dgmin.x, context->dgmax.x, context->dgmin.y, context->dgmax.y);
 
 	if( context->collectedges )
 	{
@@ -237,7 +252,7 @@ int voronoiplusplus_voronoi(Context* context)
 
 	if( context->collectedges )
 	{
-		const geometry::Rectangle rect(0, 0, MAP_DIMENSION, MAP_DIMENSION);
+		const geometry::Rectangle rect(context->dgmin.x, context->dgmin.y, context->dgmax.x, context->dgmax.y);
 		geometry::ConvexPolygon boundingPolygon;
 	    boundingPolygon << rect.topLeft();
 	    boundingPolygon << rect.topRight();
@@ -375,7 +390,7 @@ static void plot(int x, int y, unsigned char* image, int width, int height, int 
 {
 	if( x < 0 || y < 0 || x > (width-1) || y > (height-1) )
 		return;
-	int index = y * width * nchannels + x * nchannels;
+	int index = (height - y) * width * nchannels + x * nchannels;
 	for( int i = 0; i < nchannels; ++i )
 	{
 		image[index+i] = color[i];
@@ -412,6 +427,16 @@ static inline int min3(int a, int b, int c)
 static inline int max3(int a, int b, int c)
 {
 	return std::max(a, std::max(b, c));
+}
+
+// Remaps the point from the input space to image space
+template<typename PT>
+static inline PT remap(const PT& pt, const PT& min, const PT& max, const PT& scale)
+{
+	PT p;
+	p.x = (pt.x - min.x)/(max.x - min.x) * scale.x;
+	p.y = (pt.y - min.y)/(max.y - min.y) * scale.y;
+	return p;
 }
 
 template<typename PT>
@@ -463,6 +488,8 @@ static void output_image(const char* name, Context* context)
 
 	srand(0);
 
+	PointF dimensions(MAP_DIMENSION, MAP_DIMENSION);
+
 	for( size_t i = 0; i < context->collectedcells.size(); ++i )
 	{
 		const PointF& site = context->collectedcells[i].first;
@@ -480,22 +507,34 @@ static void output_image(const char* name, Context* context)
 
 			// Needed for voronoi++
 			float det = orient2d(site, edges[i].first, edges[i].second);
-			if( det > 0 )
-				draw_triangle( site, edges[i].first, edges[i].second, data, MAP_DIMENSION, MAP_DIMENSION, 3, color_tri);
-			else
-				draw_triangle( site, edges[i].second, edges[i].first, data, MAP_DIMENSION, MAP_DIMENSION, 3, color_tri);
+
+			const PointF& _p0 = site;
+			const PointF& _p1 = det > 0 ? edges[i].first : edges[i].second;
+			const PointF& _p2 = det > 0 ? edges[i].second : edges[i].first;
+
+			PointF p0 = remap(_p0, context->dgmin, context->dgmax, dimensions);
+			PointF p1 = remap(_p1, context->dgmin, context->dgmax, dimensions);
+			PointF p2 = remap(_p2, context->dgmin, context->dgmax, dimensions);
+			draw_triangle( p0, p1, p2, data, MAP_DIMENSION, MAP_DIMENSION, 3, color_tri);
 		}
 	}
 
 	for( size_t i = 0; i < context->collectededges.size(); ++i )
 	{
-		plot_line( (int)context->collectededges[i].first.x, (int)context->collectededges[i].first.y,
-				   (int)context->collectededges[i].second.x, (int)context->collectededges[i].second.y, data, MAP_DIMENSION, 3, color_blue);
+		PointF p0 = remap(context->collectededges[i].first, context->dgmin, context->dgmax, dimensions);
+		PointF p1 = remap(context->collectededges[i].second, context->dgmin, context->dgmax, dimensions);
+		plot_line( (int)p0.x, (int)p0.y,
+				   (int)p1.x, (int)p1.y, data, MAP_DIMENSION, 3, color_white);
 	}
 
 	for( int i = 0; i < context->count; ++i )
 	{
-		plot( (int)context->fsites[i].x, (int)context->fsites[i].y, data, MAP_DIMENSION, MAP_DIMENSION, 3, color_white);
+		PointF p = remap(context->fsites[i], context->dgmin, context->dgmax, dimensions);
+		plot( (int)p.x, (int)p.y, data, MAP_DIMENSION, MAP_DIMENSION, 3, color_white);
+		plot( (int)p.x+1, (int)p.y, data, MAP_DIMENSION, MAP_DIMENSION, 3, color_white);
+		plot( (int)p.x-1, (int)p.y, data, MAP_DIMENSION, MAP_DIMENSION, 3, color_white);
+		plot( (int)p.x, 1+(int)p.y, data, MAP_DIMENSION, MAP_DIMENSION, 3, color_white);
+		plot( (int)p.x, -1+(int)p.y, data, MAP_DIMENSION, MAP_DIMENSION, 3, color_white);
 	}
 
 	char path[512];

@@ -53,6 +53,8 @@ USAGE:
 
 	The input bounding box is optional
 
+	The input domain is (-FLT_MAX, FLT_MAX] (for floats)
+
 	The api consists of these functions:
 
 	void jcv_diagram_generate( int num_points, const jcv_point* points, const jcv_rect* rect, jcv_diagram* diagram );
@@ -72,6 +74,7 @@ USAGE:
 	//#define JCV_ATAN2 atan2
 	//#define JCV_CEIL ceil
 	//#define JCV_FLOOR floor
+	//#define JCV_FLT_MAX 1.7976931348623157E+308
 	#include "jc_voronoi.h"
 
 	void draw_edges(const jcv_diagram* diagram);
@@ -184,6 +187,10 @@ extern "C" {
 
 #ifndef JCV_PI
 	#define JCV_PI 3.14159265358979323846264338327950288f
+#endif
+
+#ifndef JCV_FLT_MAX
+	#define JCV_FLT_MAX	3.40282347E+38F
 #endif
 
 typedef JCV_REAL_TYPE jcv_real;
@@ -394,7 +401,7 @@ typedef struct _jcv_context_internal
 
 static const int JCV_DIRECTION_LEFT  = 0;
 static const int JCV_DIRECTION_RIGHT = 1;
-static const jcv_real JCV_INVALID_VALUE = (jcv_real)-1;
+static const jcv_real JCV_INVALID_VALUE = (jcv_real)-JCV_FLT_MAX;
 
 
 void jcv_diagram_free( jcv_diagram* d )
