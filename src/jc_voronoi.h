@@ -1154,6 +1154,19 @@ static inline void jcv_create_corner_edge(jcv_context_internal* internal, const 
 	gap->angle = jcv_calc_sort_metric(site, gap);
 }
 
+static jcv_edge* jcv_create_gap_edge(jcv_context_internal* internal, jcv_site* site, jcv_graphedge* ge)
+{
+	jcv_edge* edge 	= jcv_alloc_edge(internal);
+	edge->pos[0] 	= ge->pos[0];
+	edge->pos[1] 	= ge->pos[1];
+	edge->sites[0]	= site;
+	edge->sites[1] 	= 0;
+	edge->a = edge->b = edge->c = 0;
+	edge->next 		= internal->edges;
+	internal->edges = edge;
+	return edge;
+}
+
 // Since the algorithm leaves gaps at the borders/corner, we want to fill them
 static void jcv_fillgaps(jcv_diagram* diagram)
 {
@@ -1169,14 +1182,14 @@ static void jcv_fillgaps(jcv_diagram* diagram)
 			// No edges, then it should be a single cell
 			assert( internal->numsites == 1 );
 
-			jcv_graphedge* gap = jcv_alloc_graphedge(diagram->internal);
-			gap->edge 		= 0; // not really true (should be 0)
+			jcv_graphedge* gap = jcv_alloc_graphedge(internal);
 			gap->neighbor	= 0;
 			gap->pos[0] 	= internal->min;
 			gap->pos[1].x 	= internal->max.x;
 			gap->pos[1].y 	= internal->min.y;
 			gap->angle 		= jcv_calc_sort_metric(site, gap);
 			gap->next 		= 0;
+			gap->edge 		= jcv_create_gap_edge(internal, site, gap);
 
 			current = gap;
 			site->edges = gap;
@@ -1186,9 +1199,9 @@ static void jcv_fillgaps(jcv_diagram* diagram)
 		if( !next )
 		{
 			// Only one edge, then we assume it's a corner gap
-			jcv_graphedge* gap = jcv_alloc_graphedge(diagram->internal);
-			gap->edge = current->edge; // not really true (should be 0)
+			jcv_graphedge* gap = jcv_alloc_graphedge(internal);
 			jcv_create_corner_edge(internal, site, current, gap);
+			gap->edge = jcv_create_gap_edge(internal, site, gap);
 
 			gap->next = current->next;
 			current->next = gap;
@@ -1203,12 +1216,12 @@ static void jcv_fillgaps(jcv_diagram* diagram)
 				// Border gap
 				if( current->pos[1].x == next->pos[0].x || current->pos[1].y == next->pos[0].y)
 				{
-					jcv_graphedge* gap = jcv_alloc_graphedge(diagram->internal);
-					gap->edge 		= current->edge;
+					jcv_graphedge* gap = jcv_alloc_graphedge(internal);
 					gap->neighbor 	= 0;
 					gap->pos[0]		= current->pos[1];
 					gap->pos[1]		= next->pos[0];
 					gap->angle 		= jcv_calc_sort_metric(site, gap);
+					gap->edge 		= jcv_create_gap_edge(internal, site, gap);
 
 					gap->next = current->next;
 					current->next = gap;
@@ -1216,9 +1229,9 @@ static void jcv_fillgaps(jcv_diagram* diagram)
 				else if( jcv_point_on_edge(&current->pos[1], &diagram->min, &diagram->max) &&
 						 jcv_point_on_edge(&next->pos[0], &diagram->min, &diagram->max) )
 				{
-					jcv_graphedge* gap = jcv_alloc_graphedge(diagram->internal);
-					gap->edge = current->edge; // not really true (should be 0)
+					jcv_graphedge* gap = jcv_alloc_graphedge(internal);
 					jcv_create_corner_edge(internal, site, current, gap);
+					gap->edge = jcv_create_gap_edge(internal, site, gap);
 					gap->next = current->next;
 					current->next = gap;
 				}
