@@ -75,7 +75,6 @@ USAGE:
     #define JC_VORONOI_IMPLEMENTATION
     // If you wish to use doubles
     //#define JCV_REAL_TYPE double
-    //#define JCV_FABS fabs
     //#define JCV_ATAN2 atan2
     //#define JCV_FLT_MAX 1.7976931348623157E+308
     #include "jc_voronoi.h"
@@ -174,10 +173,6 @@ extern "C" {
 
 #ifndef JCV_SQRT
     #define JCV_SQRT(_X_)       sqrtf(_X_)
-#endif
-
-#ifndef JCV_FABS
-    #define JCV_FABS(_X_)       fabsf(_X_)
 #endif
 
 #ifndef JCV_PI
@@ -297,7 +292,7 @@ static inline int jcv_point_cmp(const void* p1, const void* p2)
 
 static inline int jcv_point_less( const jcv_point* pt1, const jcv_point* pt2 )
 {
-    return (pt1->y < pt2->y) ? 1 : ((pt1->y > pt2->y) ? 0 : (pt1->x < pt2->x) ? 1 : 0 );
+    return (pt1->y == pt2->y) ? (pt1->x < pt2->x) : pt1->y < pt2->y;
 }
 
 static inline int jcv_point_eq( const jcv_point* pt1, const jcv_point* pt2 )
@@ -513,11 +508,12 @@ static void jcv_edge_create(jcv_edge* e, jcv_site* s1, jcv_site* s2)
 
     jcv_real dx = s2->p.x - s1->p.x;
     jcv_real dy = s2->p.y - s1->p.y;
+    int dx_is_larger = (dx*dx) > (dy*dy); // instead of fabs
 
     // Simplify it, using dx and dy
     e->c = dx * (s1->p.x + dx * (jcv_real)0.5) + dy * (s1->p.y + dy * (jcv_real)0.5);
 
-    if( JCV_FABS(dx) > JCV_FABS(dy) )
+    if( dx_is_larger )
     {
         e->a = (jcv_real)1;
         e->b = dy / dx;
@@ -649,7 +645,8 @@ static int jcv_edge_clipline(jcv_edge* e, jcv_point* min, jcv_point* max)
     e->pos[1].x = x2;
     e->pos[1].y = y2;
 
-    return 1;
+    // If the two points are equal, the result is invalid
+    return (x1 == x2 && y1 == y2) ? 0 : 1;
 }
 
 static jcv_edge* jcv_edge_new(jcv_context_internal* internal, jcv_site* s1, jcv_site* s2)
@@ -670,7 +667,7 @@ static void jcv_halfedge_link(jcv_halfedge* edge, jcv_halfedge* newedge)
     edge->right = newedge;
 }
 
-static void jcv_halfedge_unlink(jcv_halfedge* he)
+static inline void jcv_halfedge_unlink(jcv_halfedge* he)
 {
     he->left->right = he->right;
     he->right->left = he->left;
@@ -678,22 +675,17 @@ static void jcv_halfedge_unlink(jcv_halfedge* he)
     he->right = 0;
 }
 
-static void jcv_halfedge_create(jcv_halfedge* he, jcv_edge* e, int dir)
+static inline jcv_halfedge* jcv_halfedge_new(jcv_context_internal* internal, jcv_edge* e, int direction)
 {
+    jcv_halfedge* he = jcv_alloc_halfedge(internal);
     he->edge        = e;
     he->left        = 0;
     he->right       = 0;
-    he->direction   = dir;
+    he->direction   = direction;
     he->pqpos       = 0;
     // These are set outside
     //he->y
     //he->vertex
-}
-
-static jcv_halfedge* jcv_halfedge_new(jcv_context_internal* internal, jcv_edge* e, int direction)
-{
-    jcv_halfedge* he = jcv_alloc_halfedge(internal);
-    jcv_halfedge_create(he, e, direction);
     return he;
 }
 
@@ -778,7 +770,7 @@ static int jcv_halfedge_intersect(const jcv_halfedge* he1, const jcv_halfedge* h
     const jcv_edge* e2 = he2->edge;
 
     jcv_real d = e1->a * e2->b - e1->b * e2->a;
-    if( JCV_FABS(d) < (jcv_real)0.00001f )
+    if( (d*d) < (jcv_real)0.00000001f )
     {
         return 0;
     }
@@ -951,7 +943,7 @@ static jcv_halfedge* jcv_get_edge_above_x(jcv_context_internal* internal, const 
     return he;
 }
 
-static int jcv_check_circle_event(jcv_halfedge* he1, jcv_halfedge* he2, jcv_point* vertex)
+static int jcv_check_circle_event(const jcv_halfedge* he1, const jcv_halfedge* he2, jcv_point* vertex)
 {
     jcv_edge* e1 = he1->edge;
     jcv_edge* e2 = he2->edge;
@@ -981,7 +973,7 @@ static void jcv_site_event(jcv_context_internal* internal, jcv_site* site)
     jcv_halfedge_link(left, edge1);
     jcv_halfedge_link(edge1, edge2);
 
-    internal->last_inserted = edge1;
+    internal->last_inserted = right;
 
     jcv_point p;
     if( jcv_check_circle_event( left, edge1, &p ) )
@@ -1042,9 +1034,6 @@ static void jcv_sortedges_insert(jcv_site* site, jcv_graphedge* edge)
 static void jcv_finishline(jcv_context_internal* internal, jcv_edge* e)
 {
     if( !jcv_edge_clipline( e, &internal->min, &internal->max ) )
-        return;
-
-    if( jcv_point_eq(&e->pos[0], &e->pos[1]) )
         return;
 
     // Make sure the graph edges are CCW
@@ -1228,10 +1217,7 @@ static void jcv_circle_event(jcv_context_internal* internal)
     jcv_endpos(internal, left->edge, &vertex, left->direction);
     jcv_endpos(internal, right->edge, &vertex, right->direction);
 
-    if( internal->last_inserted == left )
-        internal->last_inserted = leftleft;
-    else if( internal->last_inserted == right )
-        internal->last_inserted = rightright;
+    internal->last_inserted = rightright;
 
     jcv_pq_remove(internal->eventqueue, right);
     jcv_halfedge_unlink(left);
@@ -1338,10 +1324,8 @@ void jcv_diagram_generate_useralloc( int num_points, const jcv_point* points, co
     internal->alloc  = allocfn;
     internal->free   = freefn;
 
-    internal->beachline_start = jcv_alloc_halfedge(internal);
-    internal->beachline_end = jcv_alloc_halfedge(internal);
-    jcv_halfedge_create(internal->beachline_start, 0, 0);
-    jcv_halfedge_create(internal->beachline_end, 0, 0);
+    internal->beachline_start = jcv_halfedge_new(internal, 0, 0);
+    internal->beachline_end = jcv_halfedge_new(internal, 0, 0);
 
     internal->beachline_start->left     = 0;
     internal->beachline_start->right    = internal->beachline_end;
@@ -1362,21 +1346,23 @@ void jcv_diagram_generate_useralloc( int num_points, const jcv_point* points, co
 
     jcv_pq_create(internal->eventqueue, max_num_events, (void**)internal->eventmem);
 
+    jcv_site* sites = internal->sites;
+
     for( int i = 0; i < num_points; ++i )
     {
-        internal->sites[i].p        = points[i];
-        internal->sites[i].edges    = 0;
-        internal->sites[i].index    = i;
+        sites[i].p        = points[i];
+        sites[i].edges    = 0;
+        sites[i].index    = i;
     }
 
-    qsort(internal->sites, (size_t)num_points, sizeof(jcv_site), jcv_point_cmp);
+    qsort(sites, (size_t)num_points, sizeof(jcv_site), jcv_point_cmp);
 
     int offset = 0;
     for (int i = 0; i < num_points; i++)
     {
-        const jcv_site* s = &internal->sites[i];
+        const jcv_site* s = &sites[i];
         // Remove duplicates, to avoid anomalies
-        if( i > 0 && s->p.y == internal->sites[i - 1].p.y && s->p.x == internal->sites[i - 1].p.x )
+        if( i > 0 && jcv_point_eq(&s->p, &sites[i - 1].p) )
         {
             offset++;
             continue;
@@ -1392,7 +1378,7 @@ void jcv_diagram_generate_useralloc( int num_points, const jcv_point* points, co
             }
         }
 
-        internal->sites[i - offset] = internal->sites[i];
+        sites[i - offset] = sites[i];
     }
     num_points -= offset;
 
@@ -1421,25 +1407,26 @@ void jcv_diagram_generate_useralloc( int num_points, const jcv_point* points, co
 
     internal->bottomsite = jcv_nextsite(internal);
 
+    jcv_priorityqueue* pq = internal->eventqueue;
     jcv_site* site = jcv_nextsite(internal);
 
     int finished = 0;
     while( !finished )
     {
         jcv_point lowest_pq_point;
-        if( !jcv_pq_empty(internal->eventqueue) )
+        if( !jcv_pq_empty(pq) )
         {
-            jcv_halfedge* he = (jcv_halfedge*)jcv_pq_top(internal->eventqueue);
+            jcv_halfedge* he = (jcv_halfedge*)jcv_pq_top(pq);
             lowest_pq_point.x = he->vertex.x;
             lowest_pq_point.y = he->y;
         }
 
-        if( site != 0 && (jcv_pq_empty(internal->eventqueue) || jcv_point_less(&site->p, &lowest_pq_point) ) )
+        if( site != 0 && (jcv_pq_empty(pq) || jcv_point_less(&site->p, &lowest_pq_point) ) )
         {
             jcv_site_event(internal, site);
             site = jcv_nextsite(internal);
         }
-        else if( !jcv_pq_empty(internal->eventqueue) )
+        else if( !jcv_pq_empty(pq) )
         {
             jcv_circle_event(internal);
         }
