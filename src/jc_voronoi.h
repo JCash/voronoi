@@ -442,9 +442,6 @@ static void* jcv_alloc(jcv_context_internal* internal, size_t size)
     if( !internal->memblocks || internal->memblocks->sizefree < size )
     {
         size_t blocksize = 16 * 1024;
-        // if( size + sizeof(jcv_memoryblock) > blocksize )
-        //     blocksize = size + sizeof(jcv_memoryblock);
-
         jcv_memoryblock* block = (jcv_memoryblock*)internal->alloc( internal->memctx, blocksize );
         size_t offset = sizeof(jcv_memoryblock);
         block->sizefree = blocksize - offset;
@@ -460,13 +457,6 @@ static void* jcv_alloc(jcv_context_internal* internal, size_t size)
 
 static jcv_edge* jcv_alloc_edge(jcv_context_internal* internal)
 {
-    // if( internal->edgepool )
-    // {
-    //     jcv_edge* edge = internal->edgepool;
-    //     internal->edgepool = internal->edgepool->next;
-    //     return edge;
-    // }
-
     return (jcv_edge*)jcv_alloc(internal, sizeof(jcv_edge));
 }
 
@@ -593,6 +583,7 @@ static int jcv_edge_clipline(jcv_edge* e, jcv_point* min, jcv_point* max)
             y2 = pymin;
         }
         x2 = (e->c) - (e->b) * y2;
+        // Never occurs according to lcov
         // if( ((x1 > pxmax) & (x2 > pxmax)) | ((x1 < pxmin) & (x2 < pxmin)) )
         // {
         //     return 0;
@@ -636,6 +627,7 @@ static int jcv_edge_clipline(jcv_edge* e, jcv_point* min, jcv_point* max)
             x2 = pxmin;
         }
         y2 = e->c - e->a * x2;
+        // Never occurs according to lcov
         // if( ((y1 > pymax) & (y2 > pymax)) | ((y1 < pymin) & (y2 < pymin)) )
         // {
         //     return 0;
@@ -704,8 +696,8 @@ static void jcv_halfedge_create(jcv_halfedge* he, jcv_edge* e, int dir)
     he->direction   = dir;
     he->pqpos       = 0;
     // These are set outside
-    //he->y         = 0;
-    //he->vertex is initialized outside
+    //he->y
+    //he->vertex
 }
 
 static jcv_halfedge* jcv_halfedge_new(jcv_context_internal* internal, jcv_edge* e, int direction)
@@ -794,14 +786,6 @@ static int jcv_halfedge_intersect(const jcv_halfedge* he1, const jcv_halfedge* h
 {
     const jcv_edge* e1 = he1->edge;
     const jcv_edge* e2 = he2->edge;
-
-    //jcv_real dx = e2->sites[1]->p.x - e1->sites[1]->p.x;
-    //jcv_real dy = e2->sites[1]->p.y - e1->sites[1]->p.y;
-
-    // if( dx == 0 && dy == 0 )
-    // {
-    //     return 0;
-    // }
 
     jcv_real d = e1->a * e2->b - e1->b * e2->a;
     if( JCV_FABS(d) < (jcv_real)0.00001f )
@@ -906,9 +890,6 @@ static int jcv_pq_push(jcv_priorityqueue* pq, void* node)
 
 static void* jcv_pq_pop(jcv_priorityqueue* pq)
 {
-    // if( pq->numitems == 1 )
-    //     return 0;
-
     void* node = pq->items[1];
     pq->items[1] = pq->items[--pq->numitems];
     jcv_pq_movedown(pq, 1);
@@ -917,8 +898,6 @@ static void* jcv_pq_pop(jcv_priorityqueue* pq)
 
 static void* jcv_pq_top(jcv_priorityqueue* pq)
 {
-    // if( pq->numitems == 1 )
-    //     return 0;
     return pq->items[1];
 }
 
