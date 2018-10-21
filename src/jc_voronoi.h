@@ -355,17 +355,11 @@ typedef struct _jcv_memoryblock
 } jcv_memoryblock;
 
 
-typedef int  (*FJCVPriorityQueueCompare)(const void* node1, const void* node2);
-typedef void (*FJCVPriorityQueueSetpos)(const void* node, int pos);
-typedef int  (*FJCVPriorityQueueGetpos)(const void* node);
 typedef int  (*FJCVPriorityQueuePrint)(const void* node, int pos);
 
 typedef struct _jcv_priorityqueue
 {
     // Implements a binary heap
-    FJCVPriorityQueueCompare    compare;        // implement the < operator
-    FJCVPriorityQueueSetpos     setpos;
-    FJCVPriorityQueueGetpos     getpos;
     int                         maxnumitems;
     int                         numitems;
     void**                      items;
@@ -448,9 +442,6 @@ static void* jcv_alloc(jcv_context_internal* internal, size_t size)
     if( !internal->memblocks || internal->memblocks->sizefree < size )
     {
         size_t blocksize = 16 * 1024;
-        if( size + sizeof(jcv_memoryblock) > blocksize )
-            blocksize = size + sizeof(jcv_memoryblock);
-
         jcv_memoryblock* block = (jcv_memoryblock*)internal->alloc( internal->memctx, blocksize );
         size_t offset = sizeof(jcv_memoryblock);
         block->sizefree = blocksize - offset;
@@ -466,13 +457,6 @@ static void* jcv_alloc(jcv_context_internal* internal, size_t size)
 
 static jcv_edge* jcv_alloc_edge(jcv_context_internal* internal)
 {
-    if( internal->edgepool )
-    {
-        jcv_edge* edge = internal->edgepool;
-        internal->edgepool = internal->edgepool->next;
-        return edge;
-    }
-
     return (jcv_edge*)jcv_alloc(internal, sizeof(jcv_edge));
 }
 
@@ -599,10 +583,11 @@ static int jcv_edge_clipline(jcv_edge* e, jcv_point* min, jcv_point* max)
             y2 = pymin;
         }
         x2 = (e->c) - (e->b) * y2;
-        if( ((x1 > pxmax) & (x2 > pxmax)) | ((x1 < pxmin) & (x2 < pxmin)) )
-        {
-            return 0;
-        }
+        // Never occurs according to lcov
+        // if( ((x1 > pxmax) & (x2 > pxmax)) | ((x1 < pxmin) & (x2 < pxmin)) )
+        // {
+        //     return 0;
+        // }
         if (x1 > pxmax)
         {
             x1 = pxmax;
@@ -642,10 +627,11 @@ static int jcv_edge_clipline(jcv_edge* e, jcv_point* min, jcv_point* max)
             x2 = pxmin;
         }
         y2 = e->c - e->a * x2;
-        if( ((y1 > pymax) & (y2 > pymax)) | ((y1 < pymin) & (y2 < pymin)) )
-        {
-            return 0;
-        }
+        // Never occurs according to lcov
+        // if( ((y1 > pymax) & (y2 > pymax)) | ((y1 < pymin) & (y2 < pymin)) )
+        // {
+        //     return 0;
+        // }
         if( y1 > pymax )
         {
             y1 = pymax;
@@ -709,8 +695,9 @@ static void jcv_halfedge_create(jcv_halfedge* he, jcv_edge* e, int dir)
     he->right       = 0;
     he->direction   = dir;
     he->pqpos       = 0;
-    he->y           = 0;
-    //he->vertex is initialized outside
+    // These are set outside
+    //he->y
+    //he->vertex
 }
 
 static jcv_halfedge* jcv_halfedge_new(jcv_context_internal* internal, jcv_edge* e, int direction)
@@ -741,7 +728,7 @@ static int jcv_halfedge_rightof(const jcv_halfedge* he, const jcv_point* p)
     const jcv_edge* e = he->edge;
     const jcv_site* topsite = e->sites[1];
 
-    int right_of_site = p->x > topsite->p.x ? 1 : 0;
+    int right_of_site = (p->x > topsite->p.x) ? 1 : 0;
     if (right_of_site && he->direction == JCV_DIRECTION_LEFT)
         return 1;
     if (!right_of_site && he->direction == JCV_DIRECTION_RIGHT)
@@ -795,28 +782,10 @@ static inline int jcv_halfedge_compare( const jcv_halfedge* he1, const jcv_halfe
 	return  (he1->y == he2->y) ? he1->vertex.x > he2->vertex.x : he1->y > he2->y;
 }
 
-static inline void jcv_halfedge_setpos( jcv_halfedge* he, int pos )
-{
-    he->pqpos = pos;
-}
-
-static inline int jcv_halfedge_getpos( const jcv_halfedge* he )
-{
-    return he->pqpos;
-}
-
 static int jcv_halfedge_intersect(const jcv_halfedge* he1, const jcv_halfedge* he2, jcv_point* out)
 {
     const jcv_edge* e1 = he1->edge;
     const jcv_edge* e2 = he2->edge;
-
-    jcv_real dx = e2->sites[1]->p.x - e1->sites[1]->p.x;
-    jcv_real dy = e2->sites[1]->p.y - e1->sites[1]->p.y;
-
-    if( dx == 0 && dy == 0 )
-    {
-        return 0;
-    }
 
     jcv_real d = e1->a * e2->b - e1->b * e2->a;
     if( JCV_FABS(d) < (jcv_real)0.00001f )
@@ -853,18 +822,19 @@ static int jcv_halfedge_intersect(const jcv_halfedge* he1, const jcv_halfedge* h
 
 static int jcv_pq_moveup(jcv_priorityqueue* pq, int pos)
 {
-    void* node = pq->items[pos];
+    jcv_halfedge** items = (jcv_halfedge**)pq->items;
+    jcv_halfedge* node = items[pos];
 
     for( int parent = (pos >> 1);
-         pos > 1 && pq->compare(pq->items[parent], node);
+         pos > 1 && jcv_halfedge_compare(items[parent], node);
          pos = parent, parent = parent >> 1)
     {
-        pq->items[pos] = pq->items[parent];
-        pq->setpos( (void*)pq->items[pos], pos );
+        items[pos] = items[parent];
+        items[pos]->pqpos = pos;
     }
 
-    pq->items[pos] = node;
-    pq->setpos( (void*)pq->items[pos], pos );
+    node->pqpos = pos;
+    items[pos] = node;
     return pos;
 }
 
@@ -873,37 +843,33 @@ static int jcv_pq_maxchild(jcv_priorityqueue* pq, int pos)
     int child = pos << 1;
     if( child >= pq->numitems )
         return 0;
-    if( (child + 1) < pq->numitems && pq->compare(pq->items[child], pq->items[child+1]) )
+    jcv_halfedge** items = (jcv_halfedge**)pq->items;
+    if( (child + 1) < pq->numitems && jcv_halfedge_compare(items[child], items[child+1]) )
         return child+1;
     return child;
 }
 
 static int jcv_pq_movedown(jcv_priorityqueue* pq, int pos)
 {
-    void* node = pq->items[pos];
+    jcv_halfedge** items = (jcv_halfedge**)pq->items;
+    jcv_halfedge* node = items[pos];
 
     int child = jcv_pq_maxchild(pq, pos);
-    while( child && pq->compare( node, pq->items[child] ) )
+    while( child && jcv_halfedge_compare(node, items[child]) )
     {
-        pq->items[pos] = pq->items[child];
-        pq->setpos( (void*)pq->items[pos], pos );
+        items[pos] = items[child];
+        items[pos]->pqpos = pos;
         pos = child;
         child = jcv_pq_maxchild(pq, pos);
     }
 
-    pq->items[pos] = node;
-    pq->setpos( (void*)pq->items[pos], pos );
+    items[pos] = node;
+    items[pos]->pqpos = pos;
     return pos;
 }
 
-static void jcv_pq_create(jcv_priorityqueue* pq, int capacity, void** buffer,
-                FJCVPriorityQueueCompare cmp,
-                FJCVPriorityQueueSetpos setpos,
-                FJCVPriorityQueueGetpos getpos)
+static void jcv_pq_create(jcv_priorityqueue* pq, int capacity, void** buffer)
 {
-    pq->compare     = cmp;
-    pq->setpos      = setpos;
-    pq->getpos      = getpos;
     pq->maxnumitems = capacity;
     pq->numitems    = 1;
     pq->items       = buffer;
@@ -924,9 +890,6 @@ static int jcv_pq_push(jcv_priorityqueue* pq, void* node)
 
 static void* jcv_pq_pop(jcv_priorityqueue* pq)
 {
-    if( pq->numitems == 1 )
-        return 0;
-
     void* node = pq->items[1];
     pq->items[1] = pq->items[--pq->numitems];
     jcv_pq_movedown(pq, 1);
@@ -935,25 +898,25 @@ static void* jcv_pq_pop(jcv_priorityqueue* pq)
 
 static void* jcv_pq_top(jcv_priorityqueue* pq)
 {
-    if( pq->numitems == 1 )
-        return 0;
     return pq->items[1];
 }
 
-static void jcv_pq_remove(jcv_priorityqueue* pq, const void* node)
+static void jcv_pq_remove(jcv_priorityqueue* pq, jcv_halfedge* node)
 {
     if( pq->numitems == 1 )
         return;
-    int pos = pq->getpos(node);
+    int pos = node->pqpos;
     if( pos == 0 )
         return;
 
-    pq->items[pos] = pq->items[--pq->numitems];
-    if( pq->compare( node, pq->items[pos] ) )
+    jcv_halfedge** items = (jcv_halfedge**)pq->items;
+
+    items[pos] = items[--pq->numitems];
+    if( jcv_halfedge_compare( node, items[pos] ) )
         jcv_pq_moveup( pq, pos );
     else
         jcv_pq_movedown( pq, pos );
-    pq->setpos( (const void*)node, 0 );
+    node->pqpos = pos;
 }
 
 // internal functions
@@ -1397,10 +1360,7 @@ void jcv_diagram_generate_useralloc( int num_points, const jcv_point* points, co
     tmp.charp = mem;
     internal->eventmem = tmp.voidpp;
 
-    jcv_pq_create(internal->eventqueue, max_num_events, (void**)internal->eventmem,
-                        (FJCVPriorityQueueCompare)jcv_halfedge_compare,
-                        (FJCVPriorityQueueSetpos)jcv_halfedge_setpos,
-                        (FJCVPriorityQueueGetpos)jcv_halfedge_getpos);
+    jcv_pq_create(internal->eventqueue, max_num_events, (void**)internal->eventmem);
 
     for( int i = 0; i < num_points; ++i )
     {
