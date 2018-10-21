@@ -6,6 +6,8 @@ ABOUT:
 
 HISTORY:
 
+    0.6     2018-10-21  - Removed JCV_CEIL/JCV_FLOOR/JCV_FABS
+                        - Optimizations: Fewer indirections, better beach head approximation
     0.5     2018-10-14  - Fixed issue where the graph edge had the wrong edge assigned (issue #28)
                         - Fixed issue where a point was falsely passing the jcv_is_valid() test (issue #22)
                         - Fixed jcv_diagram_get_edges() so it now returns _all_ edges (issue #28)
