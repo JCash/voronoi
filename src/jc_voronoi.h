@@ -77,8 +77,6 @@ USAGE:
     //#define JCV_REAL_TYPE double
     //#define JCV_FABS fabs
     //#define JCV_ATAN2 atan2
-    //#define JCV_CEIL ceil
-    //#define JCV_FLOOR floor
     //#define JCV_FLT_MAX 1.7976931348623157E+308
     #include "jc_voronoi.h"
 
@@ -180,14 +178,6 @@ extern "C" {
 
 #ifndef JCV_FABS
     #define JCV_FABS(_X_)       fabsf(_X_)
-#endif
-
-#ifndef JCV_FLOOR
-    #define JCV_FLOOR(_X_)      floorf(_X_)
-#endif
-
-#ifndef JCV_CEIL
-    #define JCV_CEIL(_X_)       ceilf(_X_)
 #endif
 
 #ifndef JCV_PI
@@ -1282,6 +1272,16 @@ static void jcv_circle_event(jcv_context_internal* internal)
     }
 }
 
+static inline jcv_real jcv_floor(jcv_real v) {
+    jcv_real i = (jcv_real)(int)v;
+    return (v < i) ? i - 1 : i;
+}
+
+static inline jcv_real jcv_ceil(jcv_real v) {
+    jcv_real i = (jcv_real)(int)v;
+    return (v > i) ? i + 1 : i;
+}
+
 static inline void _jcv_calc_bounds(int num_points, const jcv_point* points, jcv_point* min, jcv_point* max)
 {
     jcv_point _min = points[0];
@@ -1298,10 +1298,10 @@ static inline void _jcv_calc_bounds(int num_points, const jcv_point* points, jcv
         else if( points[i].y > _max.y )
             _max.y = points[i].y;
     }
-    min->x = JCV_FLOOR(_min.x);
-    min->y = JCV_FLOOR(_min.y);
-    max->x = JCV_CEIL(_max.x);
-    max->y = JCV_CEIL(_max.y);
+    min->x = jcv_floor(_min.x);
+    min->y = jcv_floor(_min.y);
+    max->x = jcv_ceil(_max.x);
+    max->y = jcv_ceil(_max.y);
 }
 
 void jcv_diagram_generate( int num_points, const jcv_point* points, const jcv_rect* rect, jcv_diagram* d )
