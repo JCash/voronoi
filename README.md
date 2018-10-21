@@ -99,10 +99,7 @@ Example implementation (see main.c for actual code)
 #define JC_VORONOI_IMPLEMENTATION
 // If you wish to use doubles
 //#define JCV_REAL_TYPE double
-//#define JCV_FABS fabs
 //#define JCV_ATAN2 atan2
-//#define JCV_FLOOR floor
-//#define JCV_CEIL ceil
 #include "jc_voronoi.h"
 
 void draw_edges(const jcv_diagram* diagram);
