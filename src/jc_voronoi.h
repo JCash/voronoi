@@ -286,6 +286,9 @@ extern const jcv_site* jcv_diagram_get_sites( const jcv_diagram* diagram );
 // Returns a linked list of all the voronoi vertices
 extern const jcv_vertex* jcv_diagram_get_vertices( const jcv_diagram* diagram );
 
+// Iterates over a list of vertices, skipping invalid vertices (where vertex has no edges)
+extern const jcv_vertex* jcv_diagram_get_next_vertex( const jcv_vertex* vertex );
+
 // Returns a linked list of all the voronoi edges
 // excluding the ones that lie on the borders of the bounding box.
 // For a full list of edges, you need to iterate over the sites, and their graph edges.
@@ -446,6 +449,15 @@ const jcv_site* jcv_diagram_get_sites( const jcv_diagram* diagram )
 const jcv_vertex* jcv_diagram_get_vertices( const jcv_diagram* diagram )
 {
     return diagram->internal->vertices;
+}
+
+const jcv_vertex* jcv_diagram_get_next_vertex( const jcv_vertex* vertex )
+{
+    const jcv_vertex* v = vertex->next;
+    while (v != 0 && v->edges == 0) {
+        v = v->next;
+    }
+    return v;
 }
 
 const jcv_edge* jcv_diagram_get_edges( const jcv_diagram* diagram )
@@ -1524,10 +1536,37 @@ static inline void jcv_create_vertex_edges(jcv_context_internal* internal, const
     edge->vertices[1] = v2;
 }
 
+static inline void jcv_merge_vertices(jcv_vertex* target, jcv_vertex* duplicate) {
+    jcv_vertex_edge* vertex_edge = duplicate->edges;
+    while( vertex_edge ) {
+        jcv_vertex* neighbor = vertex_edge->neighbor;
+        jcv_vertex_edge* temp = neighbor->edges;
+        while( temp ) {
+            if( temp->neighbor == duplicate ) {
+                temp->neighbor = target;
+                break;
+            }
+            temp = temp->next;
+        }
+        jcv_altered_edge* edge = vertex_edge->edge;
+        if( edge->vertices[0] == duplicate ) {
+            edge->vertices[0] = target;
+        } else { //edge->vertices[1] == duplicate
+            edge->vertices[1] = target;
+        }
+        if( !vertex_edge->next ) {
+            vertex_edge->next = target->edges;
+        }
+        vertex_edge = vertex_edge->next;
+    }
+    target->edges = duplicate->edges;
+    duplicate->edges = 0;
+}
+
 static inline jcv_vertex* jcv_get_or_create_vertex(jcv_context_internal* internal, jcv_vertex* last_vertex, const jcv_graphedge* current, const jcv_altered_edge* current_altered_edge, const jcv_altered_edge* next_altered_edge) {
     jcv_vertex* vertex;
     if( !current_altered_edge ) {
-        if( next_altered_edge) {
+        if( next_altered_edge ) {
             vertex = next_altered_edge->vertices[1];
         } else {
             vertex = jcv_vertex_new(internal, &current->pos[1]);
@@ -1535,6 +1574,15 @@ static inline jcv_vertex* jcv_get_or_create_vertex(jcv_context_internal* interna
         jcv_create_vertex_edges(internal, current, last_vertex, vertex);
     } else {
         vertex = current_altered_edge->vertices[0];
+        if( next_altered_edge ) {
+            jcv_vertex* vertex2 = next_altered_edge->vertices[1];
+            // check if the vertex is duplicated
+            // only possible to happen if the vertex has 4+ edges 
+            // and depends on the site iteration order
+            if (vertex2 != vertex) {
+                jcv_merge_vertices(vertex, vertex2);
+            }
+        }
     }
     return vertex;
 }
