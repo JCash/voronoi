@@ -1556,6 +1556,7 @@ static inline void jcv_merge_vertices(jcv_vertex* target, jcv_vertex* duplicate)
         }
         if( !vertex_edge->next ) {
             vertex_edge->next = target->edges;
+            break;
         }
         vertex_edge = vertex_edge->next;
     }
