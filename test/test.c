@@ -416,6 +416,21 @@ static void voronoi_test_issue28_not_all_edges_returned(Context* ctx)
     ASSERT_EQ( 10u, count_edges );
 }
 
+// When using these points, the test asserts
+static void voronoi_test_issue38_numsites_equals_one_assert(Context* ctx)
+{
+    jcv_point points[4];
+    points[0].x = 191.969146728515625000; points[0].y = -15.99730110168457031250;
+    points[1].x = -49.232059478759765625; points[1].y = -15.99410915374755859375;
+    points[2].x = 206.767944335937500000; points[2].y = -15.99410915374755859375;
+    points[3].x = 127.188446044921875000; points[3].y = -15.99205684661865234375;
+
+    int num_points = (int)(sizeof(points) / sizeof(jcv_point));
+
+    jcv_diagram_generate(num_points, points, 0, &ctx->diagram);
+    ASSERT_EQ( num_points, ctx->diagram.numsites );
+}
+
 TEST_BEGIN(voronoi_test, voronoi_main_setup, voronoi_main_teardown, test_setup, test_teardown)
     TEST(voronoi_test_parallel_horiz_2)
     TEST(voronoi_test_parallel_vert_2)
@@ -429,6 +444,7 @@ TEST_BEGIN(voronoi_test, voronoi_main_setup, voronoi_main_teardown, test_setup, 
     TEST(voronoi_test_issue10_zero_edge_length)
     TEST(voronoi_test_issue22_wrong_edge_count)
     TEST(voronoi_test_issue28_not_all_edges_returned)
+    TEST(voronoi_test_issue38_numsites_equals_one_assert)
 TEST_END(voronoi_test)
 
 
