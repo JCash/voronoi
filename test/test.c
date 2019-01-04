@@ -266,6 +266,8 @@ static void voronoi_test_many(Context* ctx)
             jcv_diagram_free( &ctx->diagram );
             memset(&ctx->diagram, 0, sizeof(jcv_diagram));
         }
+
+        free(points);
     }
 }
 
@@ -283,6 +285,8 @@ static void voronoi_test_many_diagonal(Context* ctx)
     jcv_diagram_generate(num_points, points, 0, &ctx->diagram);
 
     ASSERT_EQ( num_points, ctx->diagram.numsites );
+
+    free(points);
 }
 
 // Testing a large event queue (https://github.com/JCash/voronoi/issues/3)
@@ -302,6 +306,8 @@ static void voronoi_test_many_circle(Context* ctx)
     jcv_diagram_generate(num_points, points, 0, &ctx->diagram);
 
     ASSERT_EQ( num_points, ctx->diagram.numsites );
+
+    free(points);
 }
 
 static void voronoi_test_crash1(Context* ctx)
