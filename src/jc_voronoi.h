@@ -185,6 +185,11 @@ extern "C" {
     #define JCV_FLT_MAX 3.402823466e+38F
 #endif
 
+#ifndef JCV_EDGE_INTERSECT_THRESHOLD
+    #define JCV_EDGE_INTERSECT_THRESHOLD 1.0e-10F
+#endif
+
+
 typedef JCV_REAL_TYPE jcv_real;
 
 #pragma pack(push, 1)
@@ -772,7 +777,7 @@ static int jcv_halfedge_intersect(const jcv_halfedge* he1, const jcv_halfedge* h
     const jcv_edge* e2 = he2->edge;
 
     jcv_real d = e1->a * e2->b - e1->b * e2->a;
-    if( (d*d) < (jcv_real)0.00000001f )
+    if( ((jcv_real)-JCV_EDGE_INTERSECT_THRESHOLD < d && d < (jcv_real)JCV_EDGE_INTERSECT_THRESHOLD) )
     {
         return 0;
     }
