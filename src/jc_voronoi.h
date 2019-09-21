@@ -1351,6 +1351,22 @@ void jcv_diagram_generate_useralloc( int num_points, const jcv_point* points, co
     tmp.charp = mem;
     internal->eventmem = tmp.voidpp;
 
+    if( rect == 0 )
+    {
+        _jcv_calc_bounds(num_points, points, &d->min, &d->max);
+        d->min.x -= 10;
+        d->min.y -= 10;
+        d->max.x += 10;
+        d->max.y += 10;
+    }
+    else
+    {
+        d->min = rect->min;
+        d->max = rect->max;
+    }
+    internal->min = d->min;
+    internal->max = d->max;
+
     jcv_pq_create(internal->eventqueue, max_num_events, (void**)internal->eventmem);
 
     jcv_site* sites = internal->sites;
@@ -1388,22 +1404,6 @@ void jcv_diagram_generate_useralloc( int num_points, const jcv_point* points, co
         sites[i - offset] = sites[i];
     }
     num_points -= offset;
-
-    if( rect == 0 )
-    {
-        _jcv_calc_bounds(num_points, points, &d->min, &d->max);
-        d->min.x -= 10;
-        d->min.y -= 10;
-        d->max.x += 10;
-        d->max.y += 10;
-    }
-    else
-    {
-        d->min = rect->min;
-        d->max = rect->max;
-    }
-    internal->min = d->min;
-    internal->max = d->max;
 
     d->internal = internal;
     d->numsites = num_points;
