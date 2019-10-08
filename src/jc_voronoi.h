@@ -226,6 +226,27 @@ typedef struct _jcv_edge
     jcv_real            c;
 } jcv_edge;
 
+typedef struct _jcv_vertex
+{
+    struct _jcv_vertex* next;
+    jcv_point           pos;
+    struct _jcv_vertex_edge* edges; // The half edges owned by the vertex
+} jcv_vertex;
+
+typedef struct _jcv_altered_edge
+{
+    struct _jcv_altered_edge*   next;
+    jcv_site*           sites[2];
+    jcv_point           pos[2];
+    jcv_vertex*         vertices[2];
+} jcv_altered_edge;
+
+typedef struct _jcv_vertex_edge {
+    struct _jcv_vertex_edge* next;
+    jcv_altered_edge*   edge;
+    jcv_vertex*         neighbor;
+} jcv_vertex_edge;
+
 typedef struct _jcv_rect
 {
     jcv_point   min;
@@ -261,8 +282,17 @@ extern void jcv_diagram_generate_useralloc( int num_points, const jcv_point* poi
 // Uses free (or the registered custom free function)
 extern void jcv_diagram_free( jcv_diagram* diagram );
 
+// generate the vertices and vertex_edges
+extern void jcv_diagram_generate_vertices( jcv_diagram* diagram );
+
 // Returns an array of sites, where each index is the same as the original input point array.
 extern const jcv_site* jcv_diagram_get_sites( const jcv_diagram* diagram );
+
+// Returns a linked list of all the voronoi vertices
+extern const jcv_vertex* jcv_diagram_get_vertices( const jcv_diagram* diagram );
+
+// Iterates over a list of vertices, skipping invalid vertices (where vertex has no edges)
+extern const jcv_vertex* jcv_diagram_get_next_vertex( const jcv_vertex* vertex );
 
 // Returns a linked list of all the voronoi edges
 // excluding the ones that lie on the borders of the bounding box.
@@ -373,6 +403,7 @@ typedef struct _jcv_context_internal
     int                 numsites_sqrt;
     int                 currentsite;
     int                 _padding;
+    jcv_vertex*         vertices;
 
     jcv_memoryblock*    memblocks;
     jcv_edge*           edgepool;
@@ -393,7 +424,12 @@ typedef struct _jcv_context_internal
 static const int JCV_DIRECTION_LEFT  = 0;
 static const int JCV_DIRECTION_RIGHT = 1;
 static const jcv_real JCV_INVALID_VALUE = (jcv_real)-JCV_FLT_MAX;
+static const int JCV_EDGE_SIZE = (sizeof(jcv_edge) > sizeof(jcv_altered_edge)) ? sizeof(jcv_edge) : sizeof(jcv_altered_edge);
 
+static inline jcv_altered_edge* get_altered_edge( const jcv_graphedge* ge)
+{
+    return (jcv_altered_edge*)ge->edge;
+}
 
 void jcv_diagram_free( jcv_diagram* d )
 {
@@ -413,6 +449,20 @@ void jcv_diagram_free( jcv_diagram* d )
 const jcv_site* jcv_diagram_get_sites( const jcv_diagram* diagram )
 {
     return diagram->internal->sites;
+}
+
+const jcv_vertex* jcv_diagram_get_vertices( const jcv_diagram* diagram )
+{
+    return diagram->internal->vertices;
+}
+
+const jcv_vertex* jcv_diagram_get_next_vertex( const jcv_vertex* vertex )
+{
+    const jcv_vertex* v = vertex->next;
+    while (v != 0 && v->edges == 0) {
+        v = v->next;
+    }
+    return v;
 }
 
 const jcv_edge* jcv_diagram_get_edges( const jcv_diagram* diagram )
@@ -449,7 +499,17 @@ static void* jcv_alloc(jcv_context_internal* internal, size_t size)
 
 static jcv_edge* jcv_alloc_edge(jcv_context_internal* internal)
 {
-    return (jcv_edge*)jcv_alloc(internal, sizeof(jcv_edge));
+    return (jcv_edge*)jcv_alloc(internal, JCV_EDGE_SIZE);
+}
+
+static jcv_vertex* jcv_alloc_vertex(jcv_context_internal* internal)
+{
+    return (jcv_vertex*)jcv_alloc(internal, sizeof(jcv_vertex));
+}
+
+static jcv_vertex_edge* jcv_alloc_vertex_edge(jcv_context_internal* internal)
+{
+    return (jcv_vertex_edge*)jcv_alloc(internal, sizeof(jcv_vertex_edge));
 }
 
 static jcv_halfedge* jcv_alloc_halfedge(jcv_context_internal* internal)
@@ -660,6 +720,18 @@ static jcv_edge* jcv_edge_new(jcv_context_internal* internal, jcv_site* s1, jcv_
 {
     jcv_edge* e = jcv_alloc_edge(internal);
     jcv_edge_create(e, s1, s2);
+    return e;
+}
+
+// jcv_vertex
+
+static jcv_vertex* jcv_vertex_new(jcv_context_internal* internal, const jcv_point* pos)
+{
+    jcv_vertex* e = jcv_alloc_vertex(internal);
+    e->pos = *pos;
+    e->edges = 0;
+    e->next = internal->vertices;
+    internal->vertices = e;
     return e;
 }
 
@@ -1449,6 +1521,129 @@ void jcv_diagram_generate_useralloc( int num_points, const jcv_point* points, co
     }
 
     jcv_fillgaps(d);
+}
+
+static inline void jcv_create_vertex_edge(jcv_context_internal* internal, jcv_altered_edge* edge, jcv_vertex* vertex, jcv_vertex* neighbor)
+{
+    jcv_vertex_edge* vertex_edge = jcv_alloc_vertex_edge(internal);
+    vertex_edge->edge = edge;
+    vertex_edge->neighbor = neighbor;
+    vertex_edge->next = vertex->edges;
+    vertex->edges = vertex_edge;
+}
+
+static inline void jcv_create_vertex_edges(jcv_context_internal* internal, const jcv_graphedge* ge, jcv_vertex* v1, jcv_vertex* v2)
+{
+    jcv_altered_edge* edge = get_altered_edge(ge);
+    jcv_create_vertex_edge(internal, edge, v1, v2);
+    jcv_create_vertex_edge(internal, edge, v2, v1);
+    edge->vertices[0] = v1;
+    edge->vertices[1] = v2;
+}
+
+static inline void jcv_merge_vertices(jcv_vertex* target, jcv_vertex* duplicate) {
+    jcv_vertex_edge* vertex_edge = duplicate->edges;
+    while( vertex_edge ) {
+        jcv_vertex* neighbor = vertex_edge->neighbor;
+        jcv_vertex_edge* temp = neighbor->edges;
+        while( temp ) {
+            if( temp->neighbor == duplicate ) {
+                temp->neighbor = target;
+                break;
+            }
+            temp = temp->next;
+        }
+        jcv_altered_edge* edge = vertex_edge->edge;
+        if( edge->vertices[0] == duplicate ) {
+            edge->vertices[0] = target;
+        } else { //edge->vertices[1] == duplicate
+            edge->vertices[1] = target;
+        }
+        if( !vertex_edge->next ) {
+            vertex_edge->next = target->edges;
+            break;
+        }
+        vertex_edge = vertex_edge->next;
+    }
+    target->edges = duplicate->edges;
+    duplicate->edges = 0;
+}
+
+static inline jcv_vertex* jcv_get_or_create_vertex(jcv_context_internal* internal, jcv_vertex* last_vertex, const jcv_graphedge* current, const jcv_altered_edge* current_altered_edge, const jcv_altered_edge* next_altered_edge) {
+    jcv_vertex* vertex;
+    if( !current_altered_edge ) {
+        if( next_altered_edge ) {
+            vertex = next_altered_edge->vertices[1];
+        } else {
+            vertex = jcv_vertex_new(internal, &current->pos[1]);
+        }
+        jcv_create_vertex_edges(internal, current, last_vertex, vertex);
+    } else {
+        vertex = current_altered_edge->vertices[0];
+        if( next_altered_edge ) {
+            jcv_vertex* vertex2 = next_altered_edge->vertices[1];
+            // check if the vertex is duplicated
+            // only possible to happen if the vertex has 4+ edges 
+            // and depends on the site iteration order
+            if (vertex2 != vertex) {
+                jcv_merge_vertices(vertex, vertex2);
+            }
+        }
+    }
+    return vertex;
+}
+
+void jcv_diagram_generate_vertices( jcv_diagram* d )
+{
+    jcv_context_internal* internal = d->internal;
+    const jcv_site* sites = jcv_diagram_get_sites(d);
+    for( int i = 0; i < d->numsites; ++i )
+    {
+        const jcv_site* site = &sites[i];
+        const jcv_graphedge* first = site->edges;
+        const jcv_graphedge* current = first->next;
+
+        jcv_vertex* start_vertex = 0;
+        const jcv_altered_edge* first_altered_edge = 0;
+        
+        if( first->neighbor && first->neighbor < site) {
+            first_altered_edge = get_altered_edge(first);
+        }
+
+        jcv_vertex* last_vertex = 0;
+        const jcv_altered_edge* current_altered_edge = 0;
+
+        if( current->neighbor && current->neighbor < site) {
+            current_altered_edge = get_altered_edge(current);
+            last_vertex = current_altered_edge->vertices[1];
+        } else if( first_altered_edge ) {
+            last_vertex = first_altered_edge->vertices[0];
+        } else {
+            last_vertex = jcv_vertex_new(internal, &current->pos[0]);
+        }
+        start_vertex = last_vertex;
+
+        const jcv_graphedge* next = current->next;
+
+        while( next ) {
+            const jcv_altered_edge* next_altered_edge = 0;
+            if( next->neighbor && next->neighbor < site) {
+                next_altered_edge = get_altered_edge(next);
+            }
+            jcv_vertex* vertex = jcv_get_or_create_vertex(internal, last_vertex, current, current_altered_edge, next_altered_edge);
+            last_vertex = vertex;
+            current_altered_edge = next_altered_edge;
+            current = next;
+            next = next->next;
+        }
+
+        jcv_vertex* end_vertex = jcv_get_or_create_vertex(internal, last_vertex, current, current_altered_edge, first_altered_edge);
+
+        //handle the head
+        if( !first_altered_edge ) {
+            jcv_create_vertex_edges(internal, first, end_vertex, start_vertex);
+        }
+    }
 }
 
 #endif // JC_VORONOI_IMPLEMENTATION
