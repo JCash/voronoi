@@ -29,6 +29,9 @@ extern int wrap_stbi_write_png(char const *filename, int w, int h, int comp, con
 //#define JCV_ATAN2 atan2
 #include "jc_voronoi.h"
 
+#define JC_VORONOI_CLIP_IMPLEMENTATION
+#include "jc_voronoi_clip.h"
+
 #ifdef HAS_MODE_FASTJET
 #include <vector>
 #include "../test/fastjet/voronoi.h"
@@ -158,7 +161,7 @@ static void Usage()
     printf("\t-h <height>\n");
 }
 
-// Search for any of the common characters: \n,; 
+// Search for any of the common characters: \n,;
 static inline int is_csv(const char* chars, uint32_t len)
 {
     for( uint32_t i = 0; i < len; ++i )
@@ -282,9 +285,12 @@ static int read_input(const char* path, jcv_point** points, uint32_t* length, jc
 
                     if( numscanned == 4 )
                     {
-                        *rect = malloc(sizeof(jcv_rect));
-                        (*rect)->min = pt1;
-                        (*rect)->max = pt2;
+                        if (rect)
+                        {
+                            *rect = malloc(sizeof(jcv_rect));
+                            (*rect)->min = pt1;
+                            (*rect)->max = pt2;
+                        }
                         p = r;
                     }
                     else if( numscanned == 2 )
@@ -350,6 +356,7 @@ int main(int argc, const char** argv)
     int numrelaxations = 0;
     int mode = 0;
     const char* inputfile = 0;
+    const char* clipfile = 0; // a file with clipping points
     const char* outputfile = "example.png";
 
     if( argc == 1 )
@@ -430,6 +437,16 @@ int main(int argc, const char** argv)
                 return 1;
             }
         }
+        if(strcmp(argv[i], "-c") == 0)
+        {
+            if( i+1 < argc )
+                clipfile = argv[i+1];
+            else
+            {
+                Usage();
+                return 1;
+            }
+        }
         else if(strcmp(argv[i], "-?") == 0 || strcmp(argv[i], "--help") == 0)
         {
             Usage();
@@ -465,14 +482,45 @@ int main(int argc, const char** argv)
         }
     }
 
+
+    jcv_point* clippoints = 0;
+    int clipcount = 0;
+    if( clipfile )
+    {
+        if( read_input(clipfile, &clippoints, (uint32_t*)&clipcount, 0) )
+        {
+            fprintf(stderr, "Failed to read from %s\n", clipfile);
+            return 1;
+        }
+    }
+
     printf("Width/Height is %d, %d\n", width, height);
     printf("Count is %d, num relaxations is %d\n", count, numrelaxations);
+
+
+    jcv_clipping_polygon polygon;
+    jcv_clipper* clipper = 0;
+    if (clippoints)
+    {
+
+        printf("Clip polygon '%s' used\n", clipfile);
+        polygon.num_points = clipcount;
+        polygon.points = clippoints;
+
+        jcv_clipper polygonclipper;
+        polygonclipper.test_fn = jcv_clip_polygon_test_point;
+        polygonclipper.clip_fn = jcv_clip_polygon_clip_edge;
+        polygonclipper.fill_fn = jcv_clip_polygon_fill_gaps;
+        polygonclipper.ctx = &polygon;
+
+        clipper = &polygonclipper;
+    }
 
     for( int i = 0; i < numrelaxations; ++i )
     {
         jcv_diagram diagram;
         memset(&diagram, 0, sizeof(jcv_diagram));
-        jcv_diagram_generate(count, (const jcv_point*)points, rect, &diagram);
+        jcv_diagram_generate(count, (const jcv_point*)points, rect, clipper, &diagram);
 
         relax_points(&diagram, points);
 
@@ -492,7 +540,12 @@ int main(int argc, const char** argv)
     dimensions.y = (jcv_real)height;
     {
         memset(&diagram, 0, sizeof(jcv_diagram));
-        jcv_diagram_generate(count, (const jcv_point*)points, rect, &diagram);
+        jcv_diagram_generate(count, (const jcv_point*)points, rect, clipper, &diagram);
+
+// diagram.min.x -= 100;
+// diagram.min.y -= 100;
+// diagram.max.x += 100;
+// diagram.max.y += 100;
 
         // If you want to draw triangles, or relax the diagram,
         // you can iterate over the sites and get all edges easily
@@ -535,13 +588,24 @@ int main(int argc, const char** argv)
         jcv_diagram_free( &diagram );
     }
 
+    // draw the clipping polygon
+    for (int i = 0; i < polygon.num_points; ++i)
+    {
+        jcv_point p0 = remap(&polygon.points[i], &diagram.min, &diagram.max, &dimensions );
+        jcv_point p1 = remap(&polygon.points[(i+1)%polygon.num_points], &diagram.min, &diagram.max, &dimensions );
+        draw_line((int)p0.x, (int)p0.y, (int)p1.x, (int)p1.y, image, width, height, 3, color_line);
+    }
+
     // Plot the sites
     for( int i = 0; i < count; ++i )
     {
+        if (clipper && !clipper->test_fn(clipper, points[i]))
+            continue;
         jcv_point p = remap(&points[i], &diagram.min, &diagram.max, &dimensions );
         plot((int)p.x, (int)p.y, image, width, height, 3, color_pt);
     }
 
+    free(clippoints);
     free(points);
     free(rect);
 
