@@ -542,11 +542,6 @@ int main(int argc, const char** argv)
         memset(&diagram, 0, sizeof(jcv_diagram));
         jcv_diagram_generate(count, (const jcv_point*)points, rect, clipper, &diagram);
 
-// diagram.min.x -= 100;
-// diagram.min.y -= 100;
-// diagram.max.x += 100;
-// diagram.max.y += 100;
-
         // If you want to draw triangles, or relax the diagram,
         // you can iterate over the sites and get all edges easily
         const jcv_site* sites = jcv_diagram_get_sites( &diagram );

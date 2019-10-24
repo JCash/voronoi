@@ -3,7 +3,7 @@
 // gcc -Wall -Weverything -Wno-float-equal src/examples/simple.c -Isrc -o simple
 //
 // About:
-// 
+//
 // This example outputs 10 random 2D coordinates, and all the generated edges, to standard output.
 // Note that the edges have duplicates, but you can easily filter them out.
 //
@@ -48,7 +48,7 @@ int main(int argc, char** argv) {
     printf("%f %f\n", (double)points[i].x, (double)points[i].y);
   }
 
-  jcv_diagram_generate(NPOINT, (const jcv_point *)points, &bounding_box, &diagram);
+  jcv_diagram_generate(NPOINT, (const jcv_point *)points, &bounding_box, 0, &diagram);
 
   printf("# Edges\n");
   sites = jcv_diagram_get_sites(&diagram);

@@ -41,8 +41,6 @@ extern "C" {
 
 typedef JCV_REAL_TYPE jcv_real;
 
-// struct _jcv_diagram;
-// struct _jcv_clipper;
 typedef struct _jcv_point       jcv_point;
 typedef struct _jcv_rect        jcv_rect;
 typedef struct _jcv_site        jcv_site;
@@ -1458,6 +1456,7 @@ ABOUT:
 
 HISTORY:
 
+    0.7     2019-10-25  - Added support for clipping against convex polygons
     0.6     2018-10-21  - Removed JCV_CEIL/JCV_FLOOR/JCV_FABS
                         - Optimizations: Fewer indirections, better beach head approximation
     0.5     2018-10-14  - Fixed issue where the graph edge had the wrong edge assigned (issue #28)

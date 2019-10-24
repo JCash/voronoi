@@ -304,14 +304,6 @@ void jcv_clip_polygon_fill_gaps(const jcv_clipper* clipper, jcv_context_internal
             if (polygon_edge1 != polygon_edge2) {
                 gap->pos[1] = polygon->points[(polygon_edge1+1)%num_points];
             } else {
-                // // They both intersect the same polygon edge
-                // jcv_real t2 = jcv_point_to_line_segment_t(next->pos[0], polygon->points[polygon_edge2], polygon->points[(polygon_edge2+1)%num_points]);
-
-                // printf("  t2: %f\n", t2);
-
-                // jcv_point p0 = polygon->points[(polygon_edge1+0)%num_points];
-                // jcv_point p1 = polygon->points[(polygon_edge1+1)%num_points];
-                // gap->pos[1] = jcv_mix(p0, p1, t2);
                 gap->pos[1] = next->pos[0];
             }
 
@@ -374,15 +366,17 @@ DISCLAIMER:
 
 USAGE:
 
-    The function `jcv_diagram_generate_clip` allows for supplying a set of custom clipper functions to interact with the generating of the resulting diagram.
+    The function `jcv_clipper` struct allows for supplying a set of custom clipper functions to interact with the generating of the resulting diagram.
 
-    ```
     jcv_clipper polygonclipper;
     polygonclipper.test_fn = jcv_clip_polygon_test_point;
     polygonclipper.clip_fn = jcv_clip_polygon_clip_edge;
     polygonclipper.fill_fn = jcv_clip_polygon_fill_gaps;
     polygonclipper.ctx = &polygon;
-    ```
 
+    jcv_diagram diagram;
+    memset(&diagram, 0, sizeof(jcv_diagram));
+
+    jcv_diagram_generate(count, points, rect, &polygonclipper, &diagram);
 */
 
