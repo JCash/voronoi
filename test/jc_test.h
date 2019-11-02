@@ -56,7 +56,7 @@
 typedef void (*jc_test_func)(void* ctx);
 
 // Returns the user defined context for the fixture
-typedef void* (*jc_fixture_setup_func)();
+typedef void* (*jc_fixture_setup_func)(void);
 
 
 typedef struct jc_test_entry
