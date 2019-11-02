@@ -514,6 +514,9 @@ int main(int argc, const char** argv)
         polygonclipper.ctx = &polygon;
 
         clipper = &polygonclipper;
+    } else {
+        polygon.num_points = 0;
+        polygon.points = 0;
     }
 
     for( int i = 0; i < numrelaxations; ++i )

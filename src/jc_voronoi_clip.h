@@ -1,28 +1,5 @@
-/* For full LICENSE (MIT) or USAGE, see bottom of file
-USAGE:
-
-    jcv_clipping_polygon polygon;
-    // Triangle
-    polygon.num_points = 3;
-    polygon.points = (jcv_point*)malloc(sizeof(jcv_point)*(size_t)polygon.num_points);
-
-    polygon.points[0].x = width/2;
-    polygon.points[1].x = width - width/5;
-    polygon.points[2].x = width/5;
-    polygon.points[0].y = height/5;
-    polygon.points[1].y = height - height/5;
-    polygon.points[2].y = height - height/5;
-
-    jcv_clipper polygonclipper;
-    polygonclipper.test_fn = jcv_clip_polygon_test_point;
-    polygonclipper.clip_fn = jcv_clip_polygon_clip_edge;
-    polygonclipper.fill_fn = jcv_clip_polygon_fill_gaps;
-    polygonclipper.ctx = &polygon;
-
-    jcv_diagram diagram;
-    memset(&diagram, 0, sizeof(jcv_diagram));
-    jcv_diagram_generate(count, (const jcv_point*)points, 0, clipper, &diagram);
-*/
+// Copyright (c) 2019 Mathias Westerdahl
+// For full LICENSE (MIT) or USAGE, see bottom of file
 
 #ifndef JC_VORONOI_CLIP_H
 #define JC_VORONOI_CLIP_H
@@ -50,6 +27,8 @@ void jcv_clip_polygon_fill_gaps(const jcv_clipper* clipper, jcv_context_internal
 
 #ifdef JC_VORONOI_CLIP_IMPLEMENTATION
 #undef JC_VORONOI_CLIP_IMPLEMENTATION
+
+// These helpers will probably end up in the main library
 
 static inline jcv_real jcv_cross(const jcv_point a, const jcv_point b) {
     return a.x * b.y - a.y * b.x;
@@ -366,7 +345,24 @@ DISCLAIMER:
 
 USAGE:
 
+USAGE:
+
     The function `jcv_clipper` struct allows for supplying a set of custom clipper functions to interact with the generating of the resulting diagram.
+
+    #define JC_VORONOI_CLIP_IMPLEMENTATION
+    #include "jc_voronoi_clip.h"
+
+    jcv_clipping_polygon polygon;
+    // Triangle
+    polygon.num_points = 3;
+    polygon.points = (jcv_point*)malloc(sizeof(jcv_point)*(size_t)polygon.num_points);
+
+    polygon.points[0].x = width/2;
+    polygon.points[1].x = width - width/5;
+    polygon.points[2].x = width/5;
+    polygon.points[0].y = height/5;
+    polygon.points[1].y = height - height/5;
+    polygon.points[2].y = height - height/5;
 
     jcv_clipper polygonclipper;
     polygonclipper.test_fn = jcv_clip_polygon_test_point;
@@ -376,7 +372,6 @@ USAGE:
 
     jcv_diagram diagram;
     memset(&diagram, 0, sizeof(jcv_diagram));
-
-    jcv_diagram_generate(count, points, rect, &polygonclipper, &diagram);
+    jcv_diagram_generate(count, (const jcv_point*)points, 0, clipper, &diagram);
 */
 

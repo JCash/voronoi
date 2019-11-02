@@ -1,3 +1,4 @@
+// Copyright (c) 2015-2019 Mathias Westerdahl
 // For LICENSE (MIT), USAGE or HISTORY, see bottom of file
 
 #ifndef JC_VORONOI_H
@@ -1301,15 +1302,6 @@ static int jcv_prune_not_in_shape(jcv_context_internal* internal, const jcv_rect
             jcv_rect_union(&r, &s->p);
         }
     }
-
-    // if( rect == 0 )
-    // {
-    //     jcv_rect_round(&r);
-    //     jcv_rect_inflate(&r, 10);
-    //     internal->rect = r;
-    // } else {
-    //     internal->rect = *rect;
-    // }
 
     return offset;
 }
