@@ -258,7 +258,7 @@ static void voronoi_test_prune_duplicates(Context* ctx)
 {
     (void)ctx;
     jcv_point duplicate = {1,2};
-    jcv_point points[] = { duplicate, {2,2}, duplicate, {3,3}};
+    jcv_point points[] = { {1,2}, {2,2}, {1,2}, {3,3}};
     int num_points = sizeof(points) / sizeof(points[0]);
 
     jcv_context_internal* internal = setup_test_context_internal(num_points, points, 0);
