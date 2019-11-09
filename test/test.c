@@ -34,7 +34,9 @@ static void test_setup(Context* ctx)
 
 static void test_teardown(Context* ctx)
 {
-    jcv_diagram_free(&ctx->diagram);
+    if (ctx->diagram.internal) {
+        jcv_diagram_free(&ctx->diagram);
+    }
 }
 
 static void debug_points(int num, const jcv_point* points)
@@ -215,6 +217,105 @@ static void voronoi_test_culling(Context* ctx)
 
     const jcv_site* sites = jcv_diagram_get_sites( &ctx->diagram );
     check_edges( sites[0].edges, 4, expected_edges_0, expected_neighbors_0 );
+}
+
+
+static jcv_context_internal* setup_test_context_internal(int num_points, jcv_point* points, void* ctx)
+{
+    jcv_context_internal* internal = jcv_alloc_internal(num_points, ctx, jcv_alloc_fn, jcv_free_fn);
+    internal->numsites = num_points;
+    jcv_site* sites = internal->sites;
+
+    for( int i = 0; i < num_points; ++i )
+    {
+        sites[i].p        = points[i];
+        sites[i].edges    = 0;
+        sites[i].index    = i;
+    }
+    qsort(sites, (size_t)num_points, sizeof(jcv_site), jcv_point_cmp);
+
+    return internal;
+}
+
+static void setup_clip_shape_box(jcv_context_internal* internal, jcv_rect rect)
+{
+    jcv_clipper box_clipper;
+    box_clipper.test_fn = jcv_boxshape_test;
+    box_clipper.clip_fn = jcv_boxshape_clip;
+    box_clipper.fill_fn = jcv_boxshape_fillgaps;
+    internal->clipper = box_clipper;
+
+    internal->clipper.min = rect.min;
+    internal->clipper.max = rect.max;
+}
+
+static void teardown_test_context_internal(jcv_context_internal* internal)
+{
+    jcv_free_fn(0, internal->mem);
+}
+
+static void voronoi_test_prune_duplicates(Context* ctx)
+{
+    (void)ctx;
+    jcv_point duplicate = {1,2};
+    jcv_point points[] = { {1,2}, {2,2}, {1,2}, {3,3}};
+    int num_points = sizeof(points) / sizeof(points[0]);
+
+    jcv_context_internal* internal = setup_test_context_internal(num_points, points, 0);
+    ASSERT_EQ( 4, internal->numsites );
+
+    jcv_rect rect;
+    int num_removed = jcv_prune_duplicates(internal, &rect);
+
+    ASSERT_EQ( 1, num_removed );
+    ASSERT_EQ( 3, internal->numsites );
+
+    int count = 0;
+    for (int i = 0; i < internal->numsites; ++i)
+    {
+        if (internal->sites[i].p.x == duplicate.x &&
+            internal->sites[i].p.y == duplicate.y) {
+            count++;
+        }
+    }
+    ASSERT_EQ( 1, count );
+
+    ASSERT_EQ( 1, rect.min.x );
+    ASSERT_EQ( 2, rect.min.y );
+    ASSERT_EQ( 3, rect.max.x );
+    ASSERT_EQ( 3, rect.max.y );
+
+    teardown_test_context_internal(internal);
+}
+
+static void voronoi_test_prune_not_in_shape(Context* ctx)
+{
+    (void)ctx;
+    jcv_point points[] = { {0,0}, {1,9}, {2,8}, {5,5}, {8,2}, {9,1}, {10,10}};
+    int num_points = sizeof(points) / sizeof(points[0]);
+
+    jcv_context_internal* internal = setup_test_context_internal(num_points, points, 0);
+    ASSERT_EQ( num_points, internal->numsites );
+
+    jcv_rect smaller_rect;
+    smaller_rect.min.x = 2;
+    smaller_rect.min.y = 2;
+    smaller_rect.max.x = 8;
+    smaller_rect.max.y = 8;
+    setup_clip_shape_box(internal, smaller_rect);
+
+    jcv_rect rect;
+    int num_removed = jcv_prune_not_in_shape(internal, &rect);
+
+    ASSERT_EQ( 4, num_removed );
+    ASSERT_EQ( 3, internal->numsites );
+
+    ASSERT_EQ( 2, rect.min.x );
+    ASSERT_EQ( 2, rect.min.y );
+    ASSERT_EQ( 8, rect.max.x );
+    ASSERT_EQ( 8, rect.max.y );
+
+    teardown_test_context_internal(internal);
 }
 
 // for debugging
@@ -438,6 +539,8 @@ static void voronoi_test_issue38_numsites_equals_one_assert(Context* ctx)
 }
 
 TEST_BEGIN(voronoi_test, voronoi_main_setup, voronoi_main_teardown, test_setup, test_teardown)
+    TEST(voronoi_test_prune_duplicates)
+    TEST(voronoi_test_prune_not_in_shape)
     TEST(voronoi_test_parallel_horiz_2)
     TEST(voronoi_test_parallel_vert_2)
     TEST(voronoi_test_one_site)
@@ -461,6 +564,5 @@ int main(int argc, const char** argv)
     (void)debug_edges;
     (void)debug_points;
 
-    RUN_ALL();
-    return 0;
+    return RUN_ALL();
 }

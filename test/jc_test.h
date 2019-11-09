@@ -142,8 +142,8 @@ extern jc_test_state jc_test_global_state;
 
 #define TEST(_TEST_)									{ #_TEST_, JC_TEST_CAST(jc_test_func, (_TEST_)) },
 
-extern void jc_test_run_test_fixture(jc_test_fixture* fixture);
-extern void jc_test_run_all_tests(jc_test_state* state);
+extern int jc_test_run_test_fixture(jc_test_fixture* fixture);
+extern int jc_test_run_all_tests(jc_test_state* state);
 extern void jc_test_assert(jc_test_fixture* fixture, bool cond, const char* msg);
 extern unsigned long long jc_test_get_time(void);
 
@@ -232,7 +232,7 @@ static void jc_test_report_time(unsigned long long t) // Micro seconds
 		JC_TEST_PRINTF("%g %s", t / 1000000.0, "s");
 }
 
-void jc_test_run_test_fixture(jc_test_fixture* fixture)
+int jc_test_run_test_fixture(jc_test_fixture* fixture)
 {
 	jc_test_global_state.current_fixture = fixture;
 
@@ -311,16 +311,19 @@ void jc_test_run_test_fixture(jc_test_fixture* fixture)
 	JC_TEST_PRINTF("\n");
 
 	jc_test_global_state.current_fixture = 0;
+
+	return fixture->stats.num_fail;
 }
 
-void jc_test_run_all_tests(jc_test_state* state)
+int jc_test_run_all_tests(jc_test_state* state)
 {
+	int num_fail = 0;
 	state->stats.totaltime = 0;
 	for( int i = 0; i < state->num_fixtures; ++i )
 	{
 		if( state->fixtures[i] )
 		{
-			jc_test_run_test_fixture( state->fixtures[i] );
+			num_fail += jc_test_run_test_fixture( state->fixtures[i] );
 
 			state->stats.num_assertions += state->fixtures[i]->stats.num_assertions;
 			state->stats.num_pass += state->fixtures[i]->stats.num_pass;
@@ -337,6 +340,8 @@ void jc_test_run_all_tests(jc_test_state* state)
 		JC_TEST_PRINTF("%d tests passed, and %d tests %sFAILED%s\n", state->stats.num_pass, state->stats.num_fail, JC_TEST_CLR_RED, JC_TEST_CLR_DEFAULT);
 	else
 		JC_TEST_PRINTF("%d tests %sPASSED%s\n", state->stats.num_pass, JC_TEST_CLR_GREEN, JC_TEST_CLR_DEFAULT);
+
+	return num_fail;
 }
 
 #if defined(_MSC_VER)
