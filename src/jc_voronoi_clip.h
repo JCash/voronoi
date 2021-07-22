@@ -194,7 +194,7 @@ static int jcv_find_polygon_edge(const jcv_clipper* clipper, jcv_point p)
     jcv_clipping_polygon* polygon = (jcv_clipping_polygon*)clipper->ctx;
 
     int min_edge = -1;
-    jcv_real min_dist = (jcv_real)1000000;
+    jcv_real min_dist = JCV_FLT_MAX;
     int num_points = polygon->num_points;
     for (int i = 0; i < num_points; ++i)
     {
