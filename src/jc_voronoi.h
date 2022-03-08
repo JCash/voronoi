@@ -39,6 +39,9 @@ extern "C" {
     #define JCV_EDGE_INTERSECT_THRESHOLD 1.0e-10F
 #endif
 
+#ifndef JCV_EPSILON
+    #define JCV_EPSILON 1.0e-10F
+#endif
 
 typedef JCV_REAL_TYPE jcv_real;
 
@@ -195,7 +198,7 @@ static inline int jcv_point_less( const jcv_point* pt1, const jcv_point* pt2 )
 
 static inline int jcv_point_eq( const jcv_point* pt1, const jcv_point* pt2 )
 {
-    return (pt1->y == pt2->y) && (pt1->x == pt2->x);
+    return (fabs(pt1->y - pt2->y) < JCV_EPSILON) && (fabs(pt1->x - pt2->x) < JCV_EPSILON);
 }
 
 static inline int jcv_point_on_box_edge( const jcv_point* pt, const jcv_point* min, const jcv_point* max )
