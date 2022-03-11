@@ -7,6 +7,7 @@
 #include <math.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <float.h>
 
 #include <assert.h>
 
@@ -16,6 +17,10 @@ extern "C" {
 
 #ifndef JCV_REAL_TYPE
     #define JCV_REAL_TYPE float
+#endif
+
+#ifndef JCV_REAL_TYPE_EPSILON
+    #define JCV_REAL_TYPE_EPSILON FLT_EPSILON
 #endif
 
 #ifndef JCV_ATAN2
@@ -38,7 +43,6 @@ extern "C" {
     // Fix for Issue #40
     #define JCV_EDGE_INTERSECT_THRESHOLD 1.0e-10F
 #endif
-
 
 typedef JCV_REAL_TYPE jcv_real;
 
@@ -195,7 +199,7 @@ static inline int jcv_point_less( const jcv_point* pt1, const jcv_point* pt2 )
 
 static inline int jcv_point_eq( const jcv_point* pt1, const jcv_point* pt2 )
 {
-    return (pt1->y == pt2->y) && (pt1->x == pt2->x);
+    return (fabs(pt1->y - pt2->y) < JCV_REAL_TYPE_EPSILON) && (fabs(pt1->x - pt2->x) < JCV_REAL_TYPE_EPSILON);
 }
 
 static inline int jcv_point_on_box_edge( const jcv_point* pt, const jcv_point* min, const jcv_point* max )
