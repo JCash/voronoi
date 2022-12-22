@@ -58,9 +58,9 @@ static void debug_edges(const jcv_graphedge* e)
     }
 }
 
-static bool check_point_eq(const jcv_point* p1, const jcv_point* p2)
+static bool check_point_eq(const jcv_point* a, const jcv_point* b)
 {
-    return p1->x == p2->x && p1->y == p2->y;
+    return a->x == b->x && a->y == b->y;
 }
 
 static bool check_graphedge_eq(const jcv_graphedge* e, const jcv_point* p1, const jcv_point* p2)
@@ -538,7 +538,100 @@ static void voronoi_test_issue38_numsites_equals_one_assert(Context* ctx)
     ASSERT_EQ( num_points, ctx->diagram.numsites );
 }
 
+// Checks if the points of all edges are connected
+static inline int is_closed_loop(jcv_graphedge* edge)
+{
+    jcv_graphedge* first = edge;
+    while (edge)
+    {
+        jcv_graphedge* next = edge->next ? edge->next : first;
+        if (!jcv_point_eq(&edge->pos[1], &next->pos[0]))
+            return 0;
+        edge = edge->next;
+    }
+    return 1;
+}
+
+static void voronoi_testfn_closed_loop(Context* ctx)
+{
+    (void)ctx;
+    jcv_point points[3] = {
+        {1, 1},
+        {3, 1},
+        {2, 3},
+    };
+
+    jcv_graphedge edges[3];
+    edges[0].pos[0] = points[0];
+    edges[0].pos[1] = points[1];
+    edges[1].pos[0] = points[1];
+    edges[1].pos[1] = points[2];
+    edges[2].pos[0] = points[2];
+    edges[2].pos[1] = points[0];
+
+    edges[0].next = &edges[1];
+    edges[1].next = &edges[2];
+    edges[2].next = 0;
+    ASSERT_EQ(1, is_closed_loop(edges));
+
+    edges[2].pos[1] = points[1];
+    ASSERT_EQ(0, is_closed_loop(edges));
+}
+
+static inline int count_edges(jcv_graphedge* edge)
+{
+    int count = 0;
+    jcv_graphedge* first = edge;
+    while (edge)
+    {
+        ++count;
+        edge = edge->next;
+        if (edge == first)
+            break;
+    }
+    return count;
+}
+
+static void voronoi_testfn_count_edges(Context* ctx)
+{
+    (void)ctx;
+    jcv_graphedge edges[4];
+    edges[0].next = &edges[1];
+    edges[1].next = &edges[2];
+    edges[2].next = 0;
+    ASSERT_EQ(3, count_edges(edges));
+
+    edges[2].next = &edges[0];
+    ASSERT_EQ(3, count_edges(edges));
+
+    edges[2].next = &edges[3];
+    edges[3].next = &edges[0];
+    ASSERT_EQ(4, count_edges(edges));
+}
+
+static void voronoi_test_issue_missing_border_edges(Context* ctx)
+{
+    (void)ctx;
+    jcv_point points[] = {
+        {1.5, 1.5},
+        {0.5, 1.0},
+        {1.5, 0.5},
+    };
+    int num_points = (int)(sizeof(points) / sizeof(jcv_point));
+
+    jcv_diagram_generate(num_points, points, 0, 0, &ctx->diagram);
+    ASSERT_EQ( num_points, ctx->diagram.numsites );
+    const jcv_site* sites = jcv_diagram_get_sites(&ctx->diagram);
+    const jcv_site* site = &sites[1];
+    ASSERT_EQ( site->index, 1); // Make sure we test the correct one
+    ASSERT_EQ(1, is_closed_loop(site->edges));
+    ASSERT_EQ(5, count_edges(site->edges));
+}
+
 TEST_BEGIN(voronoi_test, voronoi_main_setup, voronoi_main_teardown, test_setup, test_teardown)
+    TEST(voronoi_testfn_count_edges)
+    TEST(voronoi_testfn_closed_loop)
+
     TEST(voronoi_test_prune_duplicates)
     TEST(voronoi_test_prune_not_in_shape)
     TEST(voronoi_test_parallel_horiz_2)
@@ -554,6 +647,8 @@ TEST_BEGIN(voronoi_test, voronoi_main_setup, voronoi_main_teardown, test_setup, 
     TEST(voronoi_test_issue22_wrong_edge_count)
     TEST(voronoi_test_issue28_not_all_edges_returned)
     TEST(voronoi_test_issue38_numsites_equals_one_assert)
+    TEST(voronoi_test_issue_missing_border_edges)
+
 TEST_END(voronoi_test)
 
 

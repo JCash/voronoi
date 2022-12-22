@@ -1,4 +1,4 @@
-// Copyright (c) 2015-2019 Mathias Westerdahl
+// Copyright (c) 2015-2022 Mathias Westerdahl
 // For LICENSE (MIT), USAGE or HISTORY, see bottom of file
 
 #ifndef JC_VORONOI_H
@@ -157,8 +157,6 @@ struct _jcv_clipper
 struct _jcv_diagram
 {
     jcv_context_internal*   internal;
-    jcv_edge*               edges;
-    jcv_site*               sites;
     int                     numsites;
     jcv_point               min;
     jcv_point               max;
@@ -183,6 +181,10 @@ struct _jcv_diagram
     #define inline __inline
 #endif
 
+static const int JCV_DIRECTION_LEFT  = 0;
+static const int JCV_DIRECTION_RIGHT = 1;
+static const jcv_real JCV_INVALID_VALUE = (jcv_real)-JCV_FLT_MAX;
+
 // jcv_point
 
 static inline int jcv_point_cmp(const void* p1, const void* p2)
@@ -205,6 +207,66 @@ static inline int jcv_point_eq( const jcv_point* pt1, const jcv_point* pt2 )
 static inline int jcv_point_on_box_edge( const jcv_point* pt, const jcv_point* min, const jcv_point* max )
 {
     return pt->x == min->x || pt->y == min->y || pt->x == max->x || pt->y == max->y;
+}
+
+// corners
+
+static const int JCV_EDGE_LEFT    = 1;
+static const int JCV_EDGE_RIGHT   = 2;
+static const int JCV_EDGE_BOTTOM  = 4;
+static const int JCV_EDGE_TOP     = 8;
+
+static const int JCV_CORNER_NONE          = 0;
+static const int JCV_CORNER_TOP_LEFT      = 1;
+static const int JCV_CORNER_BOTTOM_LEFT   = 2;
+static const int JCV_CORNER_BOTTOM_RIGHT  = 3;
+static const int JCV_CORNER_TOP_RIGHT     = 4;
+
+static inline int jcv_get_edge_flags( const jcv_point* pt, const jcv_point* min, const jcv_point* max )
+{
+    int flags = 0;
+    if      (pt->x == min->x)   flags |= JCV_EDGE_LEFT;
+    else if (pt->x == max->x)   flags |= JCV_EDGE_RIGHT;
+    if      (pt->y == min->y)   flags |= JCV_EDGE_BOTTOM;
+    else if (pt->y == max->y)   flags |= JCV_EDGE_TOP;
+    return flags;
+}
+
+static inline int jcv_edge_flags_to_corner(int edge_flags)
+{
+    switch(edge_flags)
+    {
+    case JCV_EDGE_TOP|JCV_EDGE_LEFT:    return JCV_CORNER_TOP_LEFT; break;
+    case JCV_EDGE_TOP|JCV_EDGE_RIGHT:   return JCV_CORNER_TOP_RIGHT; break;
+    case JCV_EDGE_BOTTOM|JCV_EDGE_LEFT: return JCV_CORNER_BOTTOM_LEFT; break;
+    case JCV_EDGE_BOTTOM|JCV_EDGE_RIGHT:return JCV_CORNER_BOTTOM_RIGHT; break;
+    default:                            return 0;
+    }
+}
+
+static inline int jcv_is_corner(int corner)
+{
+    return corner != 0;
+}
+
+static inline int jcv_corner_rotate_90(int corner)
+{
+    corner--;
+    corner = (corner+1)%4;
+    return corner + 1;
+}
+static inline jcv_point jcv_corner_to_point(int corner, const jcv_point* min, const jcv_point* max )
+{
+    jcv_point p;
+    switch(corner)
+    {
+    case JCV_CORNER_TOP_LEFT:       p.x = min->x; p.y = max->y; break;
+    case JCV_CORNER_TOP_RIGHT:      p.x = max->x; p.y = max->y; break;
+    case JCV_CORNER_BOTTOM_LEFT:    p.x = min->x; p.y = min->y; break;
+    case JCV_CORNER_BOTTOM_RIGHT:   p.x = max->x; p.y = min->y; break;
+    default:                        p.x = JCV_INVALID_VALUE; p.y = JCV_INVALID_VALUE; break;
+    }
+    return p;
 }
 
 static inline jcv_real jcv_point_dist_sq( const jcv_point* pt1, const jcv_point* pt2)
@@ -282,12 +344,6 @@ struct _jcv_context_internal
 };
 
 #pragma pack(pop)
-
-
-static const int JCV_DIRECTION_LEFT  = 0;
-static const int JCV_DIRECTION_RIGHT = 1;
-static const jcv_real JCV_INVALID_VALUE = (jcv_real)-JCV_FLT_MAX;
-
 
 void jcv_diagram_free( jcv_diagram* d )
 {
@@ -1061,7 +1117,6 @@ void jcv_boxshape_fillgaps(const jcv_clipper* clipper, jcv_context_internal* all
     jcv_graphedge* next = current->next;
     if( !next )
     {
-        // Only one edge, then we assume it's a corner gap
         jcv_graphedge* gap = jcv_alloc_graphedge(allocator);
         jcv_create_corner_edge(allocator, site, current, gap);
         gap->edge = jcv_create_gap_edge(allocator, site, gap);
@@ -1074,11 +1129,19 @@ void jcv_boxshape_fillgaps(const jcv_clipper* clipper, jcv_context_internal* all
 
     while( current && next )
     {
-        if( jcv_point_on_box_edge(&current->pos[1], &clipper->min, &clipper->max) && !jcv_point_eq(&current->pos[1], &next->pos[0]) )
+        int current_edge_flags = jcv_get_edge_flags(&current->pos[1], &clipper->min, &clipper->max);
+        if( current_edge_flags && !jcv_point_eq(&current->pos[1], &next->pos[0]))
         {
-            // Border gap
-            if( current->pos[1].x == next->pos[0].x || current->pos[1].y == next->pos[0].y)
+            // Cases:
+            //  Current and Next on the same border
+            //  Current on one border, and Next on another border
+            //  Current on the corner, Next on the border
+            //  Current on the corner, Next on another border (another corner in between)
+
+            int next_edge_flags = jcv_get_edge_flags(&next->pos[0], &clipper->min, &clipper->max);
+            if (current_edge_flags & next_edge_flags)
             {
+                // Current and Next on the same border
                 jcv_graphedge* gap = jcv_alloc_graphedge(allocator);
                 gap->neighbor   = 0;
                 gap->pos[0]     = current->pos[1];
@@ -1089,19 +1152,36 @@ void jcv_boxshape_fillgaps(const jcv_clipper* clipper, jcv_context_internal* all
                 gap->next = current->next;
                 current->next = gap;
             }
-            else if( jcv_point_on_box_edge(&current->pos[1], &clipper->min, &clipper->max) &&
-                     jcv_point_on_box_edge(&next->pos[0], &clipper->min, &clipper->max) )
-            {
+            else {
+                // Current and Next on different borders
+                int corner_flag = jcv_edge_flags_to_corner(current_edge_flags);
+                if (corner_flag)
+                {
+                    // we are already at one corner, so we need to find the next one
+                    corner_flag = jcv_corner_rotate_90(corner_flag);
+                }
+                else
+                {
+                    // we are on the middle of a border
+                    // we need to find the adjacent corner, following the borders CCW
+                    switch(current_edge_flags) {
+                    case JCV_EDGE_TOP:      corner_flag = JCV_CORNER_TOP_LEFT; break;
+                    case JCV_EDGE_LEFT:     corner_flag = JCV_CORNER_BOTTOM_LEFT; break;
+                    case JCV_EDGE_BOTTOM:   corner_flag = JCV_CORNER_BOTTOM_RIGHT; break;
+                    case JCV_EDGE_RIGHT:    corner_flag = JCV_CORNER_TOP_RIGHT; break;
+                    }
+                }
+                jcv_point corner = jcv_corner_to_point(corner_flag, &clipper->min, &clipper->max);
+
                 jcv_graphedge* gap = jcv_alloc_graphedge(allocator);
-                jcv_create_corner_edge(allocator, site, current, gap);
-                gap->edge = jcv_create_gap_edge(allocator, site, gap);
+                gap->neighbor   = 0;
+                gap->pos[0]     = current->pos[1];
+                gap->pos[1]     = corner;
+                gap->angle      = jcv_calc_sort_metric(site, gap);
+                gap->edge       = jcv_create_gap_edge(allocator, site, gap);
+
                 gap->next = current->next;
                 current->next = gap;
-            }
-            else
-            {
-                // something went wrong, abort instead of looping indefinitely
-                break;
             }
         }
 
@@ -1459,7 +1539,7 @@ ABOUT:
     A fast single file 2D voronoi diagram generator
 
 HISTORY:
-
+    0.8     2022-12-20  - Added fix for missing border edges
     0.7     2019-10-25  - Added support for clipping against convex polygons
                         - Added JCV_EDGE_INTERSECT_THRESHOLD for edge intersections
                         - Fixed issue where the bounds calculation wasn’t considering all points
