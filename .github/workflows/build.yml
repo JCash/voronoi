@@ -24,7 +24,7 @@ jobs:
           (cd test && ${{ matrix.feature }} ./compile.sh)
           (cd src/examples && ${{ matrix.feature }} ./compile.sh)
       - name: Run Tests
-        run: \
+        run: |
           ./build/test
           ./build/test_double
           ./build/simple
