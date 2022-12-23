@@ -64,9 +64,9 @@ jobs:
         run: |
           scripts\compile_cl.bat
           cd test
-          scripts\compile_cl.bat
+          compile_cl.bat
           cd ..\src\examples
-          scripts\compile_cl.bat
+          compile_cl.bat
       - name: Run Tests
         run: |
           build\main.exe -?
