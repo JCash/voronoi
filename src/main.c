@@ -11,13 +11,6 @@ VERSION
 #include <stdint.h>
 #include <stdio.h> // printf
 
-#if defined(_MSC_VER)
-#include <malloc.h>
-#define alloca _alloca
-#else
-#include <alloca.h>
-#endif
-
 // I wrapped it in a library because it spams too many warnings
 extern int wrap_stbi_write_png(char const *filename, int w, int h, int comp, const void *data, int stride_in_bytes);
 
@@ -205,7 +198,7 @@ static int read_input(const char* path, jcv_point** points, uint32_t* length, jc
 
     int mode = -1;
     const uint32_t buffersize = 64;
-    char* buffer = (char*)alloca(buffersize);
+    char buffer[buffersize];
     uint32_t bufferoffset = 0;
 
     while( !feof(file) )
@@ -354,7 +347,6 @@ int main(int argc, const char** argv)
     int width = 512;
     int height = 512;
     int numrelaxations = 0;
-    int mode = 0;
     const char* inputfile = 0;
     const char* clipfile = 0; // a file with clipping points
     const char* outputfile = "example.png";
@@ -421,16 +413,6 @@ int main(int argc, const char** argv)
         {
             if( i+1 < argc )
                 numrelaxations = (int)atol(argv[i+1]);
-            else
-            {
-                Usage();
-                return 1;
-            }
-        }
-        else if(strcmp(argv[i], "-m") == 0)
-        {
-            if( i+1 < argc )
-                mode = (int)atol(argv[i+1]);
             else
             {
                 Usage();

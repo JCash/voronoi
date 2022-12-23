@@ -185,6 +185,30 @@ static const int JCV_DIRECTION_LEFT  = 0;
 static const int JCV_DIRECTION_RIGHT = 1;
 static const jcv_real JCV_INVALID_VALUE = (jcv_real)-JCV_FLT_MAX;
 
+// jcv_real
+
+static inline jcv_real jcv_abs(jcv_real v) {
+    return (v < 0) ? -v : v;
+}
+
+static inline jcv_real jcv_floor(jcv_real v) {
+    jcv_real i = (jcv_real)(int)v;
+    return (v < i) ? i - 1 : i;
+}
+
+static inline jcv_real jcv_ceil(jcv_real v) {
+    jcv_real i = (jcv_real)(int)v;
+    return (v > i) ? i + 1 : i;
+}
+
+static inline jcv_real jcv_min(jcv_real a, jcv_real b) {
+    return a < b ? a : b;
+}
+
+static inline jcv_real jcv_max(jcv_real a, jcv_real b) {
+    return a > b ? a : b;
+}
+
 // jcv_point
 
 static inline int jcv_point_cmp(const void* p1, const void* p2)
@@ -201,7 +225,7 @@ static inline int jcv_point_less( const jcv_point* pt1, const jcv_point* pt2 )
 
 static inline int jcv_point_eq( const jcv_point* pt1, const jcv_point* pt2 )
 {
-    return (fabs(pt1->y - pt2->y) < JCV_REAL_TYPE_EPSILON) && (fabs(pt1->x - pt2->x) < JCV_REAL_TYPE_EPSILON);
+    return (jcv_abs(pt1->y - pt2->y) < JCV_REAL_TYPE_EPSILON) && (jcv_abs(pt1->x - pt2->x) < JCV_REAL_TYPE_EPSILON);
 }
 
 static inline int jcv_point_on_box_edge( const jcv_point* pt, const jcv_point* min, const jcv_point* max )
@@ -1263,24 +1287,6 @@ static void jcv_circle_event(jcv_context_internal* internal)
         he->y           = p.y + jcv_point_dist(&bottom->p, &p);
         jcv_pq_push(internal->eventqueue, he);
     }
-}
-
-static inline jcv_real jcv_floor(jcv_real v) {
-    jcv_real i = (jcv_real)(int)v;
-    return (v < i) ? i - 1 : i;
-}
-
-static inline jcv_real jcv_ceil(jcv_real v) {
-    jcv_real i = (jcv_real)(int)v;
-    return (v > i) ? i + 1 : i;
-}
-
-static inline jcv_real jcv_min(jcv_real a, jcv_real b) {
-    return a < b ? a : b;
-}
-
-static inline jcv_real jcv_max(jcv_real a, jcv_real b) {
-    return a > b ? a : b;
 }
 
 void jcv_diagram_generate( int num_points, const jcv_point* points, const jcv_rect* rect, const jcv_clipper* clipper, jcv_diagram* d )

@@ -1,0 +1,111 @@
+name: Build
+
+on: [push, pull_request_target]
+
+jobs:
+  build-linux:
+    strategy:
+      matrix:
+        feature: ["", "USE_ASAN=1"]
+        compiler: [clang, gcc]
+        arch:    ["-m64", "-m32"]
+        cversion: [c99, c11, c17, c2x]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install
+        run: sudo apt-get install -y gcc-multilib g++-multilib
+      - name: Build tests
+        run: |
+          export CC=${{ matrix.compiler }}
+          export STDVERSION=${{ matrix.cversion }}
+          export ARCH=${{ matrix.arch }}
+          ${{ matrix.feature }} ./scripts/compile.sh
+          (cd test && ${{ matrix.feature }} ./compile.sh)
+          (cd src/examples && ${{ matrix.feature }} ./compile.sh)
+      - name: Run Tests
+        run: \
+          ./build/test
+          ./build/test_double
+          ./build/simple
+
+#   - ./compile_clang.sh
+#   - (cd test && ./compile_clang.sh)
+#   - (cd src/examples && ./compile_clang.sh)
+#   - cd ./build
+#   - ASAN_OPTIONS=detect_stack_use_after_return=1 ./test
+#   - ASAN_OPTIONS=detect_stack_use_after_return=1 ./test_double
+#   - ASAN_OPTIONS=detect_stack_use_after_return=1 ./simple
+
+#   build-macos:
+#     strategy:
+#       matrix:
+#         feature: ["", "USE_ASAN=1"]
+#         cversion: [c++0x, c++11, c++14, c++17, c++20, c++2b]
+#     runs-on: macos-latest
+#     steps:
+#       - uses: actions/checkout@v2
+#       - name: Build tests
+#         run: STDVERSION=${{ matrix.cversion }} ${{ matrix.feature }} ./scripts/compile.sh
+#       - name: Run Tests
+#         run: ./scripts/run_tests.sh
+
+  build-windows:
+    strategy:
+      matrix:
+        arch:       [amd64, amd64_x86] #, amd64_arm64]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.arch }}
+      - name: Build tests
+        run: |
+          scripts\compile_cl.bat
+          cd test
+          scripts\compile_cl.bat
+          cd ..\src\examples
+          scripts\compile_cl.bat
+      - name: Run Tests
+        run: |
+          build\main.exe -?
+          build\main.exe -w 512 -h 512 -n 100 -o citest.png
+          build\test.exe
+          build\test_double.exe
+          build\simple.exe
+
+
+# language: cpp
+# compiler:
+#   - clang
+
+# os:
+#   - linux
+#   - osx
+
+# script:
+#   - ./compile_clang.sh
+#   - (cd test && ./compile_clang.sh)
+#   - (cd src/examples && ./compile_clang.sh)
+#   - cd ./build
+#   - ASAN_OPTIONS=detect_stack_use_after_return=1 ./test
+#   - ASAN_OPTIONS=detect_stack_use_after_return=1 ./test_double
+#   - ASAN_OPTIONS=detect_stack_use_after_return=1 ./simple
+#   - sleep 1 # wait for output
+
+
+# build_script:
+#   - compile_cl.bat
+#   - cd test
+#   - compile_cl.bat
+#   - cd ..\src\examples
+#   - compile_cl.bat
+#   - cd ..\..\
+
+# test_script:
+#   - build\main.exe -?
+#   - build\main.exe -w 512 -h 512 -n 100 -o citest.png
+#   - build\test.exe
+#   - build\test_double.exe
+#   - build\simple.exe
