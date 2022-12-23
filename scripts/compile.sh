@@ -27,5 +27,5 @@ fi
 
 CFLAGS="-g -O2 -Wall -Weverything -Wno-float-equal -pedantic -Wno-declaration-after-statement -Isrc"
 
-${CC} ${ASAN} -c src/stb_wrapper.c -o build/stb_wrapper.o
-${CC} ${ASAN} -o build/main  ${ARCH} -std=${STDVERSION} ${CFLAGS} -lm  ${SYSROOT} build/stb_wrapper.o src/main.c
+${CC} ${ASAN} ${ARCH} -c src/stb_wrapper.c -o build/stb_wrapper.o
+${CC} ${ASAN} -o build/main ${ARCH} -std=${STDVERSION} ${CFLAGS} -lm  ${SYSROOT} build/stb_wrapper.o src/main.c

@@ -197,13 +197,12 @@ static int read_input(const char* path, jcv_point** points, uint32_t* length, jc
     jcv_point* pts = 0;
 
     int mode = -1;
-    const uint32_t buffersize = 64;
-    char buffer[buffersize];
+    char buffer[64];
     uint32_t bufferoffset = 0;
 
     while( !feof(file) )
     {
-        size_t num_read = fread((void*)&buffer[bufferoffset], 1, buffersize - bufferoffset, file);
+        size_t num_read = fread((void*)&buffer[bufferoffset], 1, sizeof(buffer) - bufferoffset, file);
         num_read += bufferoffset;
 
         if( mode == -1 )
