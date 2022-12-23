@@ -67,12 +67,12 @@ jobs:
         run: |
           cd test
           dir
-          compile_cl.bat
+          type .\compile_cl.bat
       - name: Build examples
         run: |
           cd src\examples
           dir
-          compile_cl.bat
+          .\compile_cl.bat
       - name: Run Tests
         run: |
           build\main.exe -?
