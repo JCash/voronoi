@@ -26,5 +26,5 @@ if [ "Darwin" == "$(uname)" ]; then
     fi
 fi
 
-CFLAGS="${CFLAGS} -std=${STDVERSION} -Wall -Weverything -pedantic -Wno-float-equal"
+CFLAGS="${CFLAGS} -std=${STDVERSION} -Wall -Weverything -pedantic -Wno-float-equal -Wno-declaration-after-statement"
 ${CC} ${CFLAGS} ${ASAN} ${SYSROOT} simple.c -I.. -lm -o ${BUILD_DIR}/simple

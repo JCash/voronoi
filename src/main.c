@@ -103,8 +103,8 @@ static void draw_triangle(const jcv_point* v0, const jcv_point* v1, const jcv_po
 
     // Rasterize
     jcv_point p;
-    for (p.y = (jcv_real)minY; p.y <= maxY; p.y++) {
-        for (p.x = (jcv_real)minX; p.x <= maxX; p.x++) {
+    for (p.y = (jcv_real)minY; p.y <= (jcv_real)maxY; p.y++) {
+        for (p.x = (jcv_real)minX; p.x <= (jcv_real)maxX; p.x++) {
             // Determine barycentric coordinates
             int w0 = orient2d(v1, v2, &p);
             int w1 = orient2d(v2, v0, &p);
@@ -138,8 +138,8 @@ static void relax_points(const jcv_diagram* diagram, jcv_point* points)
             edge = edge->next;
         }
 
-        points[site->index].x = sum.x / count;
-        points[site->index].y = sum.y / count;
+        points[site->index].x = sum.x / (jcv_real)count;
+        points[site->index].y = sum.y / (jcv_real)count;
     }
 }
 

@@ -15,7 +15,7 @@ if [ "${STDVERSION}" == "" ]; then
     STDVERSION=c99
 fi
 
-CFLAGS="$CFLAGS ${ARCH} ${ASAN_FLAGS} -std=${STDVERSION} -g -O1 -Wall -Weverything -Wno-float-equal -Wno-unused-function -Wno-double-promotion -pedantic -I../src"
+CFLAGS="$CFLAGS ${ARCH} ${ASAN_FLAGS} -std=${STDVERSION} -g -O1 -Wall -Weverything -Wno-float-equal -Wno-unused-function -Wno-double-promotion -Wno-declaration-after-statement -pedantic -I../src"
 LINKFLAGS="-lm ${ASAN_LDFLAGS}"
 DOUBLEDEFINES="-Wno-double-promotion -DTEST_USE_DOUBLE -DJCV_REAL_TYPE=double -DJCV_ATAN2=atan2 -DJCV_SQRT=sqrt"
 
