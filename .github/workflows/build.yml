@@ -67,7 +67,7 @@ jobs:
         run: |
           cd test
           dir
-          type .\compile_cl.bat
+          .\compile_cl.bat
       - name: Build examples
         run: |
           cd src\examples
@@ -75,11 +75,11 @@ jobs:
           .\compile_cl.bat
       - name: Run Tests
         run: |
-          build\main.exe -?
-          build\main.exe -w 512 -h 512 -n 100 -o citest.png
-          build\test.exe
-          build\test_double.exe
-          build\simple.exe
+          .\build\main.exe -?
+          .\build\main.exe -w 512 -h 512 -n 100 -o citest.png
+          .\build\test.exe
+          .\build\test_double.exe
+          .\build\simple.exe
 
 
 # language: cpp
