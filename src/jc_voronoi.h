@@ -46,14 +46,14 @@ extern "C" {
 
 typedef JCV_REAL_TYPE jcv_real;
 
-typedef struct _jcv_point       jcv_point;
-typedef struct _jcv_rect        jcv_rect;
-typedef struct _jcv_site        jcv_site;
-typedef struct _jcv_edge        jcv_edge;
-typedef struct _jcv_graphedge   jcv_graphedge;
-typedef struct _jcv_diagram     jcv_diagram;
-typedef struct _jcv_clipper     jcv_clipper;
-typedef struct _jcv_context_internal jcv_context_internal;
+typedef struct jcv_point_       jcv_point;
+typedef struct jcv_rect_        jcv_rect;
+typedef struct jcv_site_        jcv_site;
+typedef struct jcv_edge_        jcv_edge;
+typedef struct jcv_graphedge_   jcv_graphedge;
+typedef struct jcv_diagram_     jcv_diagram;
+typedef struct jcv_clipper_     jcv_clipper;
+typedef struct jcv_context_internal_ jcv_context_internal;
 
 /// Tests if a point is inside the final shape
 typedef int (*jcv_clip_test_point_fn)(const jcv_clipper* clipper, const jcv_point p);
@@ -105,22 +105,22 @@ extern void jcv_boxshape_fillgaps(const jcv_clipper* clipper, jcv_context_intern
 
 #pragma pack(push, 1)
 
-struct _jcv_point
+struct jcv_point_
 {
     jcv_real x;
     jcv_real y;
 };
 
-struct _jcv_graphedge
+struct jcv_graphedge_
 {
-    struct _jcv_graphedge*  next;
-    struct _jcv_edge*       edge;
-    struct _jcv_site*       neighbor;
+    struct jcv_graphedge_*  next;
+    struct jcv_edge_*       edge;
+    struct jcv_site_*       neighbor;
     jcv_point               pos[2];
     jcv_real                angle;
 };
 
-struct _jcv_site
+struct jcv_site_
 {
     jcv_point       p;
     int             index;  // Index into the original list of points
@@ -128,9 +128,9 @@ struct _jcv_site
 };
 
 // The coefficients a, b and c are from the general line equation: ax * by + c = 0
-struct _jcv_edge
+struct jcv_edge_
 {
-    struct _jcv_edge*   next;
+    struct jcv_edge_*   next;
     jcv_site*           sites[2];
     jcv_point           pos[2];
     jcv_real            a;
@@ -138,13 +138,13 @@ struct _jcv_edge
     jcv_real            c;
 };
 
-struct _jcv_rect
+struct jcv_rect_
 {
     jcv_point   min;
     jcv_point   max;
 };
 
-struct _jcv_clipper
+struct jcv_clipper_
 {
     jcv_clip_test_point_fn  test_fn;
     jcv_clip_edge_fn        clip_fn;
@@ -154,7 +154,7 @@ struct _jcv_clipper
     void*                   ctx;        // User defined context
 };
 
-struct _jcv_diagram
+struct jcv_diagram_
 {
     jcv_context_internal*   internal;
     int                     numsites;
@@ -309,28 +309,28 @@ static inline jcv_real jcv_point_dist( const jcv_point* pt1, const jcv_point* pt
 
 #pragma pack(push, 1)
 
-typedef struct _jcv_halfedge
+typedef struct jcv_halfedge_
 {
     jcv_edge*               edge;
-    struct _jcv_halfedge*   left;
-    struct _jcv_halfedge*   right;
+    struct jcv_halfedge_*   left;
+    struct jcv_halfedge_*   right;
     jcv_point               vertex;
     jcv_real                y;
     int                     direction; // 0=left, 1=right
     int                     pqpos;
 } jcv_halfedge;
 
-typedef struct _jcv_memoryblock
+typedef struct jcv_memoryblock_
 {
     size_t sizefree;
-    struct _jcv_memoryblock* next;
+    struct jcv_memoryblock_* next;
     char*  memory;
 } jcv_memoryblock;
 
 
 typedef int  (*FJCVPriorityQueuePrint)(const void* node, int pos);
 
-typedef struct _jcv_priorityqueue
+typedef struct jcv_priorityqueue_
 {
     // Implements a binary heap
     int                         maxnumitems;
@@ -339,7 +339,7 @@ typedef struct _jcv_priorityqueue
 } jcv_priorityqueue;
 
 
-struct _jcv_context_internal
+struct jcv_context_internal_
 {
     void*               mem;
     jcv_edge*           edges;
@@ -1294,7 +1294,7 @@ void jcv_diagram_generate( int num_points, const jcv_point* points, const jcv_re
     jcv_diagram_generate_useralloc(num_points, points, rect, clipper, 0, jcv_alloc_fn, jcv_free_fn, d);
 }
 
-typedef union _jcv_cast_align_struct
+typedef union jcv_cast_align_struct_
 {
     char*   charp;
     void**  voidpp;
