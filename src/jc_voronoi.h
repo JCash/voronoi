@@ -281,14 +281,11 @@ static inline int jcv_corner_rotate_90(int corner)
 static inline jcv_point jcv_corner_to_point(int corner, const jcv_point* min, const jcv_point* max )
 {
     jcv_point p;
-    switch(corner)
-    {
-    case JCV_CORNER_TOP_LEFT:       p.x = min->x; p.y = max->y; break;
-    case JCV_CORNER_TOP_RIGHT:      p.x = max->x; p.y = max->y; break;
-    case JCV_CORNER_BOTTOM_LEFT:    p.x = min->x; p.y = min->y; break;
-    case JCV_CORNER_BOTTOM_RIGHT:   p.x = max->x; p.y = min->y; break;
-    default:                        p.x = JCV_INVALID_VALUE; p.y = JCV_INVALID_VALUE; break;
-    }
+    if      (corner == JCV_CORNER_TOP_LEFT)     { p.x = min->x; p.y = max->y; }
+    else if (corner == JCV_CORNER_TOP_RIGHT)    { p.x = max->x; p.y = max->y; }
+    else if (corner == JCV_CORNER_BOTTOM_LEFT)  { p.x = min->x; p.y = min->y; }
+    else if (corner == JCV_CORNER_BOTTOM_RIGHT) { p.x = max->x; p.y = min->y; }
+    else                                        { p.x = JCV_INVALID_VALUE; p.y = JCV_INVALID_VALUE; }
     return p;
 }
 
@@ -1187,12 +1184,10 @@ void jcv_boxshape_fillgaps(const jcv_clipper* clipper, jcv_context_internal* all
                 {
                     // we are on the middle of a border
                     // we need to find the adjacent corner, following the borders CCW
-                    switch(current_edge_flags) {
-                    case JCV_EDGE_TOP:      corner_flag = JCV_CORNER_TOP_LEFT; break;
-                    case JCV_EDGE_LEFT:     corner_flag = JCV_CORNER_BOTTOM_LEFT; break;
-                    case JCV_EDGE_BOTTOM:   corner_flag = JCV_CORNER_BOTTOM_RIGHT; break;
-                    case JCV_EDGE_RIGHT:    corner_flag = JCV_CORNER_TOP_RIGHT; break;
-                    }
+                    if      (current_edge_flags == JCV_EDGE_TOP)    { corner_flag = JCV_CORNER_TOP_LEFT; }
+                    else if (current_edge_flags == JCV_EDGE_LEFT)   { corner_flag = JCV_CORNER_BOTTOM_LEFT; }
+                    else if (current_edge_flags == JCV_EDGE_BOTTOM) { corner_flag = JCV_CORNER_BOTTOM_RIGHT; }
+                    else if (current_edge_flags == JCV_EDGE_RIGHT)  { corner_flag = JCV_CORNER_TOP_RIGHT; }
                 }
                 jcv_point corner = jcv_corner_to_point(corner_flag, &clipper->min, &clipper->max);
 
