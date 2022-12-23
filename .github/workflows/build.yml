@@ -60,12 +60,15 @@ jobs:
       - uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: ${{ matrix.arch }}
+      - name: Build main
+        run: scripts\compile_cl.bat
       - name: Build tests
         run: |
-          scripts\compile_cl.bat
           cd test
           compile_cl.bat
-          cd ..\src\examples
+      - name: Build examples
+        run: |
+          cd src\examples
           compile_cl.bat
       - name: Run Tests
         run: |
