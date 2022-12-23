@@ -178,9 +178,9 @@ extern unsigned long long jc_test_get_time(void);
 		return; \
 	}
 
-#define TEST_ASSERT_TRUE( _COND )	TEST_ASSERT_BASE( __FILE__, __LINE__, TEST_ASSERT, _COND, "" );
-#define TEST_ASSERT_EQ( _A, _B)		TEST_ASSERT_BASE_EQ( __FILE__, __LINE__, TEST_ASSERT_EQ, _A, _B, "" );
-#define TEST_ASSERT_NE( _A, _B)		TEST_ASSERT_BASE_NE( __FILE__, __LINE__, TEST_ASSERT_NE, _A, _B, "" );
+#define TEST_ASSERT_TRUE( _COND )	TEST_ASSERT_BASE( __FILE__, __LINE__, TEST_ASSERT, _COND, "" )
+#define TEST_ASSERT_EQ( _A, _B)		TEST_ASSERT_BASE_EQ( __FILE__, __LINE__, TEST_ASSERT_EQ, _A, _B, "" )
+#define TEST_ASSERT_NE( _A, _B)		TEST_ASSERT_BASE_NE( __FILE__, __LINE__, TEST_ASSERT_NE, _A, _B, "" )
 
 #ifndef JC_UNDEF_SHORT_NAMES
 #define RUN			TEST_RUN
@@ -227,9 +227,9 @@ static void jc_test_report_time(unsigned long long t) // Micro seconds
 	if( t < 5000 )
 		JC_TEST_PRINTF("%g %s", (double)t, JC_TEST_MICROSECONDS_STR);
 	else if( t < 500000 )
-		JC_TEST_PRINTF("%g %s", t / 1000.0, "ms");
+		JC_TEST_PRINTF("%g %s", (double)t / 1000.0, "ms");
 	else
-		JC_TEST_PRINTF("%g %s", t / 1000000.0, "s");
+		JC_TEST_PRINTF("%g %s", (double)t / 1000000.0, "s");
 }
 
 int jc_test_run_test_fixture(jc_test_fixture* fixture)
