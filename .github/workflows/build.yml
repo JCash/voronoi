@@ -7,7 +7,7 @@ jobs:
     strategy:
       matrix:
         feature: ["", "USE_ASAN=1"]
-        compiler: [clang, gcc]
+        compiler: [clang]
         arch:    ["-m64", "-m32"]
         cversion: [c99, c11, c17, c2x]
     runs-on: ubuntu-latest
@@ -16,10 +16,11 @@ jobs:
       - name: Install
         run: sudo apt-get install -y gcc-multilib g++-multilib
       - name: Build tests
+        env:
+          CC: ${{ matrix.compiler }}
+          STDVERSION: ${{ matrix.cversion }}
+          ARCH: ${{ matrix.arch }}
         run: |
-          export CC=${{ matrix.compiler }}
-          export STDVERSION=${{ matrix.cversion }}
-          export ARCH=${{ matrix.arch }}
           ${{ matrix.feature }} ./scripts/compile.sh
           (cd test && ${{ matrix.feature }} ./compile.sh)
           (cd src/examples && ${{ matrix.feature }} ./compile.sh)
@@ -63,14 +64,17 @@ jobs:
       - name: Build main
         run: scripts\compile_cl.bat
       - name: Build tests
+        shell: bash
         run: |
           cd test
           compile_cl.bat
       - name: Build examples
+        shell: bash
         run: |
           cd src\examples
           compile_cl.bat
       - name: Run Tests
+        shell: bash
         run: |
           build\main.exe -?
           build\main.exe -w 512 -h 512 -n 100 -o citest.png
