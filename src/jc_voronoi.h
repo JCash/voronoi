@@ -258,14 +258,13 @@ static inline int jcv_get_edge_flags( const jcv_point* pt, const jcv_point* min,
 
 static inline int jcv_edge_flags_to_corner(int edge_flags)
 {
-    switch(edge_flags)
-    {
-    case JCV_EDGE_TOP|JCV_EDGE_LEFT:    return JCV_CORNER_TOP_LEFT; break;
-    case JCV_EDGE_TOP|JCV_EDGE_RIGHT:   return JCV_CORNER_TOP_RIGHT; break;
-    case JCV_EDGE_BOTTOM|JCV_EDGE_LEFT: return JCV_CORNER_BOTTOM_LEFT; break;
-    case JCV_EDGE_BOTTOM|JCV_EDGE_RIGHT:return JCV_CORNER_BOTTOM_RIGHT; break;
-    default:                            return 0;
-    }
+    #define TEST_FLAGS(_FLAGS, _RETVAL) if ( (_FLAGS) == edge_flags ) return _RETVAL
+    TEST_FLAGS(JCV_EDGE_TOP|JCV_EDGE_LEFT, JCV_CORNER_TOP_LEFT);
+    TEST_FLAGS(JCV_EDGE_TOP|JCV_EDGE_RIGHT, JCV_CORNER_TOP_RIGHT);
+    TEST_FLAGS(JCV_EDGE_BOTTOM|JCV_EDGE_LEFT, JCV_CORNER_BOTTOM_LEFT);
+    TEST_FLAGS(JCV_EDGE_BOTTOM|JCV_EDGE_RIGHT, JCV_CORNER_BOTTOM_RIGHT);
+    #undef TEST_FLAGS
+    return 0;
 }
 
 static inline int jcv_is_corner(int corner)
