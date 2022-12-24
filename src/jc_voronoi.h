@@ -1216,7 +1216,7 @@ int num_added = 0;
         }
     }
 
-    printf("jcv_boxshape_fillgaps: Added %d extra edges\n", num_added)
+    printf("jcv_boxshape_fillgaps: Added %d extra edges\n", num_added);
 }
 
 // Since the algorithm leaves gaps at the borders/corner, we want to fill them
