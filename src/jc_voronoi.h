@@ -181,7 +181,7 @@ static void debug_edges_(const jcv_graphedge* e)
 {
     while( e )
     {
-        printf("  E: %f, %f -> %f, %f   neigh: %d  a: %f  next: %p\n", (double)e->pos[0].x, (double)e->pos[0].y, (double)e->pos[1].x, (double)e->pos[1].y, e->neighbor?e->neighbor->index:-1, e->angle, e->next);
+        printf("  E: %f, %f -> %f, %f   neigh: %d  a: %.14f  next: %p\n", (double)e->pos[0].x, (double)e->pos[0].y, (double)e->pos[1].x, (double)e->pos[1].y, e->neighbor?e->neighbor->index:-1, e->angle, e->next);
         e = e->next;
     }
 }
@@ -211,6 +211,11 @@ static const jcv_real JCV_INVALID_VALUE = (jcv_real)-JCV_FLT_MAX;
 
 static inline jcv_real jcv_abs(jcv_real v) {
     return (v < 0) ? -v : v;
+}
+
+static inline int jcv_real_eq(jcv_real a, jcv_real b)
+{
+    return jcv_abs(a - b) < JCV_REAL_TYPE_EPSILON;
 }
 
 static inline jcv_real jcv_floor(jcv_real v) {
@@ -247,7 +252,7 @@ static inline int jcv_point_less( const jcv_point* pt1, const jcv_point* pt2 )
 
 static inline int jcv_point_eq( const jcv_point* pt1, const jcv_point* pt2 )
 {
-    return (jcv_abs(pt1->y - pt2->y) < JCV_REAL_TYPE_EPSILON) && (jcv_abs(pt1->x - pt2->x) < JCV_REAL_TYPE_EPSILON);
+    return jcv_real_eq(pt1->y, pt2->y) && jcv_real_eq(pt1->x, pt2->x);
 }
 
 static inline int jcv_point_on_box_edge( const jcv_point* pt, const jcv_point* min, const jcv_point* max )
@@ -1077,7 +1082,7 @@ printf("  ge[%d]:  %f, %f  %f, %f\n", i, ge->pos[0].x, ge->pos[0].y, ge->pos[1].
     debug_edges_(e->sites[i]->edges);
 
         // check that we didn't accidentally add a duplicate (rare), then remove it
-        if( ge->next && ge->angle == ge->next->angle )
+        if( ge->next && jcv_real_eq(ge->angle, ge->next->angle) )
         {
             if( jcv_point_eq( &ge->pos[0], &ge->next->pos[0] ) && jcv_point_eq( &ge->pos[1], &ge->next->pos[1] ) )
             {
