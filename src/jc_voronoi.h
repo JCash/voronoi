@@ -181,7 +181,8 @@ static void debug_edges_(const jcv_graphedge* e)
 {
     while( e )
     {
-        printf("  E: %f, %f -> %f, %f   neigh: %d  a: %.14f  next: %p\n", (double)e->pos[0].x, (double)e->pos[0].y, (double)e->pos[1].x, (double)e->pos[1].y, e->neighbor?e->neighbor->index:-1, e->angle, e->next);
+        printf("  E: %f, %f -> %f, %f   neigh: %d  a: %.14f  next: %p  this: %p\n",
+            (double)e->pos[0].x, (double)e->pos[0].y, (double)e->pos[1].x, (double)e->pos[1].y, e->neighbor?e->neighbor->index:-1, e->angle, e->next, e);
         e = e->next;
     }
 }
@@ -1078,10 +1079,11 @@ printf("  !jcv_edge_clipline\n");
 
         jcv_sortedges_insert( e->sites[i], ge );
 
-printf("  ge[%d]:  %f, %f  %f, %f\n", i, ge->pos[0].x, ge->pos[0].y, ge->pos[1].x, ge->pos[1].y);
+printf("  ge[%d]:  %f, %f  %f, %f  next: %p\n", i, ge->pos[0].x, ge->pos[0].y, ge->pos[1].x, ge->pos[1].y, ge->next);
     debug_edges_(e->sites[i]->edges);
 
         // check that we didn't accidentally add a duplicate (rare), then remove it
+        printf(" compare: %p  angles: %.16f %.16f\n", ge->next, ge->angle, ge->next?ge->next->angle:666);
         if( ge->next && jcv_real_eq(ge->angle, ge->next->angle) )
         {
             if( jcv_point_eq( &ge->pos[0], &ge->next->pos[0] ) && jcv_point_eq( &ge->pos[1], &ge->next->pos[1] ) )
