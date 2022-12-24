@@ -1091,7 +1091,8 @@ printf("  !jcv_edge_clipline\n");
 
         // check that we didn't accidentally add a duplicate (rare), then remove it
         printf(" compare: %p  angles: %.16f %.16f\n", ge->next, ge->angle, ge->next?ge->next->angle:666);
-        if( ge->next && jcv_real_eq(ge->angle, ge->next->angle) )
+        //if( ge->next && jcv_real_eq(ge->angle, ge->next->angle) )
+        if( ge->next && ge->angle == ge->next->angle )
         {
             if( jcv_point_eq( &ge->pos[0], &ge->next->pos[0] ) && jcv_point_eq( &ge->pos[1], &ge->next->pos[1] ) )
             {
