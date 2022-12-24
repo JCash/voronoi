@@ -31,7 +31,7 @@ if [ "${STDVERSION}" == "" ]; then
     STDVERSION=c99
 fi
 
-CCFLAGS="${ARCH} ${ASAN_FLAGS} -g -O1 -Wall -Weverything -Wno-float-equal -Wno-unused-function -Wno-double-promotion -Wno-declaration-after-statement -pedantic -I../src ${SYSROOT}"
+CCFLAGS="${ARCH} ${ASAN_FLAGS} -g -O1 -DJC_TEST_USE_COLORS -Wall -Weverything -Wno-float-equal -Wno-unused-function -Wno-double-promotion -Wno-declaration-after-statement -pedantic -I../src ${SYSROOT}"
 CFLAGS="-c $CFLAGS -std=${STDVERSION} ${CCFLAGS}"
 CXXFLAGS="$CXXFLAGS -std=c++11 -Wno-global-constructors -Wno-weak-vtables -Wno-old-style-cast -Wno-zero-as-null-pointer-constant -Wno-c++98-compat -Wno-c++98-compat-pedantic -Wno-suggest-override"
 LINKFLAGS="-lm ${ASAN_LDFLAGS}"
