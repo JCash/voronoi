@@ -47,9 +47,21 @@ static void debug_edges(const jcv_graphedge* e)
 {
     while( e )
     {
-        printf("  E: %f, %f -> %f, %f   neigh: %p\n", (double)e->pos[0].x, (double)e->pos[0].y, (double)e->pos[1].x, (double)e->pos[1].y, (void*)e->neighbor);
+        printf("  E: %f, %f -> %f, %f   neigh: %d\n", (double)e->pos[0].x, (double)e->pos[0].y, (double)e->pos[1].x, (double)e->pos[1].y, e->neighbor?e->neighbor->index:-1);
         e = e->next;
     }
+}
+
+static void debug_sites(int num, const jcv_site* sites)
+{
+    printf("\nNUM sites: %d\n", num);
+    for( int i = 0; i < num; ++i)
+    {
+        const jcv_site* site = &sites[i];
+        printf("%d: idx: %d %f, %f\n", i, site->index, (double)site->p.x, (double)site->p.y);
+        debug_edges(site->edges);
+    }
+    printf("\n");
 }
 
 static bool check_point_eq(const jcv_point* a, const jcv_point* b)
@@ -480,6 +492,9 @@ TEST_F(VoronoiTest, issue28_not_all_edges_returned)
     int count = 0;
 
     const jcv_site *sites = jcv_diagram_get_sites(&ctx->diagram);
+
+    debug_sites(ctx->diagram.numsites, sites);
+
     for( int i = 0; i < ctx->diagram.numsites; ++i )
     {
         const jcv_site* site = &sites[i];
