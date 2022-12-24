@@ -1086,8 +1086,8 @@ printf("  !jcv_edge_clipline\n");
 
         jcv_sortedges_insert( e->sites[i], ge );
 
-printf("  ge[%d]:  %f, %f  %f, %f  next: %p\n", i, ge->pos[0].x, ge->pos[0].y, ge->pos[1].x, ge->pos[1].y, ge->next);
-    debug_edges_(e->sites[i]->edges);
+// printf("  ge[%d]:  %f, %f  %f, %f  next: %p\n", i, ge->pos[0].x, ge->pos[0].y, ge->pos[1].x, ge->pos[1].y, ge->next);
+//     debug_edges_(e->sites[i]->edges);
 
         // check that we didn't accidentally add a duplicate (rare), then remove it
         printf(" compare: %p  angles: %.16f %.16f\n", ge->next, ge->angle, ge->next?ge->next->angle:666);
