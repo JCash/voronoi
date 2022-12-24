@@ -7,17 +7,35 @@ if [ "$USE_ASAN" != "" ]; then
     echo Using ASAN
 fi
 
+if [ "Darwin" == "$(uname)" ]; then
+    if [ -e "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk" ]; then
+        SYSROOT="-isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk"
+    fi
+    if [ "" == "${SYSROOT}" ]; then
+        SYSROOT="-isysroot $(xcode-select --print-path)/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk"
+    fi
+fi
+
 if [ "${CC}" == "" ]; then
     CC=clang
+fi
+
+if [ "${CC}" == "clang" ]; then
+    CXX=clang++
+fi
+if [ "${CC}" == "gcc" ]; then
+    CXX=g++
 fi
 
 if [ "${STDVERSION}" == "" ]; then
     STDVERSION=c99
 fi
 
-CFLAGS="$CFLAGS ${ARCH} ${ASAN_FLAGS} -std=${STDVERSION} -g -O1 -Wall -Weverything -Wno-float-equal -Wno-unused-function -Wno-double-promotion -Wno-declaration-after-statement -pedantic -I../src"
+CCFLAGS="${ARCH} ${ASAN_FLAGS} -g -O1 -Wall -Weverything -Wno-float-equal -Wno-unused-function -Wno-double-promotion -Wno-declaration-after-statement -pedantic -I../src ${SYSROOT}"
+CFLAGS="-c $CFLAGS -std=${STDVERSION} ${CCFLAGS}"
+CXXFLAGS="$CXXFLAGS -std=c++11 -Wno-global-constructors -Wno-weak-vtables -Wno-old-style-cast -Wno-zero-as-null-pointer-constant -Wno-c++98-compat -Wno-c++98-compat-pedantic -Wno-suggest-override"
 LINKFLAGS="-lm ${ASAN_LDFLAGS}"
 DOUBLEDEFINES="-Wno-double-promotion -DTEST_USE_DOUBLE -DJCV_REAL_TYPE=double -DJCV_ATAN2=atan2 -DJCV_SQRT=sqrt"
 
-${CC} -o ../build/test $CFLAGS $LINKFLAGS test.c
-${CC} -o ../build/test_double $CFLAGS $LINKFLAGS $DOUBLEDEFINES test.c
+${CXX} -o ../build/test $CCFLAGS $CXXFLAGS $LINKFLAGS test.cpp
+${CXX} -o ../build/test_double $CCFLAGS $CXXFLAGS $LINKFLAGS $DOUBLEDEFINES test.cpp
