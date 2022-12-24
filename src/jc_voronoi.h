@@ -181,7 +181,7 @@ static void debug_edges_(const jcv_graphedge* e)
 {
     while( e )
     {
-        printf("  E: %f, %f -> %f, %f   neigh: %d\n", (double)e->pos[0].x, (double)e->pos[0].y, (double)e->pos[1].x, (double)e->pos[1].y, e->neighbor?e->neighbor->index:-1);
+        printf("  E: %f, %f -> %f, %f   neigh: %d  a: %f  next: %p\n", (double)e->pos[0].x, (double)e->pos[0].y, (double)e->pos[1].x, (double)e->pos[1].y, e->neighbor?e->neighbor->index:-1, e->angle, e->next);
         e = e->next;
     }
 }
