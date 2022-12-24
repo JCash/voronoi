@@ -177,6 +177,28 @@ struct jcv_diagram_
 
 // INTERNAL FUNCTIONS
 
+static void debug_edges_(const jcv_graphedge* e)
+{
+    while( e )
+    {
+        printf("  E: %f, %f -> %f, %f   neigh: %d\n", (double)e->pos[0].x, (double)e->pos[0].y, (double)e->pos[1].x, (double)e->pos[1].y, e->neighbor?e->neighbor->index:-1);
+        e = e->next;
+    }
+}
+
+static void debug_sites_(int num, const jcv_site* sites)
+{
+    printf("\nNUM sites: %d\n", num);
+    for( int i = 0; i < num; ++i)
+    {
+        const jcv_site* site = &sites[i];
+        printf("%d: idx: %d %f, %f\n", i, site->index, (double)site->p.x, (double)site->p.y);
+        debug_edges_(site->edges);
+    }
+    printf("\n");
+}
+
+
 #if defined(_MSC_VER) && !defined(__cplusplus)
     #define inline __inline
 #endif
@@ -1059,7 +1081,7 @@ printf("  ge[%d]:  %f, %f  %f, %f\n", i, ge->pos[0].x, ge->pos[0].y, ge->pos[1].
             if( jcv_point_eq( &ge->pos[0], &ge->next->pos[0] ) && jcv_point_eq( &ge->pos[1], &ge->next->pos[1] ) )
             {
                 ge->next = ge->next->next; // Throw it away, they're so few anyways
-printf("  THROW AWAY!\n");
+    printf("  THROW AWAY!\n");
             }
         }
     }
@@ -1225,27 +1247,6 @@ int num_added = 0;
     printf("jcv_boxshape_fillgaps: Added %d extra edges\n", num_added);
 }
 
-
-static void debug_edges_(const jcv_graphedge* e)
-{
-    while( e )
-    {
-        printf("  E: %f, %f -> %f, %f   neigh: %d\n", (double)e->pos[0].x, (double)e->pos[0].y, (double)e->pos[1].x, (double)e->pos[1].y, e->neighbor?e->neighbor->index:-1);
-        e = e->next;
-    }
-}
-
-static void debug_sites_(int num, const jcv_site* sites)
-{
-    printf("\nNUM sites: %d\n", num);
-    for( int i = 0; i < num; ++i)
-    {
-        const jcv_site* site = &sites[i];
-        printf("%d: idx: %d %f, %f\n", i, site->index, (double)site->p.x, (double)site->p.y);
-        debug_edges_(site->edges);
-    }
-    printf("\n");
-}
 
 // Since the algorithm leaves gaps at the borders/corner, we want to fill them
 static void jcv_fillgaps(jcv_diagram* diagram)
@@ -1558,10 +1559,14 @@ void jcv_diagram_generate_useralloc(int num_points, const jcv_point* points, con
         }
     }
 
+printf("\nCleanup of unfinished lines\n");
+
     for( jcv_halfedge* he = internal->beachline_start->right; he != internal->beachline_end; he = he->right )
     {
         jcv_finishline(internal, he->edge);
     }
+
+printf("fill gaps\n");
 
     jcv_fillgaps(d);
 }

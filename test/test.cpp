@@ -493,7 +493,7 @@ TEST_F(VoronoiTest, issue28_not_all_edges_returned)
 
     const jcv_site *sites = jcv_diagram_get_sites(&ctx->diagram);
 
-    debug_sites(ctx->diagram.numsites, sites);
+    //debug_sites(ctx->diagram.numsites, sites);
 
     for( int i = 0; i < ctx->diagram.numsites; ++i )
     {
