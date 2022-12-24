@@ -1028,7 +1028,10 @@ static void jcv_sortedges_insert(jcv_site* site, jcv_graphedge* edge)
 
 static void jcv_finishline(jcv_context_internal* internal, jcv_edge* e)
 {
+printf("jcv_finishline: %f, %f  %f, %f\n", e->pos[0].x, e->pos[0].y, e->pos[1].x, e->pos[1].y);
+
     if( !jcv_edge_clipline(internal, e) ) {
+printf("  !jcv_edge_clipline\n");
         return;
     }
 
@@ -1048,12 +1051,15 @@ static void jcv_finishline(jcv_context_internal* internal, jcv_edge* e)
 
         jcv_sortedges_insert( e->sites[i], ge );
 
+printf("  ge[%d]:  %f, %f  %f, %f\n", i, ge->pos[0].x, ge->pos[0].y, ge->pos[1].x, ge->pos[1].y);
+
         // check that we didn't accidentally add a duplicate (rare), then remove it
         if( ge->next && ge->angle == ge->next->angle )
         {
             if( jcv_point_eq( &ge->pos[0], &ge->next->pos[0] ) && jcv_point_eq( &ge->pos[1], &ge->next->pos[1] ) )
             {
                 ge->next = ge->next->next; // Throw it away, they're so few anyways
+printf("  THROW AWAY!\n");
             }
         }
     }
