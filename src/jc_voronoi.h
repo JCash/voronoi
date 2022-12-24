@@ -1087,6 +1087,12 @@ printf("  ge[%d]:  %f, %f  %f, %f\n", i, ge->pos[0].x, ge->pos[0].y, ge->pos[1].
             }
         }
     }
+
+    printf("returning:\n");
+    printf("e.site[0]\n");
+    debug_edges_(e->sites[0]->edges);
+    printf("e.site[1]\n");
+    debug_edges_(e->sites[1]->edges);
 }
 
 
