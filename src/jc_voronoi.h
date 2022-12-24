@@ -1219,12 +1219,36 @@ int num_added = 0;
     printf("jcv_boxshape_fillgaps: Added %d extra edges\n", num_added);
 }
 
+
+static void debug_edges_(const jcv_graphedge* e)
+{
+    while( e )
+    {
+        printf("  E: %f, %f -> %f, %f   neigh: %d\n", (double)e->pos[0].x, (double)e->pos[0].y, (double)e->pos[1].x, (double)e->pos[1].y, e->neighbor?e->neighbor->index:-1);
+        e = e->next;
+    }
+}
+
+static void debug_sites_(int num, const jcv_site* sites)
+{
+    printf("\nNUM sites: %d\n", num);
+    for( int i = 0; i < num; ++i)
+    {
+        const jcv_site* site = &sites[i];
+        printf("%d: idx: %d %f, %f\n", i, site->index, (double)site->p.x, (double)site->p.y);
+        debug_edges_(site->edges);
+    }
+    printf("\n");
+}
+
 // Since the algorithm leaves gaps at the borders/corner, we want to fill them
 static void jcv_fillgaps(jcv_diagram* diagram)
 {
     jcv_context_internal* internal = diagram->internal;
     if (!internal->clipper.fill_fn)
         return;
+
+debug_sites_(internal->numsites, internal->sites);
 
     for( int i = 0; i < internal->numsites; ++i )
     {

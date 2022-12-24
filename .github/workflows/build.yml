@@ -26,8 +26,8 @@ jobs:
           (cd src/examples && ${{ matrix.feature }} ./compile.sh)
       - name: Run Tests
         run: |
-          ./build/test
-          ./build/test_double
+          ./build/test --test-filter issue28_
+          ./build/test_double --test-filter issue28_
           ./build/simple
 
 #   - ./compile_clang.sh
