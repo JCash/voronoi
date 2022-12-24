@@ -1134,6 +1134,7 @@ void jcv_boxshape_fillgaps(const jcv_clipper* clipper, jcv_context_internal* all
         site->edges = gap;
     }
 
+int num_added = 0;
     jcv_graphedge* next = current->next;
     if( !next )
     {
@@ -1145,6 +1146,8 @@ void jcv_boxshape_fillgaps(const jcv_clipper* clipper, jcv_context_internal* all
         current->next = gap;
         current = gap;
         next = site->edges;
+
+        ++num_added;
     }
 
     while( current && next )
@@ -1158,6 +1161,7 @@ void jcv_boxshape_fillgaps(const jcv_clipper* clipper, jcv_context_internal* all
             //  Current on the corner, Next on the border
             //  Current on the corner, Next on another border (another corner in between)
 
+        ++num_added;
             int next_edge_flags = jcv_get_edge_flags(&next->pos[0], &clipper->min, &clipper->max);
             if (current_edge_flags & next_edge_flags)
             {
@@ -1211,6 +1215,8 @@ void jcv_boxshape_fillgaps(const jcv_clipper* clipper, jcv_context_internal* all
                 next = site->edges;
         }
     }
+
+    printf("jcv_boxshape_fillgaps: Added %d extra edges\n", num_added)
 }
 
 // Since the algorithm leaves gaps at the borders/corner, we want to fill them
