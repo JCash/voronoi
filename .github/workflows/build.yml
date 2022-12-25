@@ -6,10 +6,10 @@ jobs:
   build-linux:
     strategy:
       matrix:
-        feature: ["", "USE_ASAN=1", "USE_UBSAN=1"]
+        feature: ["", "USE_ASAN=1"]
         compiler: [clang]
         arch:    ["-m64", "-m32"]
-        cversion: [c99, c11, c17, c2x]
+        cversion: [c99, c11, c2x]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -33,10 +33,10 @@ jobs:
   build-darwin:
     strategy:
       matrix:
-        feature: ["", "USE_ASAN=1", "USE_UBSAN=1"]
+        feature: ["", "USE_ASAN=1"]
         compiler: [clang]
         arch:    ["-m64"]
-        cversion: [c99, c11, c17, c2x]
+        cversion: [c99, c11, c2x]
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v2
