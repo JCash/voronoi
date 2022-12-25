@@ -1033,16 +1033,47 @@ static inline jcv_real jcv_calc_sort_metric(const jcv_site* site, const jcv_grap
     return (jcv_real)angle;
 }
 
+static inline int jcv_graphedge_eq(jcv_graphedge* a, jcv_graphedge* b)
+{
+    return jcv_real_eq(a->angle, b->angle) && jcv_point_eq( &a->pos[0], &b->pos[0] ) && jcv_point_eq( &a->pos[1], &b->pos[1] );
+}
+
 static void jcv_sortedges_insert(jcv_site* site, jcv_graphedge* edge)
 {
+        //     printf(" compare: %p  angles: %.16f %.16f\n", ge->next, ge->angle, ge->next?ge->next->angle:666);
+    //     if( ge->next && jcv_real_eq(ge->angle, ge->next->angle) )
+    //     {
+    //         if( jcv_point_eq( &ge->pos[0], &ge->next->pos[0] ) && jcv_point_eq( &ge->pos[1], &ge->next->pos[1] ) )
+    //         {
+    //             ge->next = ge->next->next; // Throw it away, they're so few anyways
+    // printf("  THROW AWAY!\n");
+    //         }
+    //     }
+    // debug_edges_(e->sites[i]->edges);
+
     //printf("Insert edge: %p\n", edge);
     // Special case for the head end
+    // if (site->edges == 0 || site->edges->angle >= edge->angle)
+    // {
+    //     edge->next = site->edges;
+    //     site->edges = edge;
+    // }
+    // else
+    // {
+    //     // Locate the node before the point of insertion
+    //     jcv_graphedge* current = site->edges;
+    //     while(current->next != 0 && current->next->angle < edge->angle)
+    //     {
+    //         current = current->next;
+    //     }
+    //     edge->next = current->next;
+    //     current->next = edge;
+    // }
+
+    // Special case for the head end
+    jcv_graphedge* prev = 0;
     if (site->edges == 0 || site->edges->angle >= edge->angle)
     {
-        //printf("    Insert first!\n");
-        // if (site->edges) {
-        //     printf("    compare: %.18f %.18f %d", site->edges->angle, edge->angle, site->edges->angle >= edge->angle);
-        // }
         edge->next = site->edges;
         site->edges = edge;
     }
@@ -1054,10 +1085,19 @@ static void jcv_sortedges_insert(jcv_site* site, jcv_graphedge* edge)
         {
             current = current->next;
         }
-
-        //printf("    Insert second!\n");
+        prev = current;
         edge->next = current->next;
         current->next = edge;
+    }
+
+    // check to avoid duplicates
+    if (prev && jcv_graphedge_eq(prev, edge))
+    {
+        prev->next = edge->next;
+    }
+    else if (edge->next && jcv_graphedge_eq(edge, edge->next))
+    {
+        edge->next = edge->next->next;
     }
 }
 
@@ -1086,20 +1126,22 @@ printf("  !jcv_edge_clipline\n");
 
         jcv_sortedges_insert( e->sites[i], ge );
 
+        debug_edges_(e->sites[i]->edges);
+
 // printf("  ge[%d]:  %f, %f  %f, %f  next: %p\n", i, ge->pos[0].x, ge->pos[0].y, ge->pos[1].x, ge->pos[1].y, ge->next);
 //     debug_edges_(e->sites[i]->edges);
 
         // check that we didn't accidentally add a duplicate (rare), then remove it
-        printf(" compare: %p  angles: %.16f %.16f\n", ge->next, ge->angle, ge->next?ge->next->angle:666);
-        if( ge->next && jcv_real_eq(ge->angle, ge->next->angle) )
-        {
-            if( jcv_point_eq( &ge->pos[0], &ge->next->pos[0] ) && jcv_point_eq( &ge->pos[1], &ge->next->pos[1] ) )
-            {
-                ge->next = ge->next->next; // Throw it away, they're so few anyways
-    printf("  THROW AWAY!\n");
-            }
-        }
-    debug_edges_(e->sites[i]->edges);
+    //     printf(" compare: %p  angles: %.16f %.16f\n", ge->next, ge->angle, ge->next?ge->next->angle:666);
+    //     if( ge->next && jcv_real_eq(ge->angle, ge->next->angle) )
+    //     {
+    //         if( jcv_point_eq( &ge->pos[0], &ge->next->pos[0] ) && jcv_point_eq( &ge->pos[1], &ge->next->pos[1] ) )
+    //         {
+    //             ge->next = ge->next->next; // Throw it away, they're so few anyways
+    // printf("  THROW AWAY!\n");
+    //         }
+    //     }
+    // debug_edges_(e->sites[i]->edges);
     }
 
     printf("returning:\n");
