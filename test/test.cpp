@@ -1,4 +1,4 @@
-#define JC_TEST_IMPLEMENTATION
+#define JC_TEST_USE_DEFAULT_MAIN // int main();
 #include "jc_test.h"
 
 #include <memory.h>
@@ -10,34 +10,28 @@
 
 #define IMAGE_SIZE 512
 
-typedef struct Context
+typedef struct Context_
 {
     int             width;
     jcv_diagram     diagram;
 } Context;
 
-static Context* voronoi_main_setup()
-{
-    return (Context*) malloc( sizeof(Context) );
-}
-
-static void voronoi_main_teardown(Context* ctx)
-{
-    (void)ctx;
-}
-
-static void test_setup(Context* ctx)
-{
-    ctx->width  = IMAGE_SIZE;
-    memset(&ctx->diagram, 0, sizeof(ctx->diagram));
-}
-
-static void test_teardown(Context* ctx)
-{
-    if (ctx->diagram.internal) {
-        jcv_diagram_free(&ctx->diagram);
+struct VoronoiTest : public jc_test_base_class {
+    Context* ctx;
+    void SetUp()
+    {
+        ctx = new Context;
+        ctx->width = IMAGE_SIZE;
+        memset(&ctx->diagram, 0, sizeof(ctx->diagram));
     }
-}
+    void TearDown()
+    {
+        if (ctx->diagram.internal) {
+            jcv_diagram_free(&ctx->diagram);
+        }
+        delete ctx;
+    }
+};
 
 static void debug_points(int num, const jcv_point* points)
 {
@@ -53,9 +47,21 @@ static void debug_edges(const jcv_graphedge* e)
 {
     while( e )
     {
-        printf("  E: %f, %f -> %f, %f   neigh: %p\n", (double)e->pos[0].x, (double)e->pos[0].y, (double)e->pos[1].x, (double)e->pos[1].y, (void*)e->neighbor);
+        printf("  E: %f, %f -> %f, %f   neigh: %d\n", (double)e->pos[0].x, (double)e->pos[0].y, (double)e->pos[1].x, (double)e->pos[1].y, e->neighbor?e->neighbor->index:-1);
         e = e->next;
     }
+}
+
+static void debug_sites(int num, const jcv_site* sites)
+{
+    printf("\nNUM sites: %d\n", num);
+    for( int i = 0; i < num; ++i)
+    {
+        const jcv_site* site = &sites[i];
+        printf("%d: idx: %d %f, %f\n", i, site->index, (double)site->p.x, (double)site->p.y);
+        debug_edges(site->edges);
+    }
+    printf("\n");
 }
 
 static bool check_point_eq(const jcv_point* a, const jcv_point* b)
@@ -69,8 +75,8 @@ static bool check_graphedge_eq(const jcv_graphedge* e, const jcv_point* p1, cons
 }
 
 #define ASSERT_POINT_EQ( _P1, _P2 ) \
-    ASSERT_EQ( (_P1).x, (_P2).x ) \
-    ASSERT_EQ( (_P1).y, (_P2).y ) \
+    ASSERT_EQ( (_P1).x, (_P2).x ); \
+    ASSERT_EQ( (_P1).y, (_P2).y )
 
 #define ASSERT_POINT_NE( _P1, _P2 ) \
     ASSERT_TRUE( !check_point_eq( &_P1, &_P2) )
@@ -98,7 +104,7 @@ static void check_edges(const jcv_graphedge* edges, int num_expected,
     ASSERT_EQ( num_expected, num_matched );
 }
 
-static void voronoi_test_parallel_horiz_2(Context* ctx)
+TEST_F(VoronoiTest, parallel_horiz_2)
 {
     jcv_point points[] = { {IMAGE_SIZE/4, IMAGE_SIZE/2}, {(IMAGE_SIZE*3)/4, IMAGE_SIZE/2} };
     int num_points = sizeof(points) / sizeof(points[0]);
@@ -145,8 +151,7 @@ static void voronoi_test_parallel_horiz_2(Context* ctx)
     check_edges( sites[1].edges, 4, expected_edges_1, expected_neighbors_1 );
 }
 
-
-static void voronoi_test_parallel_vert_2(Context* ctx)
+TEST_F(VoronoiTest, parallel_vert_2)
 {
     jcv_point points[] = { {IMAGE_SIZE/2, (IMAGE_SIZE*1)/4}, {IMAGE_SIZE/2, (IMAGE_SIZE*3)/4} };
     int num_points = sizeof(points) / sizeof(points[0]);
@@ -160,8 +165,7 @@ static void voronoi_test_parallel_vert_2(Context* ctx)
     ASSERT_POINT_EQ( points[1], sites[1].p );
 }
 
-
-static void voronoi_test_one_site(Context* ctx)
+TEST_F(VoronoiTest, one_site)
 {
     jcv_point points[] = { {IMAGE_SIZE/2, IMAGE_SIZE/2} };
     int num_points = sizeof(points) / sizeof(points[0]);
@@ -190,7 +194,7 @@ static void voronoi_test_one_site(Context* ctx)
     check_edges( sites[0].edges, 4, expected_edges_0, expected_neighbors_0 );
 }
 
-static void voronoi_test_culling(Context* ctx)
+TEST_F(VoronoiTest, culling)
 {
     jcv_point points[] = { {IMAGE_SIZE/2, -IMAGE_SIZE/2}, {IMAGE_SIZE/2, IMAGE_SIZE/2} };
     int num_points = sizeof(points) / sizeof(points[0]);
@@ -254,9 +258,8 @@ static void teardown_test_context_internal(jcv_context_internal* internal)
     jcv_free_fn(0, internal->mem);
 }
 
-static void voronoi_test_prune_duplicates(Context* ctx)
+TEST_F(VoronoiTest, prune_duplicates)
 {
-    (void)ctx;
     jcv_point duplicate = {1,2};
     jcv_point points[] = { {1,2}, {2,2}, {1,2}, {3,3}};
     int num_points = sizeof(points) / sizeof(points[0]);
@@ -288,9 +291,8 @@ static void voronoi_test_prune_duplicates(Context* ctx)
     teardown_test_context_internal(internal);
 }
 
-static void voronoi_test_prune_not_in_shape(Context* ctx)
+TEST_F(VoronoiTest, prune_not_in_shape)
 {
-    (void)ctx;
     jcv_point points[] = { {0,0}, {1,9}, {2,8}, {5,5}, {8,2}, {9,1}, {10,10}};
     int num_points = sizeof(points) / sizeof(points[0]);
 
@@ -330,7 +332,7 @@ static void voronoi_test_prune_not_in_shape(Context* ctx)
 //     }
 // }
 
-static void voronoi_test_same_site(Context* ctx)
+TEST_F(VoronoiTest, same_site)
 {
     jcv_point points[] = { {IMAGE_SIZE/2, IMAGE_SIZE/2}, {IMAGE_SIZE/2, IMAGE_SIZE/2} };
     int num_points = sizeof(points) / sizeof(points[0]);
@@ -340,7 +342,7 @@ static void voronoi_test_same_site(Context* ctx)
     ASSERT_EQ( 1, ctx->diagram.numsites );
 }
 
-static void voronoi_test_many(Context* ctx)
+TEST_F(VoronoiTest, many)
 {
     srand(0);
 
@@ -372,7 +374,7 @@ static void voronoi_test_many(Context* ctx)
     }
 }
 
-static void voronoi_test_many_diagonal(Context* ctx)
+TEST_F(VoronoiTest, many_diagonal)
 {
     const int num_points = 1000;
     jcv_point* points = (jcv_point*)malloc( sizeof(jcv_point) * num_points );
@@ -391,7 +393,7 @@ static void voronoi_test_many_diagonal(Context* ctx)
 }
 
 // Testing a large event queue (https://github.com/JCash/voronoi/issues/3)
-static void voronoi_test_many_circle(Context* ctx)
+TEST_F(VoronoiTest, many_circle)
 {
     const int num_points = 100;
     jcv_point* points = (jcv_point*)malloc( sizeof(jcv_point) * num_points );
@@ -411,7 +413,7 @@ static void voronoi_test_many_circle(Context* ctx)
     free(points);
 }
 
-static void voronoi_test_crash1(Context* ctx)
+TEST_F(VoronoiTest, crash1)
 {
     jcv_point points[] = { {-0.148119405f, 0.307878017f}, {-0.0949054062f, -0.37929377f}, {0.170877606f, 0.477409601f}, {-0.0634334087f, 0.0787638053f}, {-0.244908407f, 0.402904421f}, {-0.0830767974f, 0.442425013f} };
     int num_points = (int)(sizeof(points) / sizeof(jcv_point));
@@ -421,7 +423,7 @@ static void voronoi_test_crash1(Context* ctx)
 }
 
 // Issue: https://github.com/JCash/voronoi/issues/10
-static void voronoi_test_issue10_zero_edge_length(Context* ctx)
+TEST_F(VoronoiTest, issue10_zero_edge_length)
 {
     jcv_point points[] = {
         { -5.544f, -3.492f },
@@ -445,7 +447,7 @@ static void voronoi_test_issue10_zero_edge_length(Context* ctx)
 
 
 // Issue: https://github.com/JCash/voronoi/issues/22
-static void voronoi_test_issue22_wrong_edge_count(Context* ctx)
+TEST_F(VoronoiTest, issue22_wrong_edge_count)
 {
     jcv_point points[] = {
         { 0, 0 },
@@ -474,7 +476,7 @@ static void voronoi_test_issue22_wrong_edge_count(Context* ctx)
 
 
 // Issue: https://github.com/JCash/voronoi/issues/28
-static void voronoi_test_issue28_not_all_edges_returned(Context* ctx)
+TEST_F(VoronoiTest, issue28_not_all_edges_returned)
 {
     jcv_point points[] = {
         { 0, 0 },
@@ -490,6 +492,9 @@ static void voronoi_test_issue28_not_all_edges_returned(Context* ctx)
     int count = 0;
 
     const jcv_site *sites = jcv_diagram_get_sites(&ctx->diagram);
+
+    //debug_sites(ctx->diagram.numsites, sites);
+
     for( int i = 0; i < ctx->diagram.numsites; ++i )
     {
         const jcv_site* site = &sites[i];
@@ -524,7 +529,7 @@ static void voronoi_test_issue28_not_all_edges_returned(Context* ctx)
 }
 
 // When using these points, the test asserts
-static void voronoi_test_issue38_numsites_equals_one_assert(Context* ctx)
+TEST_F(VoronoiTest, issue38_numsites_equals_one_assert)
 {
     jcv_point points[4];
     points[0].x = 191.969146728515625000; points[0].y = -15.99730110168457031250;
@@ -592,9 +597,8 @@ static inline int count_edges(jcv_graphedge* edge)
     return count;
 }
 
-static void voronoi_testfn_count_edges(Context* ctx)
+TEST_F(VoronoiTest, fn_count_edges)
 {
-    (void)ctx;
     jcv_graphedge edges[4];
     edges[0].next = &edges[1];
     edges[1].next = &edges[2];
@@ -609,9 +613,8 @@ static void voronoi_testfn_count_edges(Context* ctx)
     ASSERT_EQ(4, count_edges(edges));
 }
 
-static void voronoi_test_issue_missing_border_edges(Context* ctx)
+TEST_F(VoronoiTest, issue_missing_border_edges)
 {
-    (void)ctx;
     jcv_point points[] = {
         {1.5, 1.5},
         {0.5, 1.0},
@@ -626,38 +629,4 @@ static void voronoi_test_issue_missing_border_edges(Context* ctx)
     ASSERT_EQ( site->index, 1); // Make sure we test the correct one
     ASSERT_EQ(1, is_closed_loop(site->edges));
     ASSERT_EQ(5, count_edges(site->edges));
-}
-
-TEST_BEGIN(voronoi_test, voronoi_main_setup, voronoi_main_teardown, test_setup, test_teardown)
-    TEST(voronoi_testfn_count_edges)
-    TEST(voronoi_testfn_closed_loop)
-
-    TEST(voronoi_test_prune_duplicates)
-    TEST(voronoi_test_prune_not_in_shape)
-    TEST(voronoi_test_parallel_horiz_2)
-    TEST(voronoi_test_parallel_vert_2)
-    TEST(voronoi_test_one_site)
-    TEST(voronoi_test_same_site)
-    TEST(voronoi_test_many)
-    TEST(voronoi_test_many_diagonal)
-    TEST(voronoi_test_many_circle)
-    TEST(voronoi_test_culling)
-    TEST(voronoi_test_crash1)
-    TEST(voronoi_test_issue10_zero_edge_length)
-    TEST(voronoi_test_issue22_wrong_edge_count)
-    TEST(voronoi_test_issue28_not_all_edges_returned)
-    TEST(voronoi_test_issue38_numsites_equals_one_assert)
-    TEST(voronoi_test_issue_missing_border_edges)
-
-TEST_END(voronoi_test)
-
-
-int main(int argc, const char** argv)
-{
-    (void)argc;
-    (void)argv;
-    (void)debug_edges;
-    (void)debug_points;
-
-    return RUN_ALL();
 }

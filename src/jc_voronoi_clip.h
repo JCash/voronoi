@@ -8,7 +8,7 @@
 
 #pragma pack(push, 1)
 
-typedef struct _jcv_clipping_polygon
+typedef struct jcv_clipping_polygon_
 {
     jcv_point* points;
     int num_points;
@@ -374,4 +374,3 @@ USAGE:
     memset(&diagram, 0, sizeof(jcv_diagram));
     jcv_diagram_generate(count, (const jcv_point*)points, 0, clipper, &diagram);
 */
-

@@ -39,8 +39,8 @@ int main(int argc, char** argv) {
 
   srand(0);
   for (i=0; i<NPOINT; i++) {
-    points[i].x = (float)(rand()/(1.0f + RAND_MAX));
-    points[i].y = (float)(rand()/(1.0f + RAND_MAX));
+    points[i].x = ((float)rand()/(1.0f + (float)RAND_MAX));
+    points[i].y = ((float)rand()/(1.0f + (float)RAND_MAX));
   }
 
   printf("# Seed sites\n");

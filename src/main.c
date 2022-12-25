@@ -11,13 +11,6 @@ VERSION
 #include <stdint.h>
 #include <stdio.h> // printf
 
-#if defined(_MSC_VER)
-#include <malloc.h>
-#define alloca _alloca
-#else
-#include <alloca.h>
-#endif
-
 // I wrapped it in a library because it spams too many warnings
 extern int wrap_stbi_write_png(char const *filename, int w, int h, int comp, const void *data, int stride_in_bytes);
 
@@ -110,8 +103,8 @@ static void draw_triangle(const jcv_point* v0, const jcv_point* v1, const jcv_po
 
     // Rasterize
     jcv_point p;
-    for (p.y = (jcv_real)minY; p.y <= maxY; p.y++) {
-        for (p.x = (jcv_real)minX; p.x <= maxX; p.x++) {
+    for (p.y = (jcv_real)minY; p.y <= (jcv_real)maxY; p.y++) {
+        for (p.x = (jcv_real)minX; p.x <= (jcv_real)maxX; p.x++) {
             // Determine barycentric coordinates
             int w0 = orient2d(v1, v2, &p);
             int w1 = orient2d(v2, v0, &p);
@@ -145,8 +138,8 @@ static void relax_points(const jcv_diagram* diagram, jcv_point* points)
             edge = edge->next;
         }
 
-        points[site->index].x = sum.x / count;
-        points[site->index].y = sum.y / count;
+        points[site->index].x = sum.x / (jcv_real)count;
+        points[site->index].y = sum.y / (jcv_real)count;
     }
 }
 
@@ -204,13 +197,12 @@ static int read_input(const char* path, jcv_point** points, uint32_t* length, jc
     jcv_point* pts = 0;
 
     int mode = -1;
-    const uint32_t buffersize = 64;
-    char* buffer = (char*)alloca(buffersize);
+    char buffer[64];
     uint32_t bufferoffset = 0;
 
     while( !feof(file) )
     {
-        size_t num_read = fread((void*)&buffer[bufferoffset], 1, buffersize - bufferoffset, file);
+        size_t num_read = fread((void*)&buffer[bufferoffset], 1, sizeof(buffer) - bufferoffset, file);
         num_read += bufferoffset;
 
         if( mode == -1 )
@@ -354,7 +346,6 @@ int main(int argc, const char** argv)
     int width = 512;
     int height = 512;
     int numrelaxations = 0;
-    int mode = 0;
     const char* inputfile = 0;
     const char* clipfile = 0; // a file with clipping points
     const char* outputfile = "example.png";
@@ -421,16 +412,6 @@ int main(int argc, const char** argv)
         {
             if( i+1 < argc )
                 numrelaxations = (int)atol(argv[i+1]);
-            else
-            {
-                Usage();
-                return 1;
-            }
-        }
-        else if(strcmp(argv[i], "-m") == 0)
-        {
-            if( i+1 < argc )
-                mode = (int)atol(argv[i+1]);
             else
             {
                 Usage();
