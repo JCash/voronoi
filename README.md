@@ -74,9 +74,9 @@ const jcv_edge* jcv_diagram_get_next_edge( const jcv_edge* edge );
 
 The input points are pruned if
 
-    * There are duplicates points
-    * The input points are outside of the bounding box
-    * The input points are rejected by the clipper's test function
+* There are duplicates points
+* The input points are outside of the bounding box
+* The input points are rejected by the clipper's test function
 
 The input bounding box is optional
 
