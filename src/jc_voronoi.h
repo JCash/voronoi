@@ -1097,9 +1097,9 @@ printf("  !jcv_edge_clipline\n");
             {
                 ge->next = ge->next->next; // Throw it away, they're so few anyways
     printf("  THROW AWAY!\n");
-    debug_edges_(e->sites[i]->edges);
             }
         }
+    debug_edges_(e->sites[i]->edges);
     }
 
     printf("returning:\n");
