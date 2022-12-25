@@ -113,8 +113,9 @@ void generate_and_draw(int numpoints, const jcv_point* points, int imagewidth, i
     memset(&diagram, 0, sizeof(jcv_diagram));
     jcv_diagram_generate(count, points, 0, 0, &diagram );
 
-    draw_edges(diagram);
-    draw_cells(diagram);
+    draw_edges(&diagram);
+    draw_cells(&diagram);
+    draw_delauney(&diagram);
 
     jcv_diagram_free( &diagram );
 }
@@ -148,7 +149,7 @@ void draw_cells(const jcv_diagram* diagram)
     }
 }
 
-void draw_cells(const jcv_diagram* diagram)
+void draw_delauney(const jcv_diagram* diagram)
 {
     jcv_delauney_iter delauney = jcv_delauney_begin( &diagram );
     jcv_delauney_edge delauney_edge;
