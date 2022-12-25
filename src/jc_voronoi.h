@@ -46,13 +46,15 @@ extern "C" {
 
 typedef JCV_REAL_TYPE jcv_real;
 
-typedef struct jcv_point_       jcv_point;
-typedef struct jcv_rect_        jcv_rect;
-typedef struct jcv_site_        jcv_site;
-typedef struct jcv_edge_        jcv_edge;
-typedef struct jcv_graphedge_   jcv_graphedge;
-typedef struct jcv_diagram_     jcv_diagram;
-typedef struct jcv_clipper_     jcv_clipper;
+typedef struct jcv_point_           jcv_point;
+typedef struct jcv_rect_            jcv_rect;
+typedef struct jcv_site_            jcv_site;
+typedef struct jcv_edge_            jcv_edge;
+typedef struct jcv_graphedge_       jcv_graphedge;
+typedef struct jcv_delauney_edge_   jcv_delauney_edge;
+typedef struct jcv_delauney_iter_   jcv_delauney_iter;
+typedef struct jcv_diagram_         jcv_diagram;
+typedef struct jcv_clipper_         jcv_clipper;
 typedef struct jcv_context_internal_ jcv_context_internal;
 
 /// Tests if a point is inside the final shape
@@ -97,6 +99,13 @@ extern const jcv_edge* jcv_diagram_get_edges( const jcv_diagram* diagram );
 // Iterates over a list of edges, skipping invalid edges (where p0==p1)
 extern const jcv_edge* jcv_diagram_get_next_edge( const jcv_edge* edge );
 
+// Creates an iterator over the delauney edges of a voronoi diagram
+jcv_delauney_iter jcv_delauney_begin( const jcv_diagram* diagram );
+
+// Steps the iterator and returns the next edge
+// Returns 0 when there are no more edges
+int jcv_delauney_next( jcv_delauney_iter* iter, jcv_delauney_edge* next );
+
 // For the default clipper
 extern int jcv_boxshape_test(const jcv_clipper* clipper, const jcv_point p);
 extern int jcv_boxshape_clip(const jcv_clipper* clipper, jcv_edge* e);
@@ -136,6 +145,19 @@ struct jcv_edge_
     jcv_real            a;
     jcv_real            b;
     jcv_real            c;
+};
+
+struct jcv_delauney_iter_
+{
+    const jcv_edge*   sentinel;
+    const jcv_edge*   current;
+};
+
+struct jcv_delauney_edge_
+{
+    const jcv_edge* edge;
+    const jcv_site* sites[2];
+    jcv_point       pos[2];
 };
 
 struct jcv_rect_
@@ -404,6 +426,45 @@ const jcv_edge* jcv_diagram_get_next_edge( const jcv_edge* edge )
         e = e->next;
     }
     return e;
+}
+
+jcv_delauney_iter jcv_delauney_begin( const jcv_diagram* diagram )
+{
+    jcv_delauney_iter iter;
+    iter.current = 0;
+    iter.sentinel = jcv_diagram_get_edges(diagram);
+    return iter;
+}
+
+int jcv_delauney_next( jcv_delauney_iter* iter, jcv_delauney_edge* next )
+{
+    if (iter->sentinel)
+    {
+        iter->current = iter->sentinel;
+        iter->sentinel = 0;
+    }
+    else {
+        // Note: If we use the raw edges, we still get a proper delauney triangulation
+        // However, the result looks less relevant to the cells contained within the bounding box
+        // E.g. some cells that look isolated from each other, suddenly still are connected,
+        // because they share an edge outside of the bounding box
+        iter->current = jcv_diagram_get_next_edge(iter->current);
+    }
+
+    while (iter->current && (iter->current->sites[0] == 0 || iter->current->sites[1] == 0))
+    {
+        iter->current = jcv_diagram_get_next_edge(iter->current);
+    }
+
+    if (!iter->current)
+        return 0;
+
+    next->edge = iter->current;
+    next->sites[0] = next->edge->sites[0];
+    next->sites[1] = next->edge->sites[1];
+    next->pos[0] = next->sites[0]->p;
+    next->pos[1] = next->sites[1]->p;
+    return 1;
 }
 
 static void* jcv_alloc(jcv_context_internal* internal, size_t size)

@@ -1,8 +1,8 @@
 
-|Branch      |OSX/Linux |Windows   |
-|------------|----------|----------|
-|master      | [![Build Status](https://travis-ci.org/JCash/voronoi.svg?branch=master)](https://travis-ci.org/JCash/voronoi?branch=master) | [![Build status](https://ci.appveyor.com/api/projects/status/fay5br9xdd92nlkv/branch/master?svg=true)](https://ci.appveyor.com/project/JCash/voronoi/branch/master) |
-|dev         | [![Build Status](https://travis-ci.org/JCash/voronoi.svg?branch=dev)](https://travis-ci.org/JCash/voronoi?branch=dev) | [![Build status](https://ci.appveyor.com/api/projects/status/fay5br9xdd92nlkv/branch/dev?svg=true)](https://ci.appveyor.com/project/JCash/voronoi/branch/dev) |
+|Branch      | macOS/Linux/Windows |
+|------------|---------------------|
+|master      | [![Build](https://github.com/JCash/voronoi/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/JCash/voronoi/actions/workflows/build.yml) |
+|dev         | [![Build](https://github.com/JCash/voronoi/actions/workflows/build.yml/badge.svg?branch=dev)](https://github.com/JCash/voronoi/actions/workflows/build.yml) |
 
 
 # jc_voronoi
@@ -56,10 +56,11 @@ This software is supplied "AS IS" without any warranties and support
 | Cell Edges CCW         |           |   *   |         |  *  |
 | Easy Relaxation        |           |       |         |  *  |
 | Custom Allocator       |           |       |         |  *  |
+| Delauney generation    |           |       |         |  *  |
 
 # Usage
 
-The api contains these functions
+The main api contains these functions
 
 ```C
 void jcv_diagram_generate( int num_points, const jcv_point* points, const jcv_rect* rect, const jcv_clipper* clipper, jcv_diagram* diagram );
@@ -81,6 +82,20 @@ The input bounding box is optional
 
 The input clipper is optional, a default box clipper is used by default
 
+## Delauney triangulation
+
+After generating the Voronoi diagram, you can iterate over the Delauney edges like so:
+(See [main.c](./src/main.c) for a practical example)
+
+```C
+jcv_delauney_iter delauney = jcv_delauney_begin( &diagram );
+jcv_delauney_edge delauney_edge;
+while (jcv_delauney_next( &delauney, &delauney_edge ))
+{
+    ...
+}
+```
+
 ## Example
 Example implementation (see [main.c](./src/main.c) for actual code)
 ```C
@@ -90,6 +105,7 @@ Example implementation (see [main.c](./src/main.c) for actual code)
 
 void draw_edges(const jcv_diagram* diagram);
 void draw_cells(const jcv_diagram* diagram);
+void draw_delauney(const jcv_diagram* diagram);
 
 void generate_and_draw(int numpoints, const jcv_point* points, int imagewidth, int imageheight)
 {
@@ -129,6 +145,16 @@ void draw_cells(const jcv_diagram* diagram)
             draw_triangle( site->p, e->pos[0], e->pos[1]);
             e = e->next;
         }
+    }
+}
+
+void draw_cells(const jcv_diagram* diagram)
+{
+    jcv_delauney_iter delauney = jcv_delauney_begin( &diagram );
+    jcv_delauney_edge delauney_edge;
+    while (jcv_delauney_next( &delauney, &delauney_edge ))
+    {
+        draw_line(delauney_edge.pos[0], delauney_edge.pos[1]);
     }
 }
 ```
@@ -276,5 +302,3 @@ Although fast, it's not completely robust and will produce errors.
 
 I'd love to see what you're using this software for!
 If possible, please send me images and some brief explanation of your usage of this library!
-
-
