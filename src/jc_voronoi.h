@@ -1555,6 +1555,7 @@ ABOUT:
 
 HISTORY:
     0.8     2022-12-20  - Added fix for missing border edges
+                          More robust removal of duplicate graph edges
     0.7     2019-10-25  - Added support for clipping against convex polygons
                         - Added JCV_EDGE_INTERSECT_THRESHOLD for edge intersections
                         - Fixed issue where the bounds calculation wasn’t considering all points
