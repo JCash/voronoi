@@ -1035,11 +1035,11 @@ static inline jcv_real jcv_calc_sort_metric(const jcv_site* site, const jcv_grap
 
 static void jcv_sortedges_insert(jcv_site* site, jcv_graphedge* edge)
 {
-    printf("Insert edge: %p\n", edge);
+    //printf("Insert edge: %p\n", edge);
     // Special case for the head end
     if (site->edges == 0 || site->edges->angle >= edge->angle)
     {
-        printf("    Insert first!\n");
+        //printf("    Insert first!\n");
         // if (site->edges) {
         //     printf("    compare: %.18f %.18f %d", site->edges->angle, edge->angle, site->edges->angle >= edge->angle);
         // }
@@ -1055,7 +1055,7 @@ static void jcv_sortedges_insert(jcv_site* site, jcv_graphedge* edge)
             current = current->next;
         }
 
-        printf("    Insert second!\n");
+        //printf("    Insert second!\n");
         edge->next = current->next;
         current->next = edge;
     }
