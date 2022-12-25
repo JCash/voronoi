@@ -40,7 +40,7 @@ CCFLAGS="${ARCH} ${ASAN_FLAGS} -g -O1 -DJC_TEST_USE_COLORS -Wall -Weverything -W
 CFLAGS="-c $CFLAGS -std=${STDVERSION} ${CCFLAGS}"
 CXXFLAGS="$CXXFLAGS -std=c++11 -Wno-global-constructors -Wno-weak-vtables -Wno-old-style-cast -Wno-zero-as-null-pointer-constant -Wno-c++98-compat -Wno-c++98-compat-pedantic -Wno-suggest-override"
 LINKFLAGS="-lm ${ASAN_LDFLAGS}"
-DOUBLEDEFINES="-Wno-double-promotion -DTEST_USE_DOUBLE -DJCV_REAL_TYPE=double -DJCV_ATAN2=atan2 -DJCV_SQRT=sqrt"
+DOUBLEDEFINES="-Wno-double-promotion -DTEST_USE_DOUBLE -DJCV_REAL_TYPE=double -DJCV_ATAN2=atan2 -DJCV_SQRT=sqrt -DJCV_REAL_TYPE_EPSILON=DBL_EPSILON"
 
 ${CXX} -o ../build/test $CCFLAGS $CXXFLAGS $LINKFLAGS test.cpp
 ${CXX} -o ../build/test_double $CCFLAGS $CXXFLAGS $LINKFLAGS $DOUBLEDEFINES test.cpp

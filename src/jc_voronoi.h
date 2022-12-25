@@ -218,13 +218,19 @@ static inline int jcv_real_eq(jcv_real a, jcv_real b)
     return jcv_abs(a - b) < JCV_REAL_TYPE_EPSILON;
 }
 
+static inline jcv_real jcv_real_to_int(jcv_real v) {
+    return (sizeof(jcv_real) == 4) ? (jcv_real)(int)v : (jcv_real)(long long)v;
+}
+
+// Only used for calculating the initial bounding box
 static inline jcv_real jcv_floor(jcv_real v) {
-    jcv_real i = (jcv_real)(int)v;
+    jcv_real i = jcv_real_to_int(v);
     return (v < i) ? i - 1 : i;
 }
 
+// Only used for calculating the initial bounding box
 static inline jcv_real jcv_ceil(jcv_real v) {
-    jcv_real i = (jcv_real)(int)v;
+    jcv_real i = jcv_real_to_int(v);
     return (v > i) ? i + 1 : i;
 }
 

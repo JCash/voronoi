@@ -104,6 +104,38 @@ static void check_edges(const jcv_graphedge* edges, int num_expected,
     ASSERT_EQ( num_expected, num_matched );
 }
 
+TEST_F(VoronoiTest, ceil_floor)
+{
+    // CEIL
+    ASSERT_NEAR((jcv_real)0.0f, jcv_ceil((jcv_real)-0.8f), JCV_REAL_TYPE_EPSILON);
+    ASSERT_NEAR((jcv_real)0.0f, jcv_ceil((jcv_real)-0.2f), JCV_REAL_TYPE_EPSILON);
+    ASSERT_NEAR((jcv_real)1.0f, jcv_ceil((jcv_real) 0.2f), JCV_REAL_TYPE_EPSILON);
+    ASSERT_NEAR((jcv_real)1.0f, jcv_ceil((jcv_real) 0.8f), JCV_REAL_TYPE_EPSILON);
+
+    // FLOOR
+    ASSERT_NEAR((jcv_real)-1.0f, jcv_floor((jcv_real)-0.8f), JCV_REAL_TYPE_EPSILON);
+    ASSERT_NEAR((jcv_real)-1.0f, jcv_floor((jcv_real)-0.2f), JCV_REAL_TYPE_EPSILON);
+    ASSERT_NEAR((jcv_real) 0.0f, jcv_floor((jcv_real) 0.2f), JCV_REAL_TYPE_EPSILON);
+    ASSERT_NEAR((jcv_real) 0.0f, jcv_floor((jcv_real) 0.8f), JCV_REAL_TYPE_EPSILON);
+
+    // Check large values
+    printf("sizeof(jcv_real) == %zu\n", sizeof(jcv_real));
+    if (sizeof(jcv_real) == 8)
+    {
+        ASSERT_NEAR((jcv_real)-1000000000000000.0, jcv_floor((jcv_real)-999999999999999.5), JCV_REAL_TYPE_EPSILON);
+        ASSERT_NEAR((jcv_real) -999999999999999.0, jcv_ceil((jcv_real)-999999999999999.5), JCV_REAL_TYPE_EPSILON);
+
+        ASSERT_NEAR((jcv_real) 1000000000000000.0, jcv_ceil((jcv_real) 999999999999999.5), JCV_REAL_TYPE_EPSILON);
+        ASSERT_NEAR((jcv_real)  999999999999999.0, jcv_floor((jcv_real)999999999999999.5), JCV_REAL_TYPE_EPSILON);
+    } else{
+        ASSERT_NEAR((jcv_real)-1000000.0f, jcv_floor((jcv_real)-999999.5f), JCV_REAL_TYPE_EPSILON);
+        ASSERT_NEAR((jcv_real) -999999.0f, jcv_ceil((jcv_real)-999999.5f), JCV_REAL_TYPE_EPSILON);
+
+        ASSERT_NEAR((jcv_real) 1000000.0f, jcv_ceil((jcv_real)999999.5f), JCV_REAL_TYPE_EPSILON);
+        ASSERT_NEAR((jcv_real)  999999.0f, jcv_floor((jcv_real) 999999.5f), JCV_REAL_TYPE_EPSILON);
+    }
+}
+
 TEST_F(VoronoiTest, parallel_horiz_2)
 {
     jcv_point points[] = { {IMAGE_SIZE/4, IMAGE_SIZE/2}, {(IMAGE_SIZE*3)/4, IMAGE_SIZE/2} };
@@ -470,7 +502,7 @@ TEST_F(VoronoiTest, issue22_wrong_edge_count)
             ++count;
             e = e->next;
         }
-        ASSERT_EQ( 4u, count );
+        ASSERT_EQ( 4, count );
     }
 }
 
@@ -516,7 +548,7 @@ TEST_F(VoronoiTest, issue28_not_all_edges_returned)
             e = e->next;
         }
     }
-    ASSERT_EQ( 10u, count );
+    ASSERT_EQ( 10, count );
 
     // 3. count the edges
     int count_edges = 0;
@@ -525,7 +557,7 @@ TEST_F(VoronoiTest, issue28_not_all_edges_returned)
         ++count_edges;
         edge = jcv_diagram_get_next_edge(edge);
     }
-    ASSERT_EQ( 10u, count_edges );
+    ASSERT_EQ( 10, count_edges );
 }
 
 // When using these points, the test asserts
