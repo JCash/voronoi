@@ -6,6 +6,11 @@ if [ "$USE_ASAN" != "" ]; then
     ASAN_LDFLAGS="-fsanitize=address "
     echo Using ASAN
 fi
+if [ "$USE_UBSAN" != "" ]; then
+    UBSAN_FLAGS="-fsanitize=undefined"
+    UBSAN_LDFLAGS="-fsanitize=undefined"
+    echo Using UBSAN
+fi
 
 if [ "Darwin" == "$(uname)" ]; then
     if [ -e "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk" ]; then
