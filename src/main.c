@@ -517,6 +517,7 @@ int main(int argc, const char** argv)
 
     unsigned char color_pt[] = {255, 255, 255};
     unsigned char color_line[] = {220, 220, 220};
+    unsigned char color_delauney[] = {64, 64, 255};
 
     jcv_diagram diagram;
     jcv_point dimensions;
@@ -562,6 +563,15 @@ int main(int argc, const char** argv)
             jcv_point p1 = remap(&edge->pos[1], &diagram.min, &diagram.max, &dimensions );
             draw_line((int)p0.x, (int)p0.y, (int)p1.x, (int)p1.y, image, width, height, 3, color_line);
             edge = jcv_diagram_get_next_edge(edge);
+        }
+
+        jcv_delauney_iter delauney = jcv_delauney_begin( &diagram );
+        jcv_delauney_edge delauney_edge;
+        while (jcv_delauney_next( &delauney, &delauney_edge ))
+        {
+            jcv_point p0 = remap(&delauney_edge.pos[0], &diagram.min, &diagram.max, &dimensions );
+            jcv_point p1 = remap(&delauney_edge.pos[1], &diagram.min, &diagram.max, &dimensions );
+            draw_line((int)p0.x, (int)p0.y, (int)p1.x, (int)p1.y, image, width, height, 3, color_delauney);
         }
 
         jcv_diagram_free( &diagram );
