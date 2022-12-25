@@ -177,29 +177,6 @@ struct jcv_diagram_
 
 // INTERNAL FUNCTIONS
 
-static void debug_edges_(const jcv_graphedge* e)
-{
-    while( e )
-    {
-        printf("  E: %f, %f -> %f, %f   neigh: %d  a: %.14f  next: %p  this: %p\n",
-            (double)e->pos[0].x, (double)e->pos[0].y, (double)e->pos[1].x, (double)e->pos[1].y, e->neighbor?e->neighbor->index:-1, e->angle, e->next, e);
-        e = e->next;
-    }
-}
-
-static void debug_sites_(int num, const jcv_site* sites)
-{
-    printf("\nNUM sites: %d\n", num);
-    for( int i = 0; i < num; ++i)
-    {
-        const jcv_site* site = &sites[i];
-        printf("%d: idx: %d %f, %f\n", i, site->index, (double)site->p.x, (double)site->p.y);
-        debug_edges_(site->edges);
-    }
-    printf("\n");
-}
-
-
 #if defined(_MSC_VER) && !defined(__cplusplus)
     #define inline __inline
 #endif
@@ -1040,36 +1017,6 @@ static inline int jcv_graphedge_eq(jcv_graphedge* a, jcv_graphedge* b)
 
 static void jcv_sortedges_insert(jcv_site* site, jcv_graphedge* edge)
 {
-        //     printf(" compare: %p  angles: %.16f %.16f\n", ge->next, ge->angle, ge->next?ge->next->angle:666);
-    //     if( ge->next && jcv_real_eq(ge->angle, ge->next->angle) )
-    //     {
-    //         if( jcv_point_eq( &ge->pos[0], &ge->next->pos[0] ) && jcv_point_eq( &ge->pos[1], &ge->next->pos[1] ) )
-    //         {
-    //             ge->next = ge->next->next; // Throw it away, they're so few anyways
-    // printf("  THROW AWAY!\n");
-    //         }
-    //     }
-    // debug_edges_(e->sites[i]->edges);
-
-    //printf("Insert edge: %p\n", edge);
-    // Special case for the head end
-    // if (site->edges == 0 || site->edges->angle >= edge->angle)
-    // {
-    //     edge->next = site->edges;
-    //     site->edges = edge;
-    // }
-    // else
-    // {
-    //     // Locate the node before the point of insertion
-    //     jcv_graphedge* current = site->edges;
-    //     while(current->next != 0 && current->next->angle < edge->angle)
-    //     {
-    //         current = current->next;
-    //     }
-    //     edge->next = current->next;
-    //     current->next = edge;
-    // }
-
     // Special case for the head end
     jcv_graphedge* prev = 0;
     if (site->edges == 0 || site->edges->angle >= edge->angle)
@@ -1103,10 +1050,7 @@ static void jcv_sortedges_insert(jcv_site* site, jcv_graphedge* edge)
 
 static void jcv_finishline(jcv_context_internal* internal, jcv_edge* e)
 {
-printf("jcv_finishline: %f, %f  %f, %f\n", e->pos[0].x, e->pos[0].y, e->pos[1].x, e->pos[1].y);
-
     if( !jcv_edge_clipline(internal, e) ) {
-printf("  !jcv_edge_clipline\n");
         return;
     }
 
@@ -1125,30 +1069,7 @@ printf("  !jcv_edge_clipline\n");
         ge->angle = jcv_calc_sort_metric(e->sites[i], ge);
 
         jcv_sortedges_insert( e->sites[i], ge );
-
-        debug_edges_(e->sites[i]->edges);
-
-// printf("  ge[%d]:  %f, %f  %f, %f  next: %p\n", i, ge->pos[0].x, ge->pos[0].y, ge->pos[1].x, ge->pos[1].y, ge->next);
-//     debug_edges_(e->sites[i]->edges);
-
-        // check that we didn't accidentally add a duplicate (rare), then remove it
-    //     printf(" compare: %p  angles: %.16f %.16f\n", ge->next, ge->angle, ge->next?ge->next->angle:666);
-    //     if( ge->next && jcv_real_eq(ge->angle, ge->next->angle) )
-    //     {
-    //         if( jcv_point_eq( &ge->pos[0], &ge->next->pos[0] ) && jcv_point_eq( &ge->pos[1], &ge->next->pos[1] ) )
-    //         {
-    //             ge->next = ge->next->next; // Throw it away, they're so few anyways
-    // printf("  THROW AWAY!\n");
-    //         }
-    //     }
-    // debug_edges_(e->sites[i]->edges);
     }
-
-    printf("returning:\n");
-    printf("e.site[0]\n");
-    debug_edges_(e->sites[0]->edges);
-    printf("e.site[1]\n");
-    debug_edges_(e->sites[1]->edges);
 }
 
 
@@ -1307,8 +1228,6 @@ int num_added = 0;
                 next = site->edges;
         }
     }
-
-    printf("jcv_boxshape_fillgaps: Added %d extra edges\n", num_added);
 }
 
 
@@ -1318,8 +1237,6 @@ static void jcv_fillgaps(jcv_diagram* diagram)
     jcv_context_internal* internal = diagram->internal;
     if (!internal->clipper.fill_fn)
         return;
-
-debug_sites_(internal->numsites, internal->sites);
 
     for( int i = 0; i < internal->numsites; ++i )
     {
@@ -1623,14 +1540,10 @@ void jcv_diagram_generate_useralloc(int num_points, const jcv_point* points, con
         }
     }
 
-printf("\nCleanup of unfinished lines\n");
-
     for( jcv_halfedge* he = internal->beachline_start->right; he != internal->beachline_end; he = he->right )
     {
         jcv_finishline(internal, he->edge);
     }
-
-printf("fill gaps\n");
 
     jcv_fillgaps(d);
 }
