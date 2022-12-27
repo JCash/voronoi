@@ -7,6 +7,7 @@
 #include <math.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <float.h>
 
 #include <assert.h>
