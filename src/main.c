@@ -10,6 +10,7 @@ VERSION
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h> // printf
+#include <ctype.h> // isascii
 
 // I wrapped it in a library because it spams too many warnings
 extern int wrap_stbi_write_png(char const *filename, int w, int h, int comp, const void *data, int stride_in_bytes);
@@ -154,21 +155,88 @@ static void Usage()
     printf("\t-h <height>\n");
 }
 
-// Search for any of the common characters: \n,;
-static inline int is_csv(const char* chars, uint32_t len)
-{
-    for( uint32_t i = 0; i < len; ++i )
-    {
-        char c = chars[i];
-        if( c == '\n' || c == ',' || c == ' ' || c == ';' || c == '\t' )
-            return 1;
-    }
-    return 0;
-}
-
 static int debug_skip_point(const jcv_point* pt)
 {
     (void)pt;
+    // int edge = 20;
+    // if (pt->x > edge && pt->x < 2048-edge && pt->y > edge && pt->y < 2048-edge)
+    //     return 1;
+
+    // if (pt->y > edge && pt->y < 2048-edge)
+    //     return 1;
+
+    return 0;
+}
+
+static inline int is_ascii(const char* chars, uint32_t len)
+{
+    for( uint32_t i = 0; i < len; ++i )
+    {
+        if (!isascii(chars[i]))
+            return 0;
+    }
+    return 1;
+}
+
+static inline int is_text(FILE* file, int len)
+{
+    char* buffer = (char*)malloc(len);
+    int nread = fread(buffer, 1, len, file);
+    fseek(file, 0, SEEK_SET);
+    int result = is_ascii(buffer, nread);
+    free(buffer);
+    return result;
+}
+
+static int read_input_csv(FILE* file, jcv_point** points, uint32_t* length, jcv_rect** rect)
+{
+    jcv_point* pts = 0;
+    uint32_t capacity = 0;
+    uint32_t len = 0;
+    char buffer[64];
+
+    while( !feof(file) )
+    {
+        fgets(buffer, sizeof(buffer), file);
+
+        jcv_point pt1;
+        jcv_point pt2;
+        int numscanned = sscanf(buffer, "%f %f %f %f\n", &pt1.x, &pt1.y, &pt2.x, &pt2.y);
+
+        if( numscanned == 4 )
+        {
+            if (rect)
+            {
+                *rect = malloc(sizeof(jcv_rect));
+                (*rect)->min = pt1;
+                (*rect)->max = pt2;
+            }
+        }
+        else if( numscanned == 2 )
+        {
+            if( debug_skip_point(&pt1) )
+            {
+                continue;
+            }
+            if( capacity < (len + 1))
+            {
+                capacity += 1024;
+                pts = (jcv_point*)realloc(pts, sizeof(jcv_point) * capacity);
+            }
+
+            pts[len].x = pt1.x;
+            pts[len].y = pt1.y;
+            ++len;
+        }
+        else
+        {
+            fprintf(stderr, "Failed to read point on line %u: %d '%s'\n", len, numscanned, buffer);
+            return 1;
+        }
+    }
+
+    *points = pts;
+    *length = len;
     return 0;
 }
 
@@ -192,11 +260,17 @@ static int read_input(const char* path, jcv_point** points, uint32_t* length, jc
         return 1;
     }
 
+    int result = 0;
+    if (is_text(file, 64))
+    {
+        result = read_input_csv(file, points, length, rect);
+        goto end;
+    }
+
     uint32_t capacity = 0;
     uint32_t len = 0;
     jcv_point* pts = 0;
 
-    int mode = -1;
     char buffer[64];
     uint32_t bufferoffset = 0;
 
@@ -205,128 +279,36 @@ static int read_input(const char* path, jcv_point** points, uint32_t* length, jc
         size_t num_read = fread((void*)&buffer[bufferoffset], 1, sizeof(buffer) - bufferoffset, file);
         num_read += bufferoffset;
 
-        if( mode == -1 )
+        uint32_t num_points = (uint32_t) num_read / sizeof(jcv_point);
+        if( capacity < (len + num_points))
         {
-            mode = is_csv(buffer, (uint32_t)num_read);
+            capacity += 1024;
+            pts = (jcv_point*)realloc(pts, sizeof(jcv_point) * capacity);
         }
-
-        if( mode == 0 ) // binary
+        for( uint32_t i = 0; i < num_points; ++i )
         {
-            uint32_t num_points = (uint32_t) num_read / sizeof(jcv_point);
-            if( capacity < (len + num_points))
+            jcv_point* pt = &((jcv_point*)buffer)[i];
+            if( debug_skip_point(pt) )
             {
-                capacity += 1024;
-                pts = (jcv_point*)realloc(pts, sizeof(jcv_point) * capacity);
+                continue;
             }
-            for( uint32_t i = 0; i < num_points; ++i )
-            {
-                jcv_point* pt = &((jcv_point*)buffer)[i];
-                if( debug_skip_point(pt) )
-                {
-                    continue;
-                }
-                pts[len].x = pt->x;
-                pts[len].y = pt->y;
-                ++len;
-            }
-            bufferoffset = (uint32_t) num_read - num_points * sizeof(jcv_point);
-            memmove(buffer, &buffer[num_points * sizeof(jcv_point)], bufferoffset);
+            pts[len].x = pt->x;
+            pts[len].y = pt->y;
+            ++len;
         }
-        else if( mode == 1 ) // CSV mode
-        {
-            char* p = buffer;
-            char* end = &buffer[num_read];
+        bufferoffset = (uint32_t) num_read - num_points * sizeof(jcv_point);
+        memmove(buffer, &buffer[num_points * sizeof(jcv_point)], bufferoffset);
 
-            while( p < end )
-            {
-                char* r = p;
-                int end_of_line = 0;
-                while( r < end )
-                {
-                    if (*r == '\0')
-                    {
-                        end_of_line = 1;
-                        break;
-                    }
-                    if (*r == '\n')
-                    {
-                        end_of_line = 1;
-                        *r = 0;
-                        r += 1;
-                        break;
-                    }
-                    else if( (*r == '\r' && *(r+1) == '\n') )
-                    {
-                        end_of_line = 1;
-                        *r = 0;
-                        r += 2;
-                        break;
-                    }
-                    else if( *r == ',' || *r == ';' || *r == ':' )
-                    {
-                        *r = ' ';
-                    }
-                    ++r;
-                }
-
-                if( end_of_line )
-                {
-                    jcv_point pt1;
-                    jcv_point pt2;
-                    int numscanned = sscanf(p, "%f %f %f %f\n", &pt1.x, &pt1.y, &pt2.x, &pt2.y);
-
-                    if( numscanned == 4 )
-                    {
-                        if (rect)
-                        {
-                            *rect = malloc(sizeof(jcv_rect));
-                            (*rect)->min = pt1;
-                            (*rect)->max = pt2;
-                        }
-                        p = r;
-                    }
-                    else if( numscanned == 2 )
-                    {
-                        if( debug_skip_point(&pt1) )
-                        {
-                            continue;
-                        }
-                        if( capacity < (len + 1))
-                        {
-                            capacity += 1024;
-                            pts = (jcv_point*)realloc(pts, sizeof(jcv_point) * capacity);
-                        }
-
-                        pts[len].x = pt1.x;
-                        pts[len].y = pt1.y;
-                        ++len;
-                        p = r;
-                    }
-                    else
-                    {
-                        fprintf(stderr, "Failed to read point on line %u\n", len);
-                        return 1;
-                    }
-                }
-                else
-                {
-                    bufferoffset = (uint32_t)(uintptr_t) (r - p);
-                    memmove(buffer, p, bufferoffset);
-                    break;
-                }
-            }
-        }
+        *points = pts;
+        *length = len;
     }
 
-    printf("Read %d points from %s\n", len, path);
+end:
+    printf("Read %d points from %s\n", *length, path);
 
     if( strcmp(path, "-") != 0 )
         fclose(file);
-
-    *points = pts;
-    *length = len;
-
-    return 0;
+    return result;
 }
 
 // Remaps the point from the input space to image space
@@ -524,34 +506,42 @@ int main(int argc, const char** argv)
     dimensions.x = (jcv_real)width;
     dimensions.y = (jcv_real)height;
     {
+        printf("Generating...\n");
         memset(&diagram, 0, sizeof(jcv_diagram));
         jcv_diagram_generate(count, (const jcv_point*)points, rect, clipper, &diagram);
+        printf("Done.\n");
+
+        printf("Rendering...\n");
 
         // If you want to draw triangles, or relax the diagram,
         // you can iterate over the sites and get all edges easily
-        const jcv_site* sites = jcv_diagram_get_sites( &diagram );
-        for( int i = 0; i < diagram.numsites; ++i )
+
+        //if (0)
         {
-            const jcv_site* site = &sites[i];
-
-            srand((unsigned int)site->index); // for generating colors for the triangles
-
-            unsigned char color_tri[3];
-            unsigned char basecolor = 120;
-            color_tri[0] = basecolor + (unsigned char)(rand() % (235 - basecolor));
-            color_tri[1] = basecolor + (unsigned char)(rand() % (235 - basecolor));
-            color_tri[2] = basecolor + (unsigned char)(rand() % (235 - basecolor));
-
-            jcv_point s = remap(&site->p, &diagram.min, &diagram.max, &dimensions );
-
-            const jcv_graphedge* e = site->edges;
-            while( e )
+            const jcv_site* sites = jcv_diagram_get_sites( &diagram );
+            for( int i = 0; i < diagram.numsites; ++i )
             {
-                jcv_point p0 = remap(&e->pos[0], &diagram.min, &diagram.max, &dimensions );
-                jcv_point p1 = remap(&e->pos[1], &diagram.min, &diagram.max, &dimensions );
+                const jcv_site* site = &sites[i];
 
-                draw_triangle( &s, &p0, &p1, image, width, height, 3, color_tri);
-                e = e->next;
+                srand((unsigned int)site->index); // for generating colors for the triangles
+
+                unsigned char color_tri[3];
+                unsigned char basecolor = 120;
+                color_tri[0] = basecolor + (unsigned char)(rand() % (235 - basecolor));
+                color_tri[1] = basecolor + (unsigned char)(rand() % (235 - basecolor));
+                color_tri[2] = basecolor + (unsigned char)(rand() % (235 - basecolor));
+
+                jcv_point s = remap(&site->p, &diagram.min, &diagram.max, &dimensions );
+
+                const jcv_graphedge* e = site->edges;
+                while( e )
+                {
+                    jcv_point p0 = remap(&e->pos[0], &diagram.min, &diagram.max, &dimensions );
+                    jcv_point p1 = remap(&e->pos[1], &diagram.min, &diagram.max, &dimensions );
+
+                    draw_triangle( &s, &p0, &p1, image, width, height, 3, color_tri);
+                    e = e->next;
+                }
             }
         }
 
@@ -573,6 +563,7 @@ int main(int argc, const char** argv)
             jcv_point p1 = remap(&delauney_edge.pos[1], &diagram.min, &diagram.max, &dimensions );
             draw_line((int)p0.x, (int)p0.y, (int)p1.x, (int)p1.y, image, width, height, 3, color_delauney);
         }
+        printf("Done.\n"); // rendering
 
         jcv_diagram_free( &diagram );
     }
@@ -610,8 +601,10 @@ int main(int argc, const char** argv)
 
     char path[512];
     sprintf(path, "%s", outputfile);
+    printf("Writing %s\n", path);
+
     wrap_stbi_write_png(path, width, height, 3, image, stride);
-    printf("wrote %s\n", path);
+    printf("Done.\n");
 
     free(image);
 
