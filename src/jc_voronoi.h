@@ -7,6 +7,7 @@
 #include <math.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <float.h>
 
 #include <assert.h>
@@ -473,9 +474,14 @@ int jcv_delauney_next( jcv_delauney_iter* iter, jcv_delauney_edge* next )
     return 1;
 }
 
+static inline void* jcv_align(void* value, size_t alignment)
+{
+    return (void*) (((uintptr_t) value + (alignment-1)) & ~(alignment-1));
+}
+
 static void* jcv_alloc(jcv_context_internal* internal, size_t size)
 {
-    if( !internal->memblocks || internal->memblocks->sizefree < size )
+    if( !internal->memblocks || internal->memblocks->sizefree < (size+sizeof(void*)) )
     {
         size_t blocksize = 16 * 1024;
         jcv_memoryblock* block = (jcv_memoryblock*)internal->alloc( internal->memctx, blocksize );
@@ -485,10 +491,12 @@ static void* jcv_alloc(jcv_context_internal* internal, size_t size)
         block->memory = ((char*)block) + offset;
         internal->memblocks = block;
     }
-    void* p = internal->memblocks->memory;
+    void* p_raw = internal->memblocks->memory;
+    void* p_aligned = jcv_align(p_raw, sizeof(void*));
+    size += (uintptr_t)p_aligned - (uintptr_t)p_raw;
     internal->memblocks->memory += size;
     internal->memblocks->sizefree -= size;
-    return p;
+    return p_aligned;
 }
 
 static jcv_edge* jcv_alloc_edge(jcv_context_internal* internal)
@@ -1468,33 +1476,37 @@ static jcv_context_internal* jcv_alloc_internal(int num_points, void* userallocc
     // Interesting limits from Euler's equation
     // Slide 81: https://courses.cs.washington.edu/courses/csep521/01au/lectures/lecture10slides.pdf
     // Page 3: https://sites.cs.ucsb.edu/~suri/cs235/Voronoi.pdf
-    int max_num_events = num_points*2; // beachline can have max 2*n-5 parabolas
+    size_t eventssize = (size_t)(num_points*2) * sizeof(void*); // beachline can have max 2*n-5 parabolas
     size_t sitessize = (size_t)num_points * sizeof(jcv_site);
-    size_t memsize = 8u + (size_t)max_num_events * sizeof(void*) + sizeof(jcv_priorityqueue) + sitessize + sizeof(jcv_context_internal);
+    size_t memsize = sizeof(jcv_priorityqueue) + eventssize + sitessize + sizeof(jcv_context_internal) + 16u; // 16 bytes padding for alignment
 
     char* originalmem = (char*)allocfn(userallocctx, memsize);
     memset(originalmem, 0, memsize);
 
     // align memory
-    char* mem = originalmem + 8 - ( (size_t)(originalmem) & 0x7);
+    char* mem = (char*)jcv_align(originalmem, sizeof(void*));
 
     jcv_context_internal* internal = (jcv_context_internal*)mem;
     mem += sizeof(jcv_context_internal);
-
     internal->mem    = originalmem;
     internal->memctx = userallocctx;
     internal->alloc  = allocfn;
     internal->free   = freefn;
 
+    mem = (char*)jcv_align(mem, sizeof(void*));
     internal->sites = (jcv_site*) mem;
     mem += sitessize;
 
+    mem = (char*)jcv_align(mem, sizeof(void*));
     internal->eventqueue = (jcv_priorityqueue*)mem;
     mem += sizeof(jcv_priorityqueue);
+    assert( ((uintptr_t)mem & (sizeof(void*)-1)) == 0 );
 
     jcv_cast_align_struct tmp;
     tmp.charp = mem;
     internal->eventmem = tmp.voidpp;
+
+    assert((mem+eventssize) <= (originalmem+memsize));
 
     return internal;
 }
