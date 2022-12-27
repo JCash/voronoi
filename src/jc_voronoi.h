@@ -480,7 +480,7 @@ static inline void* jcv_align(void* value, size_t alignment)
 
 static void* jcv_alloc(jcv_context_internal* internal, size_t size)
 {
-    if( !internal->memblocks || internal->memblocks->sizefree < (size+sizeof(uintptr_t)) )
+    if( !internal->memblocks || internal->memblocks->sizefree < (size+sizeof(void*)) )
     {
         size_t blocksize = 16 * 1024;
         jcv_memoryblock* block = (jcv_memoryblock*)internal->alloc( internal->memctx, blocksize );
@@ -491,7 +491,7 @@ static void* jcv_alloc(jcv_context_internal* internal, size_t size)
         internal->memblocks = block;
     }
     void* p_raw = internal->memblocks->memory;
-    void* p_aligned = jcv_align(p_raw, sizeof(uintptr_t));
+    void* p_aligned = jcv_align(p_raw, sizeof(void*));
     size += (uintptr_t)p_aligned - (uintptr_t)p_raw;
     internal->memblocks->memory += size;
     internal->memblocks->sizefree -= size;
@@ -1483,7 +1483,7 @@ static jcv_context_internal* jcv_alloc_internal(int num_points, void* userallocc
     memset(originalmem, 0, memsize);
 
     // align memory
-    char* mem = (char*)jcv_align(originalmem, sizeof(uintptr_t));
+    char* mem = (char*)jcv_align(originalmem, sizeof(void*));
 
     jcv_context_internal* internal = (jcv_context_internal*)mem;
     mem += sizeof(jcv_context_internal);
@@ -1492,14 +1492,14 @@ static jcv_context_internal* jcv_alloc_internal(int num_points, void* userallocc
     internal->alloc  = allocfn;
     internal->free   = freefn;
 
-    mem = (char*)jcv_align(mem, sizeof(uintptr_t));
+    mem = (char*)jcv_align(mem, sizeof(void*));
     internal->sites = (jcv_site*) mem;
     mem += sitessize;
 
-    mem = (char*)jcv_align(mem, sizeof(uintptr_t));
+    mem = (char*)jcv_align(mem, sizeof(void*));
     internal->eventqueue = (jcv_priorityqueue*)mem;
     mem += sizeof(jcv_priorityqueue);
-    assert( ((uintptr_t)mem & (sizeof(uintptr_t)-1)) == 0 );
+    assert( ((uintptr_t)mem & (sizeof(void*)-1)) == 0 );
 
     jcv_cast_align_struct tmp;
     tmp.charp = mem;
