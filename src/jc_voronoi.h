@@ -1,4 +1,4 @@
-// Copyright (c) 2015-2022 Mathias Westerdahl
+// Copyright (c) 2015-2023 Mathias Westerdahl
 // For LICENSE (MIT), USAGE or HISTORY, see bottom of file
 
 #ifndef JC_VORONOI_H
@@ -101,7 +101,7 @@ extern const jcv_edge* jcv_diagram_get_edges( const jcv_diagram* diagram );
 extern const jcv_edge* jcv_diagram_get_next_edge( const jcv_edge* edge );
 
 // Creates an iterator over the delauney edges of a voronoi diagram
-jcv_delauney_iter jcv_delauney_begin( const jcv_diagram* diagram );
+void jcv_delauney_begin( const jcv_diagram* diagram, jcv_delauney_iter* iter );
 
 // Steps the iterator and returns the next edge
 // Returns 0 when there are no more edges
@@ -156,9 +156,9 @@ struct jcv_delauney_iter_
 
 struct jcv_delauney_edge_
 {
-    const jcv_edge* edge;
+    const jcv_edge* edge;       // The voronoi edge separating the two sites
     const jcv_site* sites[2];
-    jcv_point       pos[2];
+    jcv_point       pos[2];     // the positions of the two sites
 };
 
 struct jcv_rect_
@@ -435,12 +435,10 @@ const jcv_edge* jcv_diagram_get_next_edge( const jcv_edge* edge )
     return e;
 }
 
-jcv_delauney_iter jcv_delauney_begin( const jcv_diagram* diagram )
+void jcv_delauney_begin( const jcv_diagram* diagram, jcv_delauney_iter* iter )
 {
-    jcv_delauney_iter iter;
-    iter.current = 0;
-    iter.sentinel = jcv_diagram_get_edges(diagram);
-    return iter;
+    iter->current = 0;
+    iter->sentinel = jcv_diagram_get_edges(diagram);
 }
 
 int jcv_delauney_next( jcv_delauney_iter* iter, jcv_delauney_edge* next )
@@ -1633,6 +1631,7 @@ ABOUT:
     A fast single file 2D voronoi diagram generator
 
 HISTORY:
+    0.9     2023-01-22  - Modified the Delauney iterator creation api
     0.8     2022-12-20  - Added fix for missing border edges
                           More robust removal of duplicate graph edges
                           Added iterator for Delauney edges

@@ -88,9 +88,10 @@ After generating the Voronoi diagram, you can iterate over the Delauney edges li
 (See [main.c](./src/main.c) for a practical example)
 
 ```C
-jcv_delauney_iter delauney = jcv_delauney_begin( &diagram );
+jcv_delauney_iter iter;
+jcv_delauney_begin( &diagram, &iter );
 jcv_delauney_edge delauney_edge;
-while (jcv_delauney_next( &delauney, &delauney_edge ))
+while (jcv_delauney_next( &iter, &delauney_edge ))
 {
     ...
 }

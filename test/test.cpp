@@ -660,3 +660,46 @@ TEST_F(VoronoiTest, issue_missing_border_edges)
     ASSERT_EQ(1, is_closed_loop(site->edges));
     ASSERT_EQ(5, count_edges(site->edges));
 }
+
+
+TEST_F(VoronoiTest, Delauney)
+{
+    jcv_point points[] = {
+        {1.5, 1.5},
+        {0.5, 1.0},
+        {1.5, 0.5},
+    };
+    int num_points = (int)(sizeof(points) / sizeof(jcv_point));
+
+    jcv_diagram_generate(num_points, points, 0, 0, &ctx->diagram);
+    ASSERT_EQ( num_points, ctx->diagram.numsites );
+
+    jcv_delauney_iter iter;
+    jcv_delauney_begin( &ctx->diagram, &iter );
+    jcv_delauney_edge delauney_edge;
+
+    int expected_sites[] = {
+        1, 0,
+        2, 0,
+        2, 1,
+    };
+
+    int count = 0;
+    while (jcv_delauney_next( &iter, &delauney_edge ))
+    {
+        int sitea = delauney_edge.sites[0]->index;
+        int siteb = delauney_edge.sites[1]->index;
+
+        ASSERT_EQ(expected_sites[count*2+0], sitea);
+        ASSERT_EQ(expected_sites[count*2+1], siteb);
+
+        ASSERT_EQ(points[sitea].x, delauney_edge.pos[0].x);
+        ASSERT_EQ(points[sitea].y, delauney_edge.pos[0].y);
+
+        ASSERT_EQ(points[siteb].x, delauney_edge.pos[1].x);
+        ASSERT_EQ(points[siteb].y, delauney_edge.pos[1].y);
+
+        count++;
+    }
+    ASSERT_EQ(3, count);
+}
