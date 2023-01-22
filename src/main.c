@@ -168,11 +168,11 @@ static int debug_skip_point(const jcv_point* pt)
     return 0;
 }
 
-static inline int is_ascii(const char* chars, uint32_t len)
+static inline int is_ascii(const char* chars, size_t len)
 {
-    for( uint32_t i = 0; i < len; ++i )
+    for( size_t i = 0; i < len; ++i )
     {
-        if (!isascii(chars[i]))
+        if (!isascii((int)chars[i]))
             return 0;
     }
     return 1;
@@ -180,8 +180,8 @@ static inline int is_ascii(const char* chars, uint32_t len)
 
 static inline int is_text(FILE* file, int len)
 {
-    char* buffer = (char*)malloc(len);
-    int nread = fread(buffer, 1, len, file);
+    char* buffer = (char*)malloc((size_t)len);
+    size_t nread = fread(buffer, 1, (size_t)len, file);
     fseek(file, 0, SEEK_SET);
     int result = is_ascii(buffer, nread);
     free(buffer);
@@ -555,7 +555,8 @@ int main(int argc, const char** argv)
             edge = jcv_diagram_get_next_edge(edge);
         }
 
-        jcv_delauney_iter delauney = jcv_delauney_begin( &diagram );
+        jcv_delauney_iter delauney;
+        jcv_delauney_begin( &diagram, &delauney );
         jcv_delauney_edge delauney_edge;
         while (jcv_delauney_next( &delauney, &delauney_edge ))
         {
