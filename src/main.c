@@ -601,7 +601,7 @@ int main(int argc, const char** argv)
     }
 
     char path[512];
-    sprintf(path, "%s", outputfile);
+    snprintf(path, sizeof(path), "%s", outputfile);
     printf("Writing %s\n", path);
 
     wrap_stbi_write_png(path, width, height, 3, image, stride);
