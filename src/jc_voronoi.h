@@ -339,6 +339,28 @@ static inline jcv_real jcv_point_dist( const jcv_point* pt1, const jcv_point* pt
 
 #pragma pack(push, 1)
 
+typedef struct jcv_arc_
+{
+  struct jcv_arc_*  rb_parent;
+  struct jcv_arc_*  rb_left;
+  struct jcv_arc_*  rb_right;
+
+  jcv_site*             site;
+  jcv_edge*             edge;
+  struct jcv_event_*    circle_event;
+  uint8_t               is_leaf : 1;
+  uint8_t                       : 7;
+} jcv_arc;
+
+typedef struct jcv_event_
+{
+    jcv_arc*    arc;    // The associated parabola
+    jcv_point   p;
+    uint8_t     type    : 1; // 0: site event, 1: circle event
+    uint8_t     deleted : 1; // 1: the event has been discarded
+    uint8_t             : 6;
+} jcv_event;
+
 typedef struct jcv_halfedge_
 {
     jcv_edge*               edge;
@@ -360,12 +382,19 @@ typedef struct jcv_memoryblock_
 
 typedef int  (*FJCVPriorityQueuePrint)(const void* node, int pos);
 
+typedef int  (*FJCVPriorityQueueCompare)(const void* a, const void* b);
+typedef void (*FJCVPriorityQueueSetPos)(void* a, int pos);
+typedef int  (*FJCVPriorityQueueGetPos)(const void* a);
+
 typedef struct jcv_priorityqueue_
 {
     // Implements a binary heap
     int                         maxnumitems;
     int                         numitems;
     void**                      items;
+    FJCVPriorityQueueCompare    compare_fn;
+    FJCVPriorityQueueSetPos     set_pos;
+    FJCVPriorityQueueGetPos     get_pos;
 } jcv_priorityqueue;
 
 
@@ -837,6 +866,16 @@ static inline int jcv_halfedge_compare( const jcv_halfedge* he1, const jcv_halfe
 	return  (he1->y == he2->y) ? he1->vertex.x > he2->vertex.x : he1->y > he2->y;
 }
 
+static inline void jcv_halfedge_set_pos(jcv_halfedge* he, int pos )
+{
+	he->pqpos = pos;
+}
+
+static inline int jcv_halfedge_get_pos( const jcv_halfedge* he )
+{
+	return he->pqpos;
+}
+
 static int jcv_halfedge_intersect(const jcv_halfedge* he1, const jcv_halfedge* he2, jcv_point* out)
 {
     const jcv_edge* e1 = he1->edge;
@@ -877,18 +916,20 @@ static int jcv_halfedge_intersect(const jcv_halfedge* he1, const jcv_halfedge* h
 
 static int jcv_pq_moveup(jcv_priorityqueue* pq, int pos)
 {
-    jcv_halfedge** items = (jcv_halfedge**)pq->items;
-    jcv_halfedge* node = items[pos];
+    // jcv_halfedge** items = (jcv_halfedge**)pq->items;
+    // jcv_halfedge* node = items[pos];
+    void** items = pq->items;
+    void* node = items[pos];
 
     for( int parent = (pos >> 1);
-         pos > 1 && jcv_halfedge_compare(items[parent], node);
+         pos > 1 && pq->compare_fn(items[parent], node);
          pos = parent, parent = parent >> 1)
     {
         items[pos] = items[parent];
-        items[pos]->pqpos = pos;
+        pq->set_pos(items[pos], pos);
     }
 
-    node->pqpos = pos;
+    pq->set_pos(node, pos);
     items[pos] = node;
     return pos;
 }
@@ -898,28 +939,28 @@ static int jcv_pq_maxchild(jcv_priorityqueue* pq, int pos)
     int child = pos << 1;
     if( child >= pq->numitems )
         return 0;
-    jcv_halfedge** items = (jcv_halfedge**)pq->items;
-    if( (child + 1) < pq->numitems && jcv_halfedge_compare(items[child], items[child+1]) )
+    void** items = pq->items;
+    if( (child + 1) < pq->numitems && pq->compare_fn(items[child], items[child+1]) )
         return child+1;
     return child;
 }
 
 static int jcv_pq_movedown(jcv_priorityqueue* pq, int pos)
 {
-    jcv_halfedge** items = (jcv_halfedge**)pq->items;
-    jcv_halfedge* node = items[pos];
+    void** items = pq->items;
+    void* node = items[pos];
 
     int child = jcv_pq_maxchild(pq, pos);
-    while( child && jcv_halfedge_compare(node, items[child]) )
+    while( child && pq->compare_fn(node, items[child]) )
     {
         items[pos] = items[child];
-        items[pos]->pqpos = pos;
+        pq->set_pos(items[pos], pos);
         pos = child;
         child = jcv_pq_maxchild(pq, pos);
     }
 
     items[pos] = node;
-    items[pos]->pqpos = pos;
+    pq->set_pos(items[pos], pos);
     return pos;
 }
 
@@ -956,22 +997,22 @@ static void* jcv_pq_top(jcv_priorityqueue* pq)
     return pq->items[1];
 }
 
-static void jcv_pq_remove(jcv_priorityqueue* pq, jcv_halfedge* node)
+static void jcv_pq_remove(jcv_priorityqueue* pq, void* node)
 {
     if( pq->numitems == 1 )
         return;
-    int pos = node->pqpos;
+    int pos = pq->get_pos(node);
     if( pos == 0 )
         return;
 
     jcv_halfedge** items = (jcv_halfedge**)pq->items;
 
     items[pos] = items[--pq->numitems];
-    if( jcv_halfedge_compare( node, items[pos] ) )
+    if( pq->compare_fn( node, items[pos] ) )
         jcv_pq_moveup( pq, pos );
     else
         jcv_pq_movedown( pq, pos );
-    node->pqpos = pos;
+    pq->set_pos(node, pos);
 }
 
 // internal functions
@@ -1497,6 +1538,10 @@ static jcv_context_internal* jcv_alloc_internal(int num_points, void* userallocc
 
     mem = (char*)jcv_align(mem, sizeof(void*));
     internal->eventqueue = (jcv_priorityqueue*)mem;
+    internal->eventqueue->compare_fn = (FJCVPriorityQueueCompare)jcv_halfedge_compare;
+    internal->eventqueue->set_pos = (FJCVPriorityQueueSetPos)jcv_halfedge_set_pos;
+    internal->eventqueue->get_pos = (FJCVPriorityQueueGetPos)jcv_halfedge_get_pos;
+
     mem += sizeof(jcv_priorityqueue);
     assert( ((uintptr_t)mem & (sizeof(void*)-1)) == 0 );
 
