@@ -922,7 +922,7 @@ static int jcv_pq_moveup(jcv_priorityqueue* pq, int pos)
     void* node = items[pos];
 
     for( int parent = (pos >> 1);
-         pos > 1 && pq->compare_fn(items[parent], node);
+         pos > 1 && pq->compare(items[parent], node);
          pos = parent, parent = parent >> 1)
     {
         items[pos] = items[parent];
@@ -940,7 +940,7 @@ static int jcv_pq_maxchild(jcv_priorityqueue* pq, int pos)
     if( child >= pq->numitems )
         return 0;
     void** items = pq->items;
-    if( (child + 1) < pq->numitems && pq->compare_fn(items[child], items[child+1]) )
+    if( (child + 1) < pq->numitems && pq->compare(items[child], items[child+1]) )
         return child+1;
     return child;
 }
@@ -951,7 +951,7 @@ static int jcv_pq_movedown(jcv_priorityqueue* pq, int pos)
     void* node = items[pos];
 
     int child = jcv_pq_maxchild(pq, pos);
-    while( child && pq->compare_fn(node, items[child]) )
+    while( child && pq->compare(node, items[child]) )
     {
         items[pos] = items[child];
         pq->set_pos(items[pos], pos);
@@ -964,11 +964,18 @@ static int jcv_pq_movedown(jcv_priorityqueue* pq, int pos)
     return pos;
 }
 
-static void jcv_pq_create(jcv_priorityqueue* pq, int capacity, void** buffer)
+static void jcv_pq_create(jcv_priorityqueue* pq, int capacity, void** buffer,
+                            FJCVPriorityQueueCompare compare_fn,
+                            FJCVPriorityQueueSetPos set_pos_fn,
+                            FJCVPriorityQueueGetPos get_pos_fn)
 {
     pq->maxnumitems = capacity;
     pq->numitems    = 1;
     pq->items       = buffer;
+
+    pq->compare = compare_fn;
+    pq->set_pos = set_pos_fn;
+    pq->get_pos = get_pos_fn;
 }
 
 static int jcv_pq_empty(jcv_priorityqueue* pq)
@@ -1008,7 +1015,7 @@ static void jcv_pq_remove(jcv_priorityqueue* pq, void* node)
     jcv_halfedge** items = (jcv_halfedge**)pq->items;
 
     items[pos] = items[--pq->numitems];
-    if( pq->compare_fn( node, items[pos] ) )
+    if( pq->compare( node, items[pos] ) )
         jcv_pq_moveup( pq, pos );
     else
         jcv_pq_movedown( pq, pos );
@@ -1572,7 +1579,12 @@ void jcv_diagram_generate_useralloc(int num_points, const jcv_point* points, con
     internal->last_inserted = 0;
 
     int max_num_events = num_points*2; // beachline can have max 2*n-5 parabolas
-    jcv_pq_create(internal->eventqueue, max_num_events, (void**)internal->eventmem);
+    jcv_priorityqueue* pq = internal->eventqueue;
+    jcv_pq_create(pq, max_num_events, (void**)internal->eventmem,
+                    (FJCVPriorityQueueCompare)jcv_event_compare,
+                    (FJCVPriorityQueueSetPos)jcv_event_set_pos,
+                    (FJCVPriorityQueueGetPos)jcv_event_get_pos);
+
 
     internal->numsites = num_points;
     jcv_site* sites = internal->sites;
@@ -1600,7 +1612,7 @@ void jcv_diagram_generate_useralloc(int num_points, const jcv_point* points, con
     tmp_rect.max.x = tmp_rect.max.y = -JCV_FLT_MAX;
     jcv_prune_duplicates(internal, &tmp_rect);
 
-    // Prune using the test second
+    // Prune using the test function
     if (internal->clipper.test_fn)
     {
         // e.g. used by the box clipper in the test_fn
