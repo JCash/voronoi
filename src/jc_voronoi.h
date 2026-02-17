@@ -403,6 +403,7 @@ struct jcv_context_internal_
     FJCVFreeFn          free;
 
     jcv_rect            rect;
+    int                 error;
 };
 
 #ifndef JCV_DISABLE_STRUCT_PACKING
@@ -1249,12 +1250,19 @@ void jcv_boxshape_fillgaps(const jcv_clipper* clipper, jcv_context_internal* all
         if( current_edge_flags && !jcv_point_eq(&current->pos[1], &next->pos[0]))
         {
             // Cases:
+            //  Next is not on border -> error in diagram
             //  Current and Next on the same border
             //  Current on one border, and Next on another border
             //  Current on the corner, Next on the border
             //  Current on the corner, Next on another border (another corner in between)
 
             int next_edge_flags = jcv_get_edge_flags(&next->pos[0], &clipper->min, &clipper->max);
+            if (!next_edge_flags)
+            {
+                // Error, break to avoid infinite loop
+                allocator->error = 1;
+                break;
+            }
             if (current_edge_flags & next_edge_flags)
             {
                 // Current and Next on the same border
