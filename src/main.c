@@ -168,11 +168,16 @@ static int debug_skip_point(const jcv_point* pt)
     return 0;
 }
 
+static inline int is_ascii_char(char c)
+{
+    return (unsigned char)c <= 0x7f;
+}
+
 static inline int is_ascii(const char* chars, size_t len)
 {
     for( size_t i = 0; i < len; ++i )
     {
-        if (!isascii((int)chars[i]))
+        if (!is_ascii_char(chars[i]))
             return 0;
     }
     return 1;
