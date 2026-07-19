@@ -144,7 +144,7 @@ static void relax_points(const jcv_diagram* diagram, jcv_point* points)
     }
 }
 
-static void Usage()
+static void Usage(void)
 {
     printf("Usage: main [options]\n");
     printf("\t-n <num points>\n");
@@ -195,14 +195,15 @@ static int read_input_csv(FILE* file, jcv_point** points, uint32_t* length, jcv_
     uint32_t len = 0;
     char buffer[64];
 
-    while( !feof(file) )
+    while( fgets(buffer, sizeof(buffer), file) )
     {
-        fgets(buffer, sizeof(buffer), file);
-
         jcv_point pt1;
         jcv_point pt2;
+#if defined(JCV_USE_DOUBLE)
+        int numscanned = sscanf(buffer, "%lf %lf %lf %lf\n", &pt1.x, &pt1.y, &pt2.x, &pt2.y);
+#else
         int numscanned = sscanf(buffer, "%f %f %f %f\n", &pt1.x, &pt1.y, &pt2.x, &pt2.y);
-
+#endif
         if( numscanned == 4 )
         {
             if (rect)

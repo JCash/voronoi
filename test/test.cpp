@@ -627,6 +627,97 @@ static inline int count_edges(jcv_graphedge* edge)
     return count;
 }
 
+static int collect_rb_inorder(jcv_halfedge* node, jcv_halfedge* nil, jcv_halfedge** nodes, int count)
+{
+    if (node == nil)
+        return count;
+    count = collect_rb_inorder(node->rb_left, nil, nodes, count);
+    nodes[count++] = node;
+    return collect_rb_inorder(node->rb_right, nil, nodes, count);
+}
+
+static int validate_rb_node(jcv_halfedge* node, jcv_halfedge* nil, jcv_halfedge* parent)
+{
+    if (node == nil)
+        return 1;
+
+    EXPECT_EQ(parent, node->rb_parent);
+    if (node->rb_red)
+    {
+        EXPECT_EQ(0, node->rb_left->rb_red);
+        EXPECT_EQ(0, node->rb_right->rb_red);
+    }
+
+    int left_height = validate_rb_node(node->rb_left, nil, node);
+    int right_height = validate_rb_node(node->rb_right, nil, node);
+    EXPECT_EQ(left_height, right_height);
+    return left_height + (node->rb_red ? 0 : 1);
+}
+
+static void validate_beachline(jcv_context_internal* internal, int expected_count)
+{
+    jcv_halfedge* nil = &internal->beachline_nil;
+    ASSERT_EQ(0, nil->rb_red);
+
+    if (internal->beachline_root != nil)
+    {
+        ASSERT_EQ(nil, internal->beachline_root->rb_parent);
+        ASSERT_EQ(0, internal->beachline_root->rb_red);
+        validate_rb_node(internal->beachline_root, nil, nil);
+    }
+
+    jcv_halfedge* tree_nodes[32];
+    int tree_count = collect_rb_inorder(internal->beachline_root, nil, tree_nodes, 0);
+    ASSERT_EQ(expected_count, tree_count);
+
+    int list_count = 0;
+    jcv_halfedge* previous = internal->beachline_start;
+    for (jcv_halfedge* node = previous->right; node != internal->beachline_end; node = node->right)
+    {
+        ASSERT_EQ(previous, node->left);
+        ASSERT_EQ(tree_nodes[list_count], node);
+        previous = node;
+        ++list_count;
+    }
+    ASSERT_EQ(previous, internal->beachline_end->left);
+    ASSERT_EQ(expected_count, list_count);
+}
+
+TEST_F(VoronoiTest, beachline_rb_insert_remove)
+{
+    jcv_context_internal internal;
+    jcv_halfedge start;
+    jcv_halfedge end;
+    jcv_halfedge nodes[16];
+    memset(&internal, 0, sizeof(internal));
+    memset(&start, 0, sizeof(start));
+    memset(&end, 0, sizeof(end));
+    memset(nodes, 0, sizeof(nodes));
+
+    jcv_beachline_init(&internal);
+    internal.beachline_start = &start;
+    internal.beachline_end = &end;
+    start.right = &end;
+    end.left = &start;
+
+    for (int i = 0; i < 16; ++i)
+    {
+        jcv_halfedge* after = (i & 1) ? &start : end.left;
+        jcv_beachline_insert_after(&internal, after, &nodes[i]);
+        validate_beachline(&internal, i + 1);
+    }
+
+    const int removal_order[] = {7, 0, 15, 8, 3, 12, 1, 14, 2, 13, 4, 11, 5, 10, 6, 9};
+    for (int i = 0; i < 16; ++i)
+    {
+        jcv_beachline_remove(&internal, &nodes[removal_order[i]]);
+        validate_beachline(&internal, 15 - i);
+    }
+    ASSERT_EQ(&internal.beachline_nil, internal.beachline_root);
+    ASSERT_EQ(&end, start.right);
+    ASSERT_EQ(&start, end.left);
+}
+
 TEST_F(VoronoiTest, fn_count_edges)
 {
     jcv_graphedge edges[4];
@@ -659,6 +750,55 @@ TEST_F(VoronoiTest, issue_missing_border_edges)
     ASSERT_EQ( site->index, 1); // Make sure we test the correct one
     ASSERT_EQ(1, is_closed_loop(site->edges));
     ASSERT_EQ(5, count_edges(site->edges));
+}
+
+TEST_F(VoronoiTest, issue48_frontier_performance_pattern)
+{
+    const int pair_count = 49999;
+    const int num_points = pair_count * 2;
+    jcv_point* points = new jcv_point[num_points];
+    for (int i = 0; i < pair_count; ++i)
+    {
+        jcv_real value = (jcv_real)(i + 1);
+        points[i * 2].x = value;
+        points[i * 2].y = -value;
+        points[i * 2 + 1].x = -value;
+        points[i * 2 + 1].y = -value;
+    }
+
+    jcv_diagram_generate(num_points, points, 0, 0, &ctx->diagram);
+    ASSERT_EQ(num_points, ctx->diagram.numsites);
+
+    const jcv_site* sites = jcv_diagram_get_sites(&ctx->diagram);
+    jcv_real tolerance = (ctx->diagram.max.x - ctx->diagram.min.x) * (jcv_real)0.00001;
+    int valid_cells = 0;
+    int closed_cells = 0;
+    for (int i = 0; i < ctx->diagram.numsites; ++i)
+    {
+        const jcv_graphedge* edge = sites[i].edges;
+        int valid = edge != 0;
+        closed_cells += edge != 0 && is_closed_loop(sites[i].edges);
+        while (valid && edge)
+        {
+            for (int point_index = 0; point_index < 2; ++point_index)
+            {
+                const jcv_point* point = &edge->pos[point_index];
+                valid = valid && isfinite((double)point->x) && isfinite((double)point->y);
+                valid = valid && point->x >= ctx->diagram.min.x - tolerance;
+                valid = valid && point->x <= ctx->diagram.max.x + tolerance;
+                valid = valid && point->y >= ctx->diagram.min.y - tolerance;
+                valid = valid && point->y <= ctx->diagram.max.y + tolerance;
+            }
+            edge = edge->next;
+        }
+        valid_cells += valid;
+    }
+    ASSERT_EQ(num_points, valid_cells);
+    // The original algorithm leaves a handful of numerically degenerate cells
+    // open for this very large coordinate range (and thousands on master).
+    ASSERT_GE(closed_cells, num_points - 16);
+
+    delete[] points;
 }
 
 
