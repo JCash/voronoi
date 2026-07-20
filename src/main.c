@@ -144,7 +144,7 @@ static void relax_points(const jcv_diagram* diagram, jcv_point* points)
     }
 }
 
-static void Usage()
+static void Usage(void)
 {
     printf("Usage: main [options]\n");
     printf("\t-n <num points>\n");
@@ -168,11 +168,16 @@ static int debug_skip_point(const jcv_point* pt)
     return 0;
 }
 
+static inline int is_ascii_char(char c)
+{
+    return (unsigned char)c <= 0x7f;
+}
+
 static inline int is_ascii(const char* chars, size_t len)
 {
     for( size_t i = 0; i < len; ++i )
     {
-        if (!isascii((int)chars[i]))
+        if (!is_ascii_char(chars[i]))
             return 0;
     }
     return 1;
@@ -195,14 +200,15 @@ static int read_input_csv(FILE* file, jcv_point** points, uint32_t* length, jcv_
     uint32_t len = 0;
     char buffer[64];
 
-    while( !feof(file) )
+    while( fgets(buffer, sizeof(buffer), file) )
     {
-        fgets(buffer, sizeof(buffer), file);
-
         jcv_point pt1;
         jcv_point pt2;
+#if defined(JCV_USE_DOUBLE)
+        int numscanned = sscanf(buffer, "%lf %lf %lf %lf\n", &pt1.x, &pt1.y, &pt2.x, &pt2.y);
+#else
         int numscanned = sscanf(buffer, "%f %f %f %f\n", &pt1.x, &pt1.y, &pt2.x, &pt2.y);
-
+#endif
         if( numscanned == 4 )
         {
             if (rect)
@@ -601,7 +607,7 @@ int main(int argc, const char** argv)
     }
 
     char path[512];
-    sprintf(path, "%s", outputfile);
+    snprintf(path, sizeof(path), "%s", outputfile);
     printf("Writing %s\n", path);
 
     wrap_stbi_write_png(path, width, height, 3, image, stride);

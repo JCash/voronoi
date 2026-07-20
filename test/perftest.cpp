@@ -91,32 +91,33 @@ struct Context
 
 #define MAP_DIMENSION 4096
 
-void setup_sites(int count, Context* context)
+void fill_random_sites(PointF* sites, int count)
 {
-	context->count = count;
-	context->fsites = new PointF[count];
-	context->dsites = new PointD[count];
-	context->sitesx = new float[count];
-	context->sitesy = new float[count];
-	context->dpoints.resize(count);
-#if defined(USE_VORONOIPP)
-	context->vpp_sites.resize(count);
-#endif
-#if defined(USE_BOOST)
-	context->boost_points.resize(count);
-#endif
-
-	context->dgmin = PointF(FLT_MAX, FLT_MAX);
-	context->dgmax = PointF(-FLT_MAX, -FLT_MAX);
-
-    int pointoffset = 10; // move the points inwards, for aestetic reasons
+	const int pointoffset = 10; // move the points inwards, for aesthetic reasons
 	srand(0);
 	for( int i = 0; i < count; ++i )
 	{
-		float x = float(pointoffset + rand() % (MAP_DIMENSION-2*pointoffset));
-		float y = float(pointoffset + rand() % (MAP_DIMENSION-2*pointoffset));
-		context->fsites[i].x = x;
-		context->fsites[i].y = y;
+		sites[i].x = float(pointoffset + rand() % (MAP_DIMENSION-2*pointoffset));
+		sites[i].y = float(pointoffset + rand() % (MAP_DIMENSION-2*pointoffset));
+	}
+}
+
+void fill_symmetric_diagonal_pairs(PointF* sites, int count)
+{
+	for( int i = 0; i < count; ++i )
+	{
+		const float value = float(i / 2 + 1);
+		sites[i].x = (i & 1) ? -value : value;
+		sites[i].y = -value;
+	}
+}
+
+void populate_site_arrays(Context* context)
+{
+	for( int i = 0; i < context->count; ++i )
+	{
+		const float x = context->fsites[i].x;
+		const float y = context->fsites[i].y;
 		context->dsites[i].x = x;
 		context->dsites[i].y = y;
 		context->sitesx[i] = x;
@@ -136,6 +137,32 @@ void setup_sites(int count, Context* context)
 		context->boost_points[i] = boost::polygon::point_data<float>(x, y);
 #endif
 	}
+}
+
+void setup_sites(int count, Context* context)
+{
+	context->count = count;
+	context->fsites = new PointF[count];
+	context->dsites = new PointD[count];
+	context->sitesx = new float[count];
+	context->sitesy = new float[count];
+	context->dpoints.resize(count);
+#if defined(USE_VORONOIPP)
+	context->vpp_sites.resize(count);
+#endif
+#if defined(USE_BOOST)
+	context->boost_points.resize(count);
+#endif
+
+	context->dgmin = PointF(FLT_MAX, FLT_MAX);
+	context->dgmax = PointF(-FLT_MAX, -FLT_MAX);
+
+	const bool symmetric_diagonal_pairs = context->testname && strcmp(context->testname, "symmetric_diagonal_pairs") == 0;
+	if (symmetric_diagonal_pairs)
+		fill_symmetric_diagonal_pairs(context->fsites, count);
+	else
+		fill_random_sites(context->fsites, count);
+	populate_site_arrays(context);
 
 	context->dgmin.x -= 1;
 	context->dgmin.y -= 1;
@@ -167,7 +194,7 @@ int jc_voronoi(Context* context)
 {
 	jcv_diagram diagram = { 0 };
 	jcv_rect rect = { {context->dgmin.x, context->dgmin.y}, {context->dgmax.x, context->dgmax.y} };
-	jcv_diagram_generate(context->count, (const jcv_point*)context->fsites, &rect, &diagram );
+	jcv_diagram_generate(context->count, (const jcv_point*)context->fsites, &rect, 0, &diagram );
 
 	if( context->collectedges )
 	{
@@ -313,7 +340,8 @@ static void clip_infinite_edge( Context* context, const boost::polygon::voronoi_
 		direction.y(p2.x - p1.x);
 	} else {
 	}
-	coordinate_type side = MAP_DIMENSION;
+	coordinate_type side = 2.0 * (std::max)(context->dgmax.x - context->dgmin.x,
+										 context->dgmax.y - context->dgmin.y);
 	coordinate_type koef = side / (std::max)(fabs(direction.x()), fabs(direction.y()));
 	if (edge.vertex0() == NULL) {
 	  clipped_edge.push_back( PointF(origin.x() - direction.x() * koef, origin.y() - direction.y() * koef));
@@ -539,7 +567,7 @@ static void output_image(const char* name, Context* context)
 	}
 
 	char path[512];
-	sprintf(path, "images/voronoi_%s_%d.png", name, context->count);
+	snprintf(path, sizeof(path), "images/voronoi_%s_%d.png", name, context->count);
 	stbi_write_png(path, MAP_DIMENSION, MAP_DIMENSION, 3, data, MAP_DIMENSION*3);
 	printf("wrote %s\n", path);
 
@@ -567,7 +595,7 @@ void generate_diagram(const char* name, Context* context, SetupFunc setupfunc, F
 template<typename SetupFunc, typename Func>
 void run_test(const char* implname, const char* testname, Context* context, SetupFunc setupfunc, Func func)
 {
-	char buffer[32];
+	char buffer[64];
 	snprintf(buffer, sizeof(buffer), "%s %s", implname, testname);
 	buffer[sizeof(buffer)-1] = 0;
 
@@ -580,6 +608,8 @@ void run_test(const char* implname, const char* testname, Context* context, Setu
 
 	timeit.report(std::cout, buffer, 0.0f);
 	generate_diagram(implname, context, null_setup, func);
+	printf("# collected %zu edges across %zu cells\n",
+		   context->collectededges.size(), context->collectedcells.size());
 }
 
 int main(int argc, const char** argv)
@@ -593,12 +623,11 @@ int main(int argc, const char** argv)
 		iterations = atol(argv[2]);
 
 	Context context;
-	setup_sites(count, &context);
-	context.numiterations = iterations;
-
-	context.testname = 0;
+	context.testname = "random";
 	if( argc > 3 )
 		context.testname = argv[3];
+	setup_sites(count, &context);
+	context.numiterations = iterations;
 
 	context.generate_images = 0;
 	if( argc > 4 )
