@@ -6,7 +6,9 @@
 
 #include "jc_voronoi.h"
 
+#ifndef JCV_DISABLE_STRUCT_PACKING
 #pragma pack(push, 1)
+#endif
 
 typedef struct jcv_clipping_polygon_
 {
@@ -14,7 +16,9 @@ typedef struct jcv_clipping_polygon_
     int num_points;
 } jcv_clipping_polygon;
 
+#ifndef JCV_DISABLE_STRUCT_PACKING
 #pragma pack(pop)
+#endif
 
 
 // Convex polygon clip functions
