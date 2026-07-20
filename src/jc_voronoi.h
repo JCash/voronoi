@@ -1986,6 +1986,7 @@ ABOUT:
 
 HISTORY:
     0.10    2026-07-19  - Use a BST to manipulate the beachline
+            2026-07-20  - Fix invalid topology handling for near-collinear sites
     0.9     2023-01-22  - Modified the Delauney iterator creation api
     0.8     2022-12-20  - Added fix for missing border edges
                           More robust removal of duplicate graph edges
