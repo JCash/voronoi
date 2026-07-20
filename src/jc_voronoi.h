@@ -634,6 +634,8 @@ int jcv_boxshape_clip(const jcv_clipper* clipper, jcv_edge* e)
         s1 = jcv_is_valid(&e->pos[0]) ? &e->pos[0] : 0;
         s2 = jcv_is_valid(&e->pos[1]) ? &e->pos[1] : 0;
     }
+    int s1_inside = s1 != 0 && jcv_boxshape_test(clipper, *s1);
+    int s2_inside = s2 != 0 && jcv_boxshape_test(clipper, *s2);
 
     if (e->a == (jcv_real)1) // delta x is larger
     {
@@ -725,6 +727,20 @@ int jcv_boxshape_clip(const jcv_clipper* clipper, jcv_edge* e)
             y2 = pymin;
             x2 = (e->c - y2) / e->a;
         }
+    }
+
+    // Circle events assign the same vertex to all incident edges. Preserve
+    // that exact point when it is already inside the clipping box instead of
+    // projecting it independently onto each edge's rounded line equation.
+    if( s1_inside )
+    {
+        x1 = s1->x;
+        y1 = s1->y;
+    }
+    if( s2_inside )
+    {
+        x2 = s2->x;
+        y2 = s2->y;
     }
 
     e->pos[0].x = x1;
@@ -1351,6 +1367,19 @@ static int jcv_check_circle_event(const jcv_halfedge* he1, const jcv_halfedge* h
     return jcv_halfedge_intersect(he1, he2, vertex);
 }
 
+// Computes center.y + radius without catastrophic cancellation when the
+// circumcenter is far below the site. This is algebraically equivalent to
+// radius - dy = dx^2 / (radius + dy), where dy = site.y - center.y.
+static jcv_real jcv_calc_circle_event_y(const jcv_site* site, const jcv_point* center)
+{
+    jcv_real dx = site->p.x - center->x;
+    jcv_real dy = site->p.y - center->y;
+    jcv_real radius = JCV_SQRT(dx * dx + dy * dy);
+    if( dy > (jcv_real)0 )
+        return site->p.y + (dx * dx) / (radius + dy);
+    return center->y + radius;
+}
+
 static void jcv_site_event(jcv_context_internal* internal, jcv_site* site)
 {
     jcv_halfedge* left   = jcv_get_edge_above_x(internal, &site->p);
@@ -1374,13 +1403,13 @@ static void jcv_site_event(jcv_context_internal* internal, jcv_site* site)
     {
         jcv_pq_remove(internal->eventqueue, left);
         left->vertex    = p;
-        left->y         = p.y + jcv_point_dist(&site->p, &p);
+        left->y         = jcv_calc_circle_event_y(site, &p);
         jcv_pq_push(internal->eventqueue, left);
     }
     if( jcv_check_circle_event( edge2, right, &p ) )
     {
         edge2->vertex   = p;
-        edge2->y        = p.y + jcv_point_dist(&site->p, &p);
+        edge2->y        = jcv_calc_circle_event_y(site, &p);
         jcv_pq_push(internal->eventqueue, edge2);
     }
 }
@@ -1566,6 +1595,13 @@ void jcv_boxshape_fillgaps(const jcv_clipper* clipper, jcv_context_internal* all
             //  Current on the corner, Next on another border (another corner in between)
 
             int next_edge_flags = jcv_get_edge_flags(&next->pos[0], &clipper->min, &clipper->max);
+            if( !next_edge_flags )
+            {
+                // A box-boundary gap cannot end at an interior point. The cell
+                // topology is invalid, so leave it open instead of repeatedly
+                // allocating edges while walking around the box.
+                return;
+            }
             if (current_edge_flags & next_edge_flags)
             {
                 // Current and Next on the same border
@@ -1610,7 +1646,6 @@ void jcv_boxshape_fillgaps(const jcv_clipper* clipper, jcv_context_internal* all
                 current->next = gap;
             }
         }
-
         current = current->next;
         if( current )
         {
@@ -1679,13 +1714,13 @@ static void jcv_circle_event(jcv_context_internal* internal)
     {
         jcv_pq_remove(internal->eventqueue, leftleft);
         leftleft->vertex    = p;
-        leftleft->y         = p.y + jcv_point_dist(&bottom->p, &p);
+        leftleft->y         = jcv_calc_circle_event_y(bottom, &p);
         jcv_pq_push(internal->eventqueue, leftleft);
     }
     if( jcv_check_circle_event( he, rightright, &p ) )
     {
         he->vertex      = p;
-        he->y           = p.y + jcv_point_dist(&bottom->p, &p);
+        he->y           = jcv_calc_circle_event_y(bottom, &p);
         jcv_pq_push(internal->eventqueue, he);
     }
 }
@@ -1951,6 +1986,7 @@ ABOUT:
 
 HISTORY:
     0.10    2026-07-19  - Use a BST to manipulate the beachline
+            2026-07-20  - Fix invalid topology handling for near-collinear sites
     0.9     2023-01-22  - Modified the Delauney iterator creation api
     0.8     2022-12-20  - Added fix for missing border edges
                           More robust removal of duplicate graph edges
