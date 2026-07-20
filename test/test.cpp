@@ -81,6 +81,42 @@ static bool check_graphedge_eq(const jcv_graphedge* e, const jcv_point* p1, cons
 #define ASSERT_POINT_NE( _P1, _P2 ) \
     ASSERT_TRUE( !check_point_eq( &_P1, &_P2) )
 
+static int validate_vertex_indices(const jcv_diagram* diagram)
+{
+    if( diagram->numvertices == 0 )
+        return 0;
+
+    bool* seen = (bool*)calloc((size_t)diagram->numvertices, sizeof(bool));
+    jcv_point* vertices = (jcv_point*)malloc((size_t)diagram->numvertices * sizeof(jcv_point));
+    jcv_diagram_get_vertices(diagram, vertices);
+
+    int errors = 0;
+    const jcv_site* sites = jcv_diagram_get_sites(diagram);
+    for( int i = 0; i < diagram->numsites; ++i )
+    {
+        for( const jcv_graphedge* edge = sites[i].edges; edge; edge = edge->next )
+        {
+            for( int endpoint = 0; endpoint < 2; ++endpoint )
+            {
+                int vertex = edge->vertices[endpoint];
+                if( vertex < 0 || vertex >= diagram->numvertices )
+                {
+                    ++errors;
+                    continue;
+                }
+                seen[vertex] = true;
+                errors += !check_point_eq(&vertices[vertex], &edge->pos[endpoint]);
+            }
+        }
+    }
+    for( int i = 0; i < diagram->numvertices; ++i )
+        errors += !seen[i];
+
+    free(vertices);
+    free(seen);
+    return errors;
+}
+
 static void check_edges(const jcv_graphedge* edges, int num_expected,
                         const jcv_point* expected_points, const jcv_site** expected_neighbors)
 {
@@ -395,6 +431,12 @@ TEST_F(VoronoiTest, many)
         jcv_diagram_generate(num_points, points, 0, 0, &ctx->diagram);
 
         //ASSERT_EQ( num_points, ctx->diagram.numsites );
+
+        int edges_without_vertices = 0;
+        for( const jcv_edge* edge = jcv_diagram_get_edges(&ctx->diagram); edge; edge = jcv_diagram_get_next_edge(edge) )
+            edges_without_vertices += edge->vertices[0] < 0 || edge->vertices[1] < 0;
+        ASSERT_EQ(0, edges_without_vertices);
+        ASSERT_EQ(0, validate_vertex_indices(&ctx->diagram));
 
         if( count < maxcount-1 )
         {
@@ -734,6 +776,60 @@ TEST_F(VoronoiTest, fn_count_edges)
     ASSERT_EQ(4, count_edges(edges));
 }
 
+TEST_F(VoronoiTest, unique_vertices)
+{
+    jcv_point points[] = {
+        {0.25f, 0.25f},
+        {0.75f, 0.25f},
+        {0.25f, 0.75f},
+        {0.75f, 0.75f},
+    };
+    jcv_rect rect = {{0, 0}, {1, 1}};
+    jcv_diagram_generate(4, points, &rect, 0, &ctx->diagram);
+
+    // Four corners, four edge midpoints and one four-way center vertex.
+    ASSERT_EQ(9, ctx->diagram.numvertices);
+    ASSERT_EQ(ctx->diagram.numvertices, jcv_get_num_vertices(&ctx->diagram));
+    bool indices[9] = {};
+    jcv_point vertices[9];
+    jcv_diagram_get_vertices(&ctx->diagram, vertices);
+
+    const jcv_site* sites = jcv_diagram_get_sites(&ctx->diagram);
+    for( int i = 0; i < ctx->diagram.numsites; ++i )
+    {
+        const jcv_graphedge* first = sites[i].edges;
+        ASSERT_TRUE(first != 0);
+        const jcv_graphedge* edge = first;
+        while( edge )
+        {
+            const jcv_graphedge* next = edge->next ? edge->next : first;
+            ASSERT_GE(edge->vertices[0], 0);
+            ASSERT_LT(edge->vertices[0], ctx->diagram.numvertices);
+            ASSERT_GE(edge->vertices[1], 0);
+            ASSERT_LT(edge->vertices[1], ctx->diagram.numvertices);
+            ASSERT_EQ(edge->vertices[1], next->vertices[0]);
+            ASSERT_POINT_EQ(vertices[edge->vertices[0]], edge->pos[0]);
+            ASSERT_POINT_EQ(vertices[edge->vertices[1]], edge->pos[1]);
+            indices[edge->vertices[0]] = true;
+            indices[edge->vertices[1]] = true;
+            edge = edge->next;
+        }
+    }
+
+    for( int i = 0; i < ctx->diagram.numvertices; ++i )
+        ASSERT_TRUE(indices[i]);
+
+    for( const jcv_edge* edge = jcv_diagram_get_edges(&ctx->diagram); edge; edge = jcv_diagram_get_next_edge(edge) )
+    {
+        ASSERT_GE(edge->vertices[0], 0);
+        ASSERT_LT(edge->vertices[0], ctx->diagram.numvertices);
+        ASSERT_GE(edge->vertices[1], 0);
+        ASSERT_LT(edge->vertices[1], ctx->diagram.numvertices);
+        ASSERT_POINT_EQ(vertices[edge->vertices[0]], edge->pos[0]);
+        ASSERT_POINT_EQ(vertices[edge->vertices[1]], edge->pos[1]);
+    }
+}
+
 TEST_F(VoronoiTest, issue91_cells_are_closed)
 {
     jcv_point points[] = {
@@ -818,6 +914,56 @@ TEST_F(VoronoiTest, issue_missing_border_edges)
     ASSERT_EQ(5, count_edges(site->edges));
 }
 
+TEST_F(VoronoiTest, issue47_no_invalid_edges_span_clipping_rect)
+{
+    const jcv_point points[] = {
+        {1205.64417f, 0.224472046f},
+        {190.131897f, 0.285560131f},
+        {1955.71814f, 0.0870857239f},
+        {128.955994f, 0.344024658f},
+    };
+    const int num_points = (int)(sizeof(points) / sizeof(points[0]));
+    jcv_rect rect = {{0, 0}, {2048, 2048}};
+
+    jcv_diagram_generate(num_points, points, &rect, 0, &ctx->diagram);
+    ASSERT_EQ(num_points, ctx->diagram.numsites);
+
+    // Issue #47 produced geometrically invalid internal edges running from
+    // y=0 to y=2048 across the entire clipping rectangle.
+    int num_spanning_edges = 0;
+    int num_invalid_spanning_edges = 0;
+    for( const jcv_edge* edge = jcv_diagram_get_edges(&ctx->diagram); edge; edge = jcv_diagram_get_next_edge(edge) )
+    {
+        const int spans_height =
+            (edge->pos[0].y == rect.min.y && edge->pos[1].y == rect.max.y) ||
+            (edge->pos[1].y == rect.min.y && edge->pos[0].y == rect.max.y);
+        if( !spans_height || !edge->sites[0] || !edge->sites[1] )
+            continue;
+
+        ++num_spanning_edges;
+        const double xmid = ((double)edge->pos[0].x + (double)edge->pos[1].x) * 0.5;
+        const double ymid = ((double)edge->pos[0].y + (double)edge->pos[1].y) * 0.5;
+        const double dx = xmid - (double)edge->sites[0]->p.x;
+        const double dy = ymid - (double)edge->sites[0]->p.y;
+        const double site_distance_sq = dx * dx + dy * dy;
+        const double tolerance = site_distance_sq * 1.0e-4 + 1.0e-4;
+        for( int i = 0; i < num_points; ++i )
+        {
+            const double other_dx = xmid - (double)points[i].x;
+            const double other_dy = ymid - (double)points[i].y;
+            const double other_distance_sq = other_dx * other_dx + other_dy * other_dy;
+            if( other_distance_sq + tolerance < site_distance_sq )
+            {
+                ++num_invalid_spanning_edges;
+                break;
+            }
+        }
+    }
+
+    ASSERT_EQ(3, num_spanning_edges);
+    ASSERT_EQ(0, num_invalid_spanning_edges);
+}
+
 TEST_F(VoronoiTest, issue48_frontier_performance_pattern)
 {
     const int pair_count = 49999;
@@ -834,6 +980,7 @@ TEST_F(VoronoiTest, issue48_frontier_performance_pattern)
 
     jcv_diagram_generate(num_points, points, 0, 0, &ctx->diagram);
     ASSERT_EQ(num_points, ctx->diagram.numsites);
+    ASSERT_EQ(0, validate_vertex_indices(&ctx->diagram));
 
     const jcv_site* sites = jcv_diagram_get_sites(&ctx->diagram);
     jcv_real tolerance = (ctx->diagram.max.x - ctx->diagram.min.x) * (jcv_real)0.00001;

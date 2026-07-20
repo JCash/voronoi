@@ -1,5 +1,6 @@
 #include <cstring>
 #include <cstdlib>
+#include <cmath>
 #include <float.h>
 
 static size_t g_MallocCount = 0;
@@ -71,6 +72,12 @@ struct Context
 	float* sitesy;
 	PointF dgmin;
 	PointF dgmax;
+	volatile double totalcellarea;
+#if defined(USE_JC_VORONOI)
+	volatile jcv_real vertexchecksum;
+	jcv_diagram vertexdiagram;
+	jcv_point* vertices;
+#endif
 
 	const char* testname;
 
@@ -170,6 +177,10 @@ void setup_sites(int count, Context* context)
 	context->dgmax.y += 1;
 
 	context->collectedges = false;
+#if defined(USE_JC_VORONOI)
+	memset(&context->vertexdiagram, 0, sizeof(context->vertexdiagram));
+	context->vertices = 0;
+#endif
 }
 
 void start_test(const char* name, Context* context)
@@ -180,9 +191,10 @@ void start_test(const char* name, Context* context)
 
 void stop_test(const char* name, Context* context)
 {
-	size_t overheadsize = context->count * sizeof(std::chrono::duration<float>);
-	size_t overheadnumallocations = 1;
-	printf("%s\tused %lu bytes in %lu allocations\n", name, g_MallocSize/context->numiterations - overheadsize, g_MallocCount/context->numiterations - overheadnumallocations);
+	size_t overheadsize = (size_t)context->numiterations * sizeof(std::chrono::duration<double>);
+	size_t usedsize = g_MallocSize >= overheadsize ? g_MallocSize - overheadsize : 0;
+	size_t allocations = g_MallocCount > 0 ? g_MallocCount - 1 : 0;
+	printf("%s\tused %lu bytes in %lu allocations\n", name, usedsize/context->numiterations, allocations/context->numiterations);
 }
 
 void null_setup(Context* context)
@@ -190,11 +202,28 @@ void null_setup(Context* context)
 }
 
 #if defined(USE_JC_VORONOI)
-int jc_voronoi(Context* context)
+int jc_voronoi_impl(Context* context, bool calculatecellarea)
 {
 	jcv_diagram diagram = { 0 };
 	jcv_rect rect = { {context->dgmin.x, context->dgmin.y}, {context->dgmax.x, context->dgmax.y} };
 	jcv_diagram_generate(context->count, (const jcv_point*)context->fsites, &rect, 0, &diagram );
+
+	if( calculatecellarea )
+	{
+		double totalarea = 0.0;
+		const jcv_site* sites = jcv_diagram_get_sites( &diagram );
+		for( int i = 0; i < diagram.numsites; ++i )
+		{
+			double twicearea = 0.0;
+			for( const jcv_graphedge* edge = sites[i].edges; edge; edge = edge->next )
+			{
+				twicearea += (double)edge->pos[0].x * (double)edge->pos[1].y -
+				             (double)edge->pos[1].x * (double)edge->pos[0].y;
+			}
+			totalarea += std::fabs(twicearea) * 0.5;
+		}
+		context->totalcellarea = totalarea;
+	}
 
 	if( context->collectedges )
 	{
@@ -228,6 +257,40 @@ int jc_voronoi(Context* context)
 
 	jcv_diagram_free( &diagram );
 	return 0;
+}
+
+int jc_voronoi(Context* context)
+{
+	return jc_voronoi_impl(context, false);
+}
+
+int jc_voronoi_cell_areas(Context* context)
+{
+	return jc_voronoi_impl(context, true);
+}
+
+void setup_jc_voronoi_vertices(Context* context)
+{
+	jcv_rect rect = { {context->dgmin.x, context->dgmin.y}, {context->dgmax.x, context->dgmax.y} };
+	jcv_diagram_generate(context->count, (const jcv_point*)context->fsites, &rect, 0, &context->vertexdiagram);
+	context->vertices = new jcv_point[jcv_get_num_vertices(&context->vertexdiagram)];
+}
+
+int jc_voronoi_get_vertices(Context* context)
+{
+	jcv_diagram_get_vertices(&context->vertexdiagram, context->vertices);
+	int numvertices = jcv_get_num_vertices(&context->vertexdiagram);
+	if( numvertices > 0 )
+		context->vertexchecksum = context->vertices[numvertices-1].x;
+	return 0;
+}
+
+void teardown_jc_voronoi_vertices(Context* context)
+{
+	delete[] context->vertices;
+	context->vertices = 0;
+	jcv_diagram_free(&context->vertexdiagram);
+	memset(&context->vertexdiagram, 0, sizeof(context->vertexdiagram));
 }
 #endif
 
@@ -612,6 +675,22 @@ void run_test(const char* implname, const char* testname, Context* context, Setu
 		   context->collectededges.size(), context->collectedcells.size());
 }
 
+template<typename Func>
+void run_postprocess_test(const char* name, const char* testname, Context* context, Func func)
+{
+	char buffer[64];
+	snprintf(buffer, sizeof(buffer), "%s %s", name, testname);
+	buffer[sizeof(buffer)-1] = 0;
+
+	printf("# n %d  it %d\n", context->count, context->numiterations);
+
+	CTimeIt timeit;
+	start_test(buffer, context);
+	timeit.run<int>(context->numiterations, null_setup, func, context);
+	stop_test(buffer, context);
+	timeit.report(std::cout, buffer, 0.0f);
+}
+
 int main(int argc, const char** argv)
 {
 	int count = 200;
@@ -640,6 +719,12 @@ int main(int argc, const char** argv)
 
 #if defined(USE_JC_VORONOI)
 	run_test("jc_voronoi", context.testname, &context, null_setup, jc_voronoi);
+	run_test("jc_voronoi_cell_areas", context.testname, &context, null_setup, jc_voronoi_cell_areas);
+	printf("# total cell area %.17g\n", context.totalcellarea);
+	setup_jc_voronoi_vertices(&context);
+	run_postprocess_test("jc_voronoi_get_vertices", context.testname, &context, jc_voronoi_get_vertices);
+	printf("# collected %d unique vertices\n", jcv_get_num_vertices(&context.vertexdiagram));
+	teardown_jc_voronoi_vertices(&context);
 #elif defined(USE_FASTJET)
 	run_test("fastjet", context.testname, &context, null_setup, fastjet_voronoi);
 #elif defined(USE_BOOST)

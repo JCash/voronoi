@@ -241,6 +241,8 @@ void jcv_clip_polygon_fill_gaps(const jcv_clipper* clipper, jcv_context_internal
         // Pick the first edge of the polygon (which is also CCW)
         gap->pos[0] = polygon->points[0];
         gap->pos[1] = polygon->points[1];
+        gap->vertices[0] = allocator->numvertices++;
+        gap->vertices[1] = allocator->numvertices++;
         gap->angle  = jcv_calc_sort_metric(site, gap);
         gap->next   = 0;
         gap->edge   = jcv_create_gap_edge(allocator, site, gap);
@@ -262,6 +264,8 @@ void jcv_clip_polygon_fill_gaps(const jcv_clipper* clipper, jcv_context_internal
             gap->pos[0] = polygon->points[(polygon_edge+1)%num_points];
             gap->pos[1] = polygon->points[(polygon_edge+2)%num_points];
         }
+        gap->vertices[0] = current->vertices[1];
+        gap->vertices[1] = allocator->numvertices++;
 
         gap->neighbor   = 0;
         gap->angle      = jcv_calc_sort_metric(site, gap);
@@ -283,11 +287,14 @@ void jcv_clip_polygon_fill_gaps(const jcv_clipper* clipper, jcv_context_internal
 
             jcv_graphedge* gap = jcv_alloc_graphedge(allocator);
             gap->pos[0] = current->pos[1];
+            gap->vertices[0] = current->vertices[1];
 
             if (polygon_edge1 != polygon_edge2) {
                 gap->pos[1] = polygon->points[(polygon_edge1+1)%num_points];
+                gap->vertices[1] = allocator->numvertices++;
             } else {
                 gap->pos[1] = next->pos[0];
+                gap->vertices[1] = next->vertices[0];
             }
 
             gap->neighbor   = 0;
