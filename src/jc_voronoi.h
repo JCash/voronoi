@@ -154,10 +154,10 @@ struct jcv_edge_
     struct jcv_edge_*   next;
     jcv_site*           sites[2];
     jcv_point           pos[2];
+    int                 vertices[2]; // Unique endpoint indices, indexed like pos
     jcv_real            a;
     jcv_real            b;
     jcv_real            c;
-    int                 vertices[2]; // Unique endpoint indices, indexed like pos
 };
 
 struct jcv_delauney_iter_
@@ -222,6 +222,7 @@ struct jcv_diagram_
 static const int JCV_DIRECTION_LEFT  = 0;
 static const int JCV_DIRECTION_RIGHT = 1;
 static const jcv_real JCV_INVALID_VALUE = (jcv_real)-JCV_FLT_MAX;
+static const int JCV_INVALID_VERTEX = -1;
 
 // jcv_real
 
@@ -594,8 +595,8 @@ static void jcv_edge_create(jcv_edge* e, jcv_site* s1, jcv_site* s2)
     e->pos[0].y = JCV_INVALID_VALUE;
     e->pos[1].x = JCV_INVALID_VALUE;
     e->pos[1].y = JCV_INVALID_VALUE;
-    e->vertices[0] = -1;
-    e->vertices[1] = -1;
+    e->vertices[0] = JCV_INVALID_VERTEX;
+    e->vertices[1] = JCV_INVALID_VERTEX;
 
     // Create line equation between S1 and S2:
     // jcv_real a = -1 * (s2->p.y - s1->p.y);
@@ -791,7 +792,7 @@ static int jcv_edge_clipline(jcv_context_internal* internal, jcv_edge* e)
 
     for( int i = 0; i < 2; ++i )
     {
-        e->vertices[i] = -1;
+        e->vertices[i] = JCV_INVALID_VERTEX;
         for( int j = 0; j < 2; ++j )
         {
             // Clipping may retain or reorder an existing endpoint. Only carry
@@ -1745,11 +1746,11 @@ static void jcv_circle_event(jcv_context_internal* internal)
     jcv_site* top    = jcv_halfedge_rightsite(right);
 
     jcv_point vertex = left->vertex;
-    int vertex_index = -1;
+    int vertex_index = JCV_INVALID_VERTEX;
     jcv_edge* incident_edges[2] = {left->edge, right->edge};
     // Four or more cocircular sites can report the same vertex in consecutive
     // circle events. In that case one incident edge already carries its index.
-    for( int i = 0; i < 2 && vertex_index < 0; ++i )
+    for( int i = 0; i < 2 && vertex_index == JCV_INVALID_VERTEX; ++i )
     {
         for( int endpoint = 0; endpoint < 2; ++endpoint )
         {
@@ -1762,7 +1763,7 @@ static void jcv_circle_event(jcv_context_internal* internal)
             }
         }
     }
-    if( vertex_index < 0 &&
+    if( vertex_index == JCV_INVALID_VERTEX &&
         (!internal->clipper.test_fn || internal->clipper.test_fn(&internal->clipper, vertex)) )
     {
         vertex_index = internal->numvertices++;
