@@ -94,6 +94,12 @@ extern void jcv_diagram_free( jcv_diagram* diagram );
 // Returns an array of sites, where each index is the same as the original input point array.
 extern const jcv_site* jcv_diagram_get_sites( const jcv_diagram* diagram );
 
+// Returns the number of unique vertices in the diagram.
+extern int jcv_get_num_vertices( const jcv_diagram* diagram );
+
+// Writes all unique vertices to a client-owned array of diagram->numvertices points.
+extern void jcv_diagram_get_vertices( const jcv_diagram* diagram, jcv_point* vertices );
+
 // Returns a linked list of all the voronoi edges
 // excluding the ones that lie on the borders of the bounding box.
 // For a full list of edges, you need to iterate over the sites, and their graph edges.
@@ -132,6 +138,7 @@ struct jcv_graphedge_
     struct jcv_site_*       neighbor;
     jcv_point               pos[2];
     jcv_real                angle;
+    int                     vertices[2]; // Unique endpoint indices, indexed like pos
 };
 
 struct jcv_site_
@@ -150,6 +157,7 @@ struct jcv_edge_
     jcv_real            a;
     jcv_real            b;
     jcv_real            c;
+    int                 vertices[2]; // Unique endpoint indices, indexed like pos
 };
 
 struct jcv_delauney_iter_
@@ -185,6 +193,7 @@ struct jcv_diagram_
 {
     jcv_context_internal*   internal;
     int                     numsites;
+    int                     numvertices;
     jcv_point               min;
     jcv_point               max;
 };
@@ -386,7 +395,6 @@ typedef struct jcv_priorityqueue_
     FJCVPriorityQueueGetPos     get_pos;
 } jcv_priorityqueue;
 
-
 struct jcv_context_internal_
 {
     void*               mem;
@@ -401,7 +409,7 @@ struct jcv_context_internal_
     jcv_site*           bottomsite;
     int                 numsites;
     int                 currentsite;
-    int                 _padding;
+    int                 numvertices;
 
     jcv_memoryblock*    memblocks;
     jcv_edge*           edgepool;
@@ -438,6 +446,24 @@ void jcv_diagram_free( jcv_diagram* d )
 const jcv_site* jcv_diagram_get_sites( const jcv_diagram* diagram )
 {
     return diagram->internal->sites;
+}
+
+int jcv_get_num_vertices( const jcv_diagram* diagram )
+{
+    return diagram->numvertices;
+}
+
+void jcv_diagram_get_vertices( const jcv_diagram* diagram, jcv_point* vertices )
+{
+    const jcv_site* sites = diagram->internal->sites;
+    for( int i = 0; i < diagram->numsites; ++i )
+    {
+        for( const jcv_graphedge* edge = sites[i].edges; edge; edge = edge->next )
+        {
+            vertices[edge->vertices[0]] = edge->pos[0];
+            vertices[edge->vertices[1]] = edge->pos[1];
+        }
+    }
 }
 
 const jcv_edge* jcv_diagram_get_edges( const jcv_diagram* diagram )
@@ -568,6 +594,8 @@ static void jcv_edge_create(jcv_edge* e, jcv_site* s1, jcv_site* s2)
     e->pos[0].y = JCV_INVALID_VALUE;
     e->pos[1].x = JCV_INVALID_VALUE;
     e->pos[1].y = JCV_INVALID_VALUE;
+    e->vertices[0] = -1;
+    e->vertices[1] = -1;
 
     // Create line equation between S1 and S2:
     // jcv_real a = -1 * (s2->p.y - s1->p.y);
@@ -756,7 +784,29 @@ int jcv_boxshape_clip(const jcv_clipper* clipper, jcv_edge* e)
 // see jcv_edge_create
 static int jcv_edge_clipline(jcv_context_internal* internal, jcv_edge* e)
 {
-    return internal->clipper.clip_fn(&internal->clipper, e);
+    jcv_point previous_pos[2] = {e->pos[0], e->pos[1]};
+    int previous_vertices[2] = {e->vertices[0], e->vertices[1]};
+    if( !internal->clipper.clip_fn(&internal->clipper, e) )
+        return 0;
+
+    for( int i = 0; i < 2; ++i )
+    {
+        e->vertices[i] = -1;
+        for( int j = 0; j < 2; ++j )
+        {
+            // Clipping may retain or reorder an existing endpoint. Only carry
+            // its identity across when the point itself was copied exactly.
+            if( previous_vertices[j] >= 0 &&
+                e->pos[i].x == previous_pos[j].x && e->pos[i].y == previous_pos[j].y )
+            {
+                e->vertices[i] = previous_vertices[j];
+                break;
+            }
+        }
+        if( e->vertices[i] < 0 )
+            e->vertices[i] = internal->numvertices++;
+    }
+    return 1;
 }
 
 static jcv_edge* jcv_edge_new(jcv_context_internal* internal, jcv_site* s1, jcv_site* s2)
@@ -1489,6 +1539,8 @@ static void jcv_finishline(jcv_context_internal* internal, jcv_edge* e)
         ge->neighbor = e->sites[1-i];
         ge->pos[flip] = e->pos[i];
         ge->pos[1-flip] = e->pos[1-i];
+        ge->vertices[flip] = e->vertices[i];
+        ge->vertices[1-flip] = e->vertices[1-i];
         ge->angle = jcv_calc_sort_metric(e->sites[i], ge);
 
         jcv_sortedges_insert( e->sites[i], ge );
@@ -1496,9 +1548,10 @@ static void jcv_finishline(jcv_context_internal* internal, jcv_edge* e)
 }
 
 
-static void jcv_endpos(jcv_context_internal* internal, jcv_edge* e, const jcv_point* p, int direction)
+static void jcv_endpos(jcv_context_internal* internal, jcv_edge* e, const jcv_point* p, int direction, int vertex)
 {
     e->pos[direction] = *p;
+    e->vertices[direction] = vertex;
 
     if( !jcv_is_valid(&e->pos[1 - direction]) )
         return;
@@ -1510,6 +1563,7 @@ static inline void jcv_create_corner_edge(jcv_context_internal* internal, const 
 {
     gap->neighbor   = 0;
     gap->pos[0]     = current->pos[1];
+    gap->vertices[0] = current->vertices[1];
 
     if( current->pos[1].x < internal->rect.max.x && current->pos[1].y == internal->rect.min.y )
     {
@@ -1532,6 +1586,7 @@ static inline void jcv_create_corner_edge(jcv_context_internal* internal, const 
         gap->pos[1].y = internal->rect.max.y;
     }
 
+    gap->vertices[1] = internal->numvertices++;
     gap->angle = jcv_calc_sort_metric(site, gap);
 }
 
@@ -1540,6 +1595,8 @@ static jcv_edge* jcv_create_gap_edge(jcv_context_internal* internal, jcv_site* s
     jcv_edge* edge  = jcv_alloc_edge(internal);
     edge->pos[0]    = ge->pos[0];
     edge->pos[1]    = ge->pos[1];
+    edge->vertices[0] = ge->vertices[0];
+    edge->vertices[1] = ge->vertices[1];
     edge->sites[0]  = site;
     edge->sites[1]  = 0;
     edge->a = edge->b = edge->c = 0;
@@ -1562,6 +1619,8 @@ void jcv_boxshape_fillgaps(const jcv_clipper* clipper, jcv_context_internal* all
         gap->pos[0]     = clipper->min;
         gap->pos[1].x   = clipper->max.x;
         gap->pos[1].y   = clipper->min.y;
+        gap->vertices[0] = allocator->numvertices++;
+        gap->vertices[1] = allocator->numvertices++;
         gap->angle      = jcv_calc_sort_metric(site, gap);
         gap->next       = 0;
         gap->edge       = jcv_create_gap_edge(allocator, site, gap);
@@ -1609,6 +1668,8 @@ void jcv_boxshape_fillgaps(const jcv_clipper* clipper, jcv_context_internal* all
                 gap->neighbor   = 0;
                 gap->pos[0]     = current->pos[1];
                 gap->pos[1]     = next->pos[0];
+                gap->vertices[0] = current->vertices[1];
+                gap->vertices[1] = next->vertices[0];
                 gap->angle      = jcv_calc_sort_metric(site, gap);
                 gap->edge       = jcv_create_gap_edge(allocator, site, gap);
 
@@ -1639,6 +1700,8 @@ void jcv_boxshape_fillgaps(const jcv_clipper* clipper, jcv_context_internal* all
                 gap->neighbor   = 0;
                 gap->pos[0]     = current->pos[1];
                 gap->pos[1]     = corner;
+                gap->vertices[0] = current->vertices[1];
+                gap->vertices[1] = allocator->numvertices++;
                 gap->angle      = jcv_calc_sort_metric(site, gap);
                 gap->edge       = jcv_create_gap_edge(allocator, site, gap);
 
@@ -1671,7 +1734,6 @@ static void jcv_fillgaps(jcv_diagram* diagram)
     }
 }
 
-
 static void jcv_circle_event(jcv_context_internal* internal)
 {
     jcv_halfedge* left      = (jcv_halfedge*)jcv_pq_pop(internal->eventqueue);
@@ -1683,8 +1745,30 @@ static void jcv_circle_event(jcv_context_internal* internal)
     jcv_site* top    = jcv_halfedge_rightsite(right);
 
     jcv_point vertex = left->vertex;
-    jcv_endpos(internal, left->edge, &vertex, left->direction);
-    jcv_endpos(internal, right->edge, &vertex, right->direction);
+    int vertex_index = -1;
+    jcv_edge* incident_edges[2] = {left->edge, right->edge};
+    // Four or more cocircular sites can report the same vertex in consecutive
+    // circle events. In that case one incident edge already carries its index.
+    for( int i = 0; i < 2 && vertex_index < 0; ++i )
+    {
+        for( int endpoint = 0; endpoint < 2; ++endpoint )
+        {
+            if( incident_edges[i]->vertices[endpoint] >= 0 &&
+                incident_edges[i]->pos[endpoint].x == vertex.x &&
+                incident_edges[i]->pos[endpoint].y == vertex.y )
+            {
+                vertex_index = incident_edges[i]->vertices[endpoint];
+                break;
+            }
+        }
+    }
+    if( vertex_index < 0 &&
+        (!internal->clipper.test_fn || internal->clipper.test_fn(&internal->clipper, vertex)) )
+    {
+        vertex_index = internal->numvertices++;
+    }
+    jcv_endpos(internal, left->edge, &vertex, left->direction, vertex_index);
+    jcv_endpos(internal, right->edge, &vertex, right->direction, vertex_index);
 
     jcv_pq_remove(internal->eventqueue, right);
     jcv_beachline_remove(internal, left);
@@ -1707,7 +1791,7 @@ static void jcv_circle_event(jcv_context_internal* internal)
 
     jcv_halfedge* he = jcv_halfedge_new(internal, edge, direction);
     jcv_beachline_insert_after(internal, leftleft, he);
-    jcv_endpos(internal, edge, &vertex, JCV_DIRECTION_RIGHT - direction);
+    jcv_endpos(internal, edge, &vertex, JCV_DIRECTION_RIGHT - direction, vertex_index);
 
     jcv_point p;
     if( jcv_check_circle_event( leftleft, he, &p ) )
@@ -1974,6 +2058,7 @@ void jcv_diagram_generate_useralloc(int num_points, const jcv_point* points, con
     }
 
     jcv_fillgaps(d);
+    d->numvertices = internal->numvertices;
 }
 
 #endif // JC_VORONOI_IMPLEMENTATION
@@ -1985,8 +2070,9 @@ ABOUT:
     A fast single file 2D voronoi diagram generator
 
 HISTORY:
-    0.10    2026-07-19  - Use a BST to manipulate the beachline
+    0.10    2026-07-20  - Added unique vertex indices and vertex extraction
             2026-07-20  - Fix invalid topology handling for near-collinear sites
+            2026-07-19  - Use a BST to manipulate the beachline
     0.9     2023-01-22  - Modified the Delauney iterator creation api
     0.8     2022-12-20  - Added fix for missing border edges
                           More robust removal of duplicate graph edges

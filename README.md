@@ -70,6 +70,8 @@ void jcv_diagram_generate_useralloc( int num_points, const jcv_point* points, co
 void jcv_diagram_free( jcv_diagram* diagram );
 
 const jcv_site* jcv_diagram_get_sites( const jcv_diagram* diagram );
+int jcv_get_num_vertices( const jcv_diagram* diagram );
+void jcv_diagram_get_vertices( const jcv_diagram* diagram, jcv_point* vertices );
 const jcv_edge* jcv_diagram_get_edges( const jcv_diagram* diagram );
 const jcv_edge* jcv_diagram_get_next_edge( const jcv_edge* edge );
 ```
@@ -160,6 +162,25 @@ void draw_delauney(const jcv_diagram* diagram)
     {
         draw_line(delauney_edge.pos[0], delauney_edge.pos[1]);
     }
+}
+```
+
+## Unique vertices
+
+Each edge endpoint has a contiguous integer vertex index. The diagram itself
+does not allocate a separate vertex array; clients can create one only when it
+is needed, without comparing floating-point coordinates:
+
+```C
+jcv_point* vertices = malloc(
+    (size_t)jcv_get_num_vertices(&diagram) * sizeof(*vertices));
+jcv_diagram_get_vertices(&diagram, vertices);
+
+for (const jcv_edge* edge = jcv_diagram_get_edges(&diagram);
+     edge;
+     edge = jcv_diagram_get_next_edge(edge))
+{
+    add_indexed_edge(edge->vertices[0], edge->vertices[1]);
 }
 ```
 
