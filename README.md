@@ -6,11 +6,11 @@
 
 
 # jc_voronoi
-A fast C/C++ header only implementation for creating 2D Voronoi diagrams from a point set
+A fast C header only implementation for creating 2D Voronoi diagrams from a point set
 
 Uses [Fortune's sweep algorithm.](https://en.wikipedia.org/wiki/Fortune%27s_algorithm)
 
-<img src="images/example1.png" alt="vanilla" width="350"> <img src="images/example2.png" alt="custom clipping" width="350">
+<img src="images/example1.svg" alt="vanilla" width="350"> <img src="images/example2.png" alt="custom clipping" width="350">
 
 # Brief
 

@@ -11,6 +11,7 @@ VERSION
 #include <stdint.h>
 #include <stdio.h> // printf
 #include <ctype.h> // isascii
+#include <string.h>
 
 // I wrapped it in a library because it spams too many warnings
 extern int wrap_stbi_write_png(char const *filename, int w, int h, int comp, const void *data, int stride_in_bytes);
@@ -150,7 +151,7 @@ static void Usage(void)
     printf("\t-n <num points>\n");
     printf("\t-r <num relaxations>\n");
     printf("\t-i <inputfile>\t\tA list of 2-tuples (float, float) representing 2-d coordinates\n");
-    printf("\t-o <outputfile.png>\n");
+    printf("\t-o <outputfile.png|outputfile.svg>\n");
     printf("\t-w <width>\n");
     printf("\t-h <height>\n");
 }
@@ -326,6 +327,104 @@ static inline jcv_point remap(const jcv_point* pt, const jcv_point* min, const j
     return p;
 }
 
+static int has_svg_suffix(const char* path)
+{
+    size_t length = strlen(path);
+    if( length < 4 )
+        return 0;
+
+    const char* suffix = path + length - 4;
+    return suffix[0] == '.' &&
+           tolower((unsigned char)suffix[1]) == 's' &&
+           tolower((unsigned char)suffix[2]) == 'v' &&
+           tolower((unsigned char)suffix[3]) == 'g';
+}
+
+static int write_svg(const char* path, int width, int height, const jcv_diagram* diagram,
+                     const jcv_clipping_polygon* polygon, const jcv_clipper* clipper,
+                     const jcv_point* points, int count)
+{
+    FILE* file = fopen(path, "w");
+    if( !file )
+        return 0;
+
+    jcv_point dimensions;
+    dimensions.x = (jcv_real)width;
+    dimensions.y = (jcv_real)height;
+
+    fprintf(file, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+    fprintf(file, "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"%d\" height=\"%d\" viewBox=\"0 0 %d %d\">\n",
+            width, height, width, height);
+    fprintf(file, "  <rect width=\"100%%\" height=\"100%%\" fill=\"#000\"/>\n");
+    fprintf(file, "  <g transform=\"translate(0 %d) scale(1 -1)\">\n", height - 1);
+
+    const jcv_site* sites = jcv_diagram_get_sites(diagram);
+    for( int i = 0; i < diagram->numsites; ++i )
+    {
+        const jcv_site* site = &sites[i];
+        srand((unsigned int)site->index);
+
+        unsigned char color_tri[3];
+        unsigned char basecolor = 120;
+        color_tri[0] = basecolor + (unsigned char)(rand() % (235 - basecolor));
+        color_tri[1] = basecolor + (unsigned char)(rand() % (235 - basecolor));
+        color_tri[2] = basecolor + (unsigned char)(rand() % (235 - basecolor));
+
+        jcv_point s = remap(&site->p, &diagram->min, &diagram->max, &dimensions);
+        const jcv_graphedge* graphedge = site->edges;
+        while( graphedge )
+        {
+            jcv_point p0 = remap(&graphedge->pos[0], &diagram->min, &diagram->max, &dimensions);
+            jcv_point p1 = remap(&graphedge->pos[1], &diagram->min, &diagram->max, &dimensions);
+            fprintf(file, "    <polygon points=\"%g,%g %g,%g %g,%g\" fill=\"rgb(%u,%u,%u)\"/>\n",
+                    (double)s.x, (double)s.y, (double)p0.x, (double)p0.y, (double)p1.x, (double)p1.y,
+                    color_tri[0], color_tri[1], color_tri[2]);
+            graphedge = graphedge->next;
+        }
+    }
+
+    const jcv_edge* edge = jcv_diagram_get_edges(diagram);
+    while( edge )
+    {
+        jcv_point p0 = remap(&edge->pos[0], &diagram->min, &diagram->max, &dimensions);
+        jcv_point p1 = remap(&edge->pos[1], &diagram->min, &diagram->max, &dimensions);
+        fprintf(file, "    <line x1=\"%g\" y1=\"%g\" x2=\"%g\" y2=\"%g\" stroke=\"rgb(220,220,220)\" stroke-width=\"1\"/>\n",
+                (double)p0.x, (double)p0.y, (double)p1.x, (double)p1.y);
+        edge = jcv_diagram_get_next_edge(edge);
+    }
+
+    jcv_delauney_iter delauney;
+    jcv_delauney_begin(diagram, &delauney);
+    jcv_delauney_edge delauney_edge;
+    while( jcv_delauney_next(&delauney, &delauney_edge) )
+    {
+        jcv_point p0 = remap(&delauney_edge.pos[0], &diagram->min, &diagram->max, &dimensions);
+        jcv_point p1 = remap(&delauney_edge.pos[1], &diagram->min, &diagram->max, &dimensions);
+        fprintf(file, "    <line x1=\"%g\" y1=\"%g\" x2=\"%g\" y2=\"%g\" stroke=\"rgb(64,64,255)\" stroke-width=\"1\"/>\n",
+                (double)p0.x, (double)p0.y, (double)p1.x, (double)p1.y);
+    }
+
+    for( int i = 0; i < polygon->num_points; ++i )
+    {
+        jcv_point p0 = remap(&polygon->points[i], &diagram->min, &diagram->max, &dimensions);
+        jcv_point p1 = remap(&polygon->points[(i + 1) % polygon->num_points], &diagram->min, &diagram->max, &dimensions);
+        fprintf(file, "    <line x1=\"%g\" y1=\"%g\" x2=\"%g\" y2=\"%g\" stroke=\"rgb(220,220,220)\" stroke-width=\"1\"/>\n",
+                (double)p0.x, (double)p0.y, (double)p1.x, (double)p1.y);
+    }
+
+    for( int i = 0; i < count; ++i )
+    {
+        if( clipper && !clipper->test_fn(clipper, points[i]) )
+            continue;
+        jcv_point p = remap(&points[i], &diagram->min, &diagram->max, &dimensions);
+        fprintf(file, "    <circle cx=\"%g\" cy=\"%g\" r=\"0.5\" fill=\"#fff\"/>\n",
+                (double)p.x, (double)p.y);
+    }
+
+    fprintf(file, "  </g>\n</svg>\n");
+    return fclose(file) == 0;
+}
+
 int main(int argc, const char** argv)
 {
     // Number of sites to generate
@@ -499,9 +598,16 @@ int main(int argc, const char** argv)
         jcv_diagram_free( &diagram );
     }
 
+    int output_svg = has_svg_suffix(outputfile);
     size_t imagesize = (size_t)(width*height*3);
-    unsigned char* image = (unsigned char*)malloc(imagesize);
-    memset(image, 0, imagesize);
+    unsigned char* image = 0;
+    if( !output_svg )
+    {
+        image = (unsigned char*)malloc(imagesize);
+        if( !image )
+            return 1;
+        memset(image, 0, imagesize);
+    }
 
     unsigned char color_pt[] = {255, 255, 255};
     unsigned char color_line[] = {220, 220, 220};
@@ -519,10 +625,26 @@ int main(int argc, const char** argv)
 
         printf("Rendering...\n");
 
+        if( output_svg )
+        {
+            printf("Writing %s\n", outputfile);
+            if( !write_svg(outputfile, width, height, &diagram, &polygon, clipper, points, count) )
+            {
+                fprintf(stderr, "Failed to write %s\n", outputfile);
+                jcv_diagram_free(&diagram);
+                free(clippoints);
+                free(points);
+                free(rect);
+                return 1;
+            }
+            printf("Done.\n");
+        }
+
         // If you want to draw triangles, or relax the diagram,
         // you can iterate over the sites and get all edges easily
 
         //if (0)
+        if( !output_svg )
         {
             const jcv_site* sites = jcv_diagram_get_sites( &diagram );
             for( int i = 0; i < diagram.numsites; ++i )
@@ -552,7 +674,7 @@ int main(int argc, const char** argv)
         }
 
         // If all you need are the edges
-        const jcv_edge* edge = jcv_diagram_get_edges( &diagram );
+        const jcv_edge* edge = output_svg ? 0 : jcv_diagram_get_edges( &diagram );
         while( edge )
         {
             jcv_point p0 = remap(&edge->pos[0], &diagram.min, &diagram.max, &dimensions );
@@ -562,9 +684,10 @@ int main(int argc, const char** argv)
         }
 
         jcv_delauney_iter delauney;
-        jcv_delauney_begin( &diagram, &delauney );
         jcv_delauney_edge delauney_edge;
-        while (jcv_delauney_next( &delauney, &delauney_edge ))
+        if( !output_svg )
+            jcv_delauney_begin( &diagram, &delauney );
+        while (!output_svg && jcv_delauney_next( &delauney, &delauney_edge ))
         {
             jcv_point p0 = remap(&delauney_edge.pos[0], &diagram.min, &diagram.max, &dimensions );
             jcv_point p1 = remap(&delauney_edge.pos[1], &diagram.min, &diagram.max, &dimensions );
@@ -572,11 +695,10 @@ int main(int argc, const char** argv)
         }
         printf("Done.\n"); // rendering
 
-        jcv_diagram_free( &diagram );
     }
 
     // draw the clipping polygon
-    for (int i = 0; i < polygon.num_points; ++i)
+    for (int i = 0; !output_svg && i < polygon.num_points; ++i)
     {
         jcv_point p0 = remap(&polygon.points[i], &diagram.min, &diagram.max, &dimensions );
         jcv_point p1 = remap(&polygon.points[(i+1)%polygon.num_points], &diagram.min, &diagram.max, &dimensions );
@@ -584,7 +706,7 @@ int main(int argc, const char** argv)
     }
 
     // Plot the sites
-    for( int i = 0; i < count; ++i )
+    for( int i = 0; !output_svg && i < count; ++i )
     {
         if (clipper && !clipper->test_fn(clipper, points[i]))
             continue;
@@ -596,6 +718,11 @@ int main(int argc, const char** argv)
     free(points);
     free(rect);
 
+    jcv_diagram_free( &diagram );
+
+    if( output_svg )
+        return 0;
+
     // flip image
     int stride = width*3;
     uint8_t* row = (uint8_t*)malloc((size_t)stride);
@@ -606,11 +733,9 @@ int main(int argc, const char** argv)
         memcpy(&image[(height-1-y)*stride], row, (size_t)stride);
     }
 
-    char path[512];
-    snprintf(path, sizeof(path), "%s", outputfile);
-    printf("Writing %s\n", path);
+    printf("Writing %s\n", outputfile);
 
-    wrap_stbi_write_png(path, width, height, 3, image, stride);
+    wrap_stbi_write_png(outputfile, width, height, 3, image, stride);
     printf("Done.\n");
 
     free(image);
