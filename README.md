@@ -12,6 +12,8 @@ Uses [Fortune's sweep algorithm.](https://en.wikipedia.org/wiki/Fortune%27s_algo
 
 <img src="images/example1.svg" alt="vanilla" width="350"> <img src="images/example2.png" alt="custom clipping" width="350">
 
+* [Showcases](./SHOWCASES.md)
+
 # Brief
 
 I was realizing that the previous 2D voronoi generator I was using, was taking up too much time in my app,
