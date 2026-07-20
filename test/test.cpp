@@ -734,6 +734,72 @@ TEST_F(VoronoiTest, fn_count_edges)
     ASSERT_EQ(4, count_edges(edges));
 }
 
+TEST_F(VoronoiTest, issue91_cells_are_closed)
+{
+    jcv_point points[] = {
+        {580, 20.9086037f},
+        {670, 20.9085979f},
+        {700, 20.9085999f},
+        {730, 20.9085999f},
+        {760, 20.9086056f},
+        {710.857178f, 46.506916f},
+    };
+    int num_points = (int)(sizeof(points) / sizeof(points[0]));
+    jcv_rect rect = {{0, 0}, {1655, 1462}};
+
+    jcv_diagram_generate(num_points, points, &rect, 0, &ctx->diagram);
+    ASSERT_EQ(num_points, ctx->diagram.numsites);
+
+    const jcv_site* sites = jcv_diagram_get_sites(&ctx->diagram);
+    int num_open_cells = 0;
+    int num_invalid_edges = 0;
+    int num_invalid_neighbors = 0;
+    for( int i = 0; i < ctx->diagram.numsites; ++i )
+    {
+        ASSERT_POINT_EQ(points[sites[i].index], sites[i].p);
+        ASSERT_TRUE(count_edges(sites[i].edges) < 64);
+        if( !is_closed_loop(sites[i].edges) )
+        {
+            ++num_open_cells;
+        }
+
+        for( const jcv_graphedge* edge = sites[i].edges; edge; edge = edge->next )
+        {
+            double xmid = ((double)edge->pos[0].x + (double)edge->pos[1].x) * 0.5;
+            double ymid = ((double)edge->pos[0].y + (double)edge->pos[1].y) * 0.5;
+            double dx = xmid - (double)sites[i].p.x;
+            double dy = ymid - (double)sites[i].p.y;
+            double site_distance_sq = dx * dx + dy * dy;
+            double tolerance = site_distance_sq * 1.0e-4 + 1.0e-4;
+            if( edge->neighbor )
+            {
+                dx = xmid - (double)edge->neighbor->p.x;
+                dy = ymid - (double)edge->neighbor->p.y;
+                double neighbor_distance_sq = dx * dx + dy * dy;
+                if( fabs(site_distance_sq - neighbor_distance_sq) > tolerance )
+                    ++num_invalid_neighbors;
+                if( !((edge->edge->sites[0] == &sites[i] && edge->edge->sites[1] == edge->neighbor) ||
+                      (edge->edge->sites[1] == &sites[i] && edge->edge->sites[0] == edge->neighbor)) )
+                    ++num_invalid_neighbors;
+            }
+            for( int j = 0; j < ctx->diagram.numsites; ++j )
+            {
+                dx = xmid - (double)sites[j].p.x;
+                dy = ymid - (double)sites[j].p.y;
+                double other_distance_sq = dx * dx + dy * dy;
+                if( other_distance_sq + tolerance < site_distance_sq )
+                {
+                    ++num_invalid_edges;
+                    break;
+                }
+            }
+        }
+    }
+    ASSERT_EQ(0, num_open_cells);
+    ASSERT_EQ(0, num_invalid_edges);
+    ASSERT_EQ(0, num_invalid_neighbors);
+}
+
 TEST_F(VoronoiTest, issue_missing_border_edges)
 {
     jcv_point points[] = {
