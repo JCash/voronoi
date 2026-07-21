@@ -95,6 +95,14 @@ struct VoronoiTest : public jc_test_base_class {
     }
 };
 
+static int g_counting_fill_calls;
+
+static void counting_box_fillgaps(const jcv_clipper* clipper, jcv_context_internal* internal, jcv_site* site)
+{
+    ++g_counting_fill_calls;
+    jcv_boxshape_fillgaps(clipper, internal, site);
+}
+
 static bool check_point_eq(const jcv_point* a, const jcv_point* b)
 {
     return a->x == b->x && a->y == b->y;
@@ -236,6 +244,22 @@ TEST_F(VoronoiTest, pseudo_angle_preserves_polar_order)
     ASSERT_EQ((jcv_real)3.5, jcv_pseudo_angle(large, -large));
 }
 
+TEST_F(VoronoiTest, site_index_and_boundary_share_storage)
+{
+    struct previous_site_layout
+    {
+        jcv_point p;
+        int index;
+    };
+
+    ASSERT_EQ(sizeof(previous_site_layout), sizeof(jcv_site));
+    jcv_site site = {};
+    site.index = UINT32_C(0x7fffffff);
+    site.boundary = 1;
+    ASSERT_EQ(UINT32_C(0x7fffffff), site.index);
+    ASSERT_EQ(1u, site.boundary);
+}
+
 TEST_F(VoronoiTest, parallel_horiz_2)
 {
     jcv_point points[] = { {IMAGE_SIZE/4, IMAGE_SIZE/2}, {(IMAGE_SIZE*3)/4, IMAGE_SIZE/2} };
@@ -365,7 +389,7 @@ static jcv_context_internal* setup_test_context_internal(int num_points, jcv_poi
     for( int i = 0; i < num_points; ++i )
     {
         sites[i].p        = points[i];
-        sites[i].index    = i;
+        sites[i].index    = (uint32_t)i;
     }
     qsort(sites, (size_t)num_points, sizeof(jcv_site), jcv_point_cmp);
 
@@ -420,6 +444,45 @@ TEST_F(VoronoiTest, prune_duplicates)
     ASSERT_EQ( 3, rect.max.y );
 
     teardown_test_context_internal(internal);
+}
+
+TEST_F(VoronoiTest, custom_clipper_fill_visits_all_sites)
+{
+    jcv_point points[] = {
+        {20,20}, {50,20}, {80,20},
+        {20,50}, {50,50}, {80,50},
+        {20,80}, {50,80}, {80,80}
+    };
+    jcv_rect rect = {{0,0}, {100,100}};
+    jcv_clipper clipper = {};
+    clipper.test_fn = jcv_boxshape_test;
+    clipper.clip_fn = jcv_boxshape_clip;
+    clipper.fill_fn = counting_box_fillgaps;
+
+    g_counting_fill_calls = 0;
+    jcv_diagram_generate((int)(sizeof(points) / sizeof(points[0])), points, &rect, &clipper, &ctx->diagram);
+    ASSERT_EQ(ctx->diagram.numsites, g_counting_fill_calls);
+}
+
+TEST_F(VoronoiTest, box_clipper_marks_only_boundary_sites)
+{
+    jcv_point points[] = {
+        {20,20}, {50,20}, {80,20},
+        {20,50}, {50,50}, {80,50},
+        {20,80}, {50,80}, {80,80}
+    };
+    jcv_rect rect = {{0,0}, {100,100}};
+    jcv_diagram_generate((int)(sizeof(points) / sizeof(points[0])), points, &rect, 0, &ctx->diagram);
+
+    int boundary_sites = 0;
+    const jcv_site* sites = jcv_diagram_get_sites(&ctx->diagram);
+    for( int i = 0; i < ctx->diagram.numsites; ++i )
+    {
+        boundary_sites += sites[i].boundary;
+        if( sites[i].p.x == 50 && sites[i].p.y == 50 )
+            ASSERT_EQ(0u, sites[i].boundary);
+    }
+    ASSERT_EQ(8, boundary_sites);
 }
 
 TEST_F(VoronoiTest, prune_not_in_shape)

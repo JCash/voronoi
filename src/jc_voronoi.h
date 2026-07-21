@@ -132,7 +132,8 @@ struct jcv_point_
 struct jcv_site_
 {
     jcv_point       p;
-    int             index;  // Index into the original list of points
+    uint32_t        index : 31; // Index into the original input points
+    uint32_t        boundary : 1; // The site's cell touches the clipping boundary
 };
 
 // The coefficients a, b and c are from the general line equation: ax * by + c = 0
@@ -1686,6 +1687,13 @@ static void jcv_build_graph_edges(jcv_context_internal* internal)
             e->a = JCV_INVALID_VALUE;
             continue;
         }
+        if( internal->clipper.fill_fn == jcv_boxshape_fillgaps &&
+            (jcv_point_on_box_edge(&e->pos[0], &internal->clipper.min, &internal->clipper.max) ||
+             jcv_point_on_box_edge(&e->pos[1], &internal->clipper.min, &internal->clipper.max)) )
+        {
+            e->sites[0]->boundary = 1;
+            e->sites[1]->boundary = 1;
+        }
         numgraphedges += 2;
     }
     if( numgraphedges == 0 )
@@ -1868,9 +1876,13 @@ static void jcv_fillgaps(jcv_diagram* diagram)
     if (!internal->clipper.fill_fn)
         return;
 
+    int skip_interior_sites = internal->numsites > 1 &&
+        internal->clipper.fill_fn == jcv_boxshape_fillgaps;
     for( int i = 0; i < internal->numsites; ++i )
     {
         jcv_site* site = &internal->sites[i];
+        if( skip_interior_sites && !site->boundary )
+            continue;
         internal->clipper.fill_fn(&internal->clipper, internal, site);
     }
 }
@@ -2140,7 +2152,8 @@ void jcv_diagram_generate_useralloc(int num_points, const jcv_point* points, con
     for( int i = 0; i < num_points; ++i )
     {
         sites[i].p        = points[i];
-        sites[i].index    = i;
+        sites[i].index    = (uint32_t)i;
+        sites[i].boundary = 0;
     }
 
     qsort(sites, (size_t)num_points, sizeof(jcv_site), jcv_point_cmp);
