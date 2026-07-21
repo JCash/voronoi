@@ -131,14 +131,14 @@ static void relax_points(const jcv_diagram* diagram, jcv_point* points)
         jcv_point sum = site->p;
         int count = 1;
 
-        const jcv_graphedge* edge = site->edges;
-
-        while( edge )
+        jcv_edge_iter iter;
+        jcv_edge edge;
+        jcv_site_get_edges(diagram, site, &iter);
+        while( jcv_edge_next(&iter, &edge) )
         {
-            sum.x += edge->pos[0].x;
-            sum.y += edge->pos[0].y;
+            sum.x += edge.pos[0].x;
+            sum.y += edge.pos[0].y;
             ++count;
-            edge = edge->next;
         }
 
         points[site->index].x = sum.x / (jcv_real)count;
@@ -294,13 +294,13 @@ static int read_input(const char* path, jcv_point** points, uint32_t* length, jc
         }
         for( uint32_t i = 0; i < num_points; ++i )
         {
-            jcv_point* pt = &((jcv_point*)buffer)[i];
-            if( debug_skip_point(pt) )
+            jcv_point pt;
+            memcpy(&pt, &buffer[i * sizeof(jcv_point)], sizeof(jcv_point));
+            if( debug_skip_point(&pt) )
             {
                 continue;
             }
-            pts[len].x = pt->x;
-            pts[len].y = pt->y;
+            pts[len] = pt;
             ++len;
         }
         bufferoffset = (uint32_t) num_read - num_points * sizeof(jcv_point);
@@ -379,18 +379,19 @@ static int write_svg(const char* path, int width, int height, const jcv_diagram*
         color_tri[1] = basecolor + (unsigned char)(rand() % (235 - basecolor));
         color_tri[2] = basecolor + (unsigned char)(rand() % (235 - basecolor));
 
-        const jcv_graphedge* graphedge = site->edges;
+        jcv_edge_iter site_edges;
+        jcv_edge graphedge;
+        jcv_site_get_edges(diagram, site, &site_edges);
         int numedges = 0;
         double area = 0.0;
         fprintf(file, "    <polygon class=\"cell\" points=\"");
-        while( graphedge )
+        while( jcv_edge_next(&site_edges, &graphedge) )
         {
-            jcv_point p0 = remap(&graphedge->pos[0], &diagram->min, &diagram->max, &dimensions);
+            jcv_point p0 = remap(&graphedge.pos[0], &diagram->min, &diagram->max, &dimensions);
             fprintf(file, "%g,%g ", (double)p0.x, (double)p0.y);
-            area += (double)graphedge->pos[0].x * (double)graphedge->pos[1].y -
-                    (double)graphedge->pos[1].x * (double)graphedge->pos[0].y;
+            area += (double)graphedge.pos[0].x * (double)graphedge.pos[1].y -
+                    (double)graphedge.pos[1].x * (double)graphedge.pos[0].y;
             ++numedges;
-            graphedge = graphedge->next;
         }
         area = fabs(area) * 0.5;
         fprintf(file, "\" fill=\"rgb(%u,%u,%u)\" data-tooltip=\"Site: (%g, %g)&#10;Area: %g&#10;Number of edges: %d\"/>\n",
@@ -398,14 +399,16 @@ static int write_svg(const char* path, int width, int height, const jcv_diagram*
                 (double)site->p.x, (double)site->p.y, area, numedges);
     }
 
-    const jcv_edge* edge = jcv_diagram_get_edges(diagram);
-    while( edge )
+    jcv_edge_iter diagram_edges;
+    jcv_edge edge_value;
+    jcv_diagram_get_edges(diagram, &diagram_edges);
+    while( jcv_edge_next(&diagram_edges, &edge_value) )
     {
+        const jcv_edge* edge = &edge_value;
         jcv_point p0 = remap(&edge->pos[0], &diagram->min, &diagram->max, &dimensions);
         jcv_point p1 = remap(&edge->pos[1], &diagram->min, &diagram->max, &dimensions);
         fprintf(file, "    <line x1=\"%g\" y1=\"%g\" x2=\"%g\" y2=\"%g\" stroke=\"rgb(220,220,220)\" stroke-width=\"1\"/>\n",
                 (double)p0.x, (double)p0.y, (double)p1.x, (double)p1.y);
-        edge = jcv_diagram_get_next_edge(edge);
     }
 
     jcv_delauney_iter delauney;
@@ -427,9 +430,10 @@ static int write_svg(const char* path, int width, int height, const jcv_diagram*
                 (double)p0.x, (double)p0.y, (double)p1.x, (double)p1.y);
     }
 
-    edge = jcv_diagram_get_edges(diagram);
-    while( edge )
+    jcv_diagram_get_edges(diagram, &diagram_edges);
+    while( jcv_edge_next(&diagram_edges, &edge_value) )
     {
+        const jcv_edge* edge = &edge_value;
         jcv_point p0 = remap(&edge->pos[0], &diagram->min, &diagram->max, &dimensions);
         jcv_point p1 = remap(&edge->pos[1], &diagram->min, &diagram->max, &dimensions);
         double dx = (double)edge->pos[1].x - (double)edge->pos[0].x;
@@ -443,21 +447,21 @@ static int write_svg(const char* path, int width, int height, const jcv_diagram*
                 (double)edge->pos[0].x, (double)edge->pos[0].y,
                 (double)edge->pos[1].x, (double)edge->pos[1].y, length);
         fprintf(file, "    </g>\n");
-        edge = jcv_diagram_get_next_edge(edge);
     }
 
     for( int i = 0; i < diagram->numsites; ++i )
     {
         const jcv_site* site = &sites[i];
-        const jcv_graphedge* graphedge = site->edges;
+        jcv_edge_iter site_edges;
+        jcv_edge graphedge;
+        jcv_site_get_edges(diagram, site, &site_edges);
         int numedges = 0;
         double area = 0.0;
-        while( graphedge )
+        while( jcv_edge_next(&site_edges, &graphedge) )
         {
-            area += (double)graphedge->pos[0].x * (double)graphedge->pos[1].y -
-                    (double)graphedge->pos[1].x * (double)graphedge->pos[0].y;
+            area += (double)graphedge.pos[0].x * (double)graphedge.pos[1].y -
+                    (double)graphedge.pos[1].x * (double)graphedge.pos[0].y;
             ++numedges;
-            graphedge = graphedge->next;
         }
 
         area = fabs(area) * 0.5;
@@ -667,6 +671,7 @@ int main(int argc, const char** argv)
 
 
     jcv_clipping_polygon polygon;
+    jcv_clipper polygonclipper;
     jcv_clipper* clipper = 0;
     if (clippoints)
     {
@@ -675,7 +680,6 @@ int main(int argc, const char** argv)
         polygon.num_points = clipcount;
         polygon.points = clippoints;
 
-        jcv_clipper polygonclipper;
         polygonclipper.test_fn = jcv_clip_polygon_test_point;
         polygonclipper.clip_fn = jcv_clip_polygon_clip_edge;
         polygonclipper.fill_fn = jcv_clip_polygon_fill_gaps;
@@ -761,26 +765,29 @@ int main(int argc, const char** argv)
 
                 jcv_point s = remap(&site->p, &diagram.min, &diagram.max, &dimensions );
 
-                const jcv_graphedge* e = site->edges;
-                while( e )
+                jcv_edge_iter site_edges;
+                jcv_edge e;
+                jcv_site_get_edges(&diagram, site, &site_edges);
+                while( jcv_edge_next(&site_edges, &e) )
                 {
-                    jcv_point p0 = remap(&e->pos[0], &diagram.min, &diagram.max, &dimensions );
-                    jcv_point p1 = remap(&e->pos[1], &diagram.min, &diagram.max, &dimensions );
+                    jcv_point p0 = remap(&e.pos[0], &diagram.min, &diagram.max, &dimensions );
+                    jcv_point p1 = remap(&e.pos[1], &diagram.min, &diagram.max, &dimensions );
 
                     draw_triangle( &s, &p0, &p1, image, width, height, 3, color_tri);
-                    e = e->next;
                 }
             }
         }
 
         // If all you need are the edges
-        const jcv_edge* edge = output_svg ? 0 : jcv_diagram_get_edges( &diagram );
-        while( edge )
+        jcv_edge_iter diagram_edges;
+        jcv_edge edge;
+        if( !output_svg )
+            jcv_diagram_get_edges(&diagram, &diagram_edges);
+        while( !output_svg && jcv_edge_next(&diagram_edges, &edge) )
         {
-            jcv_point p0 = remap(&edge->pos[0], &diagram.min, &diagram.max, &dimensions );
-            jcv_point p1 = remap(&edge->pos[1], &diagram.min, &diagram.max, &dimensions );
+            jcv_point p0 = remap(&edge.pos[0], &diagram.min, &diagram.max, &dimensions );
+            jcv_point p1 = remap(&edge.pos[1], &diagram.min, &diagram.max, &dimensions );
             draw_line((int)p0.x, (int)p0.y, (int)p1.x, (int)p1.y, image, width, height, 3, color_line);
-            edge = jcv_diagram_get_next_edge(edge);
         }
 
         jcv_delauney_iter delauney;
