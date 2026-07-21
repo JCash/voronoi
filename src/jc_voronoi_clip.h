@@ -6,20 +6,11 @@
 
 #include "jc_voronoi.h"
 
-#ifndef JCV_DISABLE_STRUCT_PACKING
-#pragma pack(push, 1)
-#endif
-
 typedef struct jcv_clipping_polygon_
 {
     jcv_point* points;
     int num_points;
 } jcv_clipping_polygon;
-
-#ifndef JCV_DISABLE_STRUCT_PACKING
-#pragma pack(pop)
-#endif
-
 
 // Convex polygon clip functions
 int jcv_clip_polygon_test_point(const jcv_clipper* clipper, const jcv_point p);
@@ -229,88 +220,72 @@ static int jcv_find_polygon_edge(const jcv_clipper* clipper, jcv_point p)
 
 void jcv_clip_polygon_fill_gaps(const jcv_clipper* clipper, jcv_context_internal* allocator, jcv_site* site)
 {
-    // They're sorted CCW, so if the current->pos[1] != next->pos[0], then we have a gap
     jcv_clipping_polygon* polygon = (jcv_clipping_polygon*)clipper->ctx;
     int num_points = polygon->num_points;
 
-    jcv_graphedge* current = site->edges;
+    void* current = jcv_clip_site_edge_head(allocator, site);
     if( !current )
     {
-        jcv_graphedge* gap = jcv_alloc_graphedge(allocator);
-        gap->neighbor = 0;
-        // Pick the first edge of the polygon (which is also CCW)
-        gap->pos[0] = polygon->points[0];
-        gap->pos[1] = polygon->points[1];
-        gap->vertices[0] = allocator->numvertices++;
-        gap->vertices[1] = allocator->numvertices++;
-        gap->angle  = jcv_calc_sort_metric(site, gap);
-        gap->next   = 0;
-        gap->edge   = jcv_create_gap_edge(allocator, site, gap);
-
-        current = gap;
-        site->edges = gap;
+        int vertex0 = allocator->numvertices++;
+        int vertex1 = allocator->numvertices++;
+        current = jcv_clip_site_insert_gap(allocator, site, 0, &polygon->points[0], &polygon->points[1], vertex0, vertex1);
     }
 
-    jcv_graphedge* next = current->next;
+    void* next = jcv_clip_site_edge_next(current);
     if( !next )
     {
-        jcv_graphedge* gap = jcv_alloc_graphedge(allocator);
-
-        int polygon_edge = jcv_find_polygon_edge(clipper, current->pos[1]);
-        if (!jcv_point_eq(&current->pos[1], &polygon->points[(polygon_edge+1)%num_points])) {
-            gap->pos[0] = current->pos[1];
-            gap->pos[1] = polygon->points[(polygon_edge+1)%num_points];
-        } else {
-            gap->pos[0] = polygon->points[(polygon_edge+1)%num_points];
-            gap->pos[1] = polygon->points[(polygon_edge+2)%num_points];
+        jcv_edge current_edge;
+        jcv_clip_site_edge_copy(current, &current_edge);
+        int polygon_edge = jcv_find_polygon_edge(clipper, current_edge.pos[1]);
+        jcv_point pos0;
+        jcv_point pos1;
+        if( !jcv_point_eq(&current_edge.pos[1], &polygon->points[(polygon_edge+1)%num_points]) )
+        {
+            pos0 = current_edge.pos[1];
+            pos1 = polygon->points[(polygon_edge+1)%num_points];
         }
-        gap->vertices[0] = current->vertices[1];
-        gap->vertices[1] = allocator->numvertices++;
-
-        gap->neighbor   = 0;
-        gap->angle      = jcv_calc_sort_metric(site, gap);
-        gap->next       = 0;
-        gap->edge       = jcv_create_gap_edge(allocator, site, gap);
-
-        gap->next = current->next;
-        current->next = gap;
-        current = gap;
-        next = site->edges;
+        else
+        {
+            pos0 = polygon->points[(polygon_edge+1)%num_points];
+            pos1 = polygon->points[(polygon_edge+2)%num_points];
+        }
+        current = jcv_clip_site_insert_gap(allocator, site, current, &pos0, &pos1,
+            current_edge.vertices[1], allocator->numvertices++);
+        next = jcv_clip_site_edge_head(allocator, site);
     }
 
-    while (current && next)
+    while( current && next )
     {
-        if (!jcv_point_eq(&current->pos[1], &next->pos[0]))
+        jcv_edge current_edge;
+        jcv_edge next_edge;
+        jcv_clip_site_edge_copy(current, &current_edge);
+        jcv_clip_site_edge_copy(next, &next_edge);
+        if( !jcv_point_eq(&current_edge.pos[1], &next_edge.pos[0]) )
         {
-            int polygon_edge1 = jcv_find_polygon_edge(clipper, current->pos[1]);
-            int polygon_edge2 = jcv_find_polygon_edge(clipper, next->pos[0]);
-
-            jcv_graphedge* gap = jcv_alloc_graphedge(allocator);
-            gap->pos[0] = current->pos[1];
-            gap->vertices[0] = current->vertices[1];
-
-            if (polygon_edge1 != polygon_edge2) {
-                gap->pos[1] = polygon->points[(polygon_edge1+1)%num_points];
-                gap->vertices[1] = allocator->numvertices++;
-            } else {
-                gap->pos[1] = next->pos[0];
-                gap->vertices[1] = next->vertices[0];
+            int polygon_edge1 = jcv_find_polygon_edge(clipper, current_edge.pos[1]);
+            int polygon_edge2 = jcv_find_polygon_edge(clipper, next_edge.pos[0]);
+            jcv_point pos1;
+            int vertex1;
+            if( polygon_edge1 != polygon_edge2 )
+            {
+                pos1 = polygon->points[(polygon_edge1+1)%num_points];
+                vertex1 = allocator->numvertices++;
             }
-
-            gap->neighbor   = 0;
-            gap->angle      = jcv_calc_sort_metric(site, gap);
-            gap->edge       = jcv_create_gap_edge(allocator, site, gap);
-            gap->next       = current->next;
-            current->next   = gap;
+            else
+            {
+                pos1 = next_edge.pos[0];
+                vertex1 = next_edge.vertices[0];
+            }
+            jcv_clip_site_insert_gap(allocator, site, current, &current_edge.pos[1], &pos1,
+                current_edge.vertices[1], vertex1);
         }
 
-        current = current->next;
+        current = jcv_clip_site_edge_next(current);
         if( current )
         {
-            next = current->next;
-            if( !next ) {
-                next = site->edges;
-            }
+            next = jcv_clip_site_edge_next(current);
+            if( !next )
+                next = jcv_clip_site_edge_head(allocator, site);
         }
     }
 }

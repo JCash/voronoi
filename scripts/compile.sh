@@ -32,6 +32,10 @@ CFLAGS="-g -O2 -std=c11 -Wall -Weverything -Wno-double-promotion -Wno-float-equa
 if ${CC} -Werror -Wallocator-wrappers -x c -fsyntax-only /dev/null >/dev/null 2>&1; then
     CFLAGS="${CFLAGS} -Wno-allocator-wrappers"
 fi
+if ${CC} -Werror -Wpadded -x c -fsyntax-only /dev/null >/dev/null 2>&1; then
+    # Natural struct alignment is intentional.
+    CFLAGS="${CFLAGS} -Wno-padded"
+fi
 DOUBLEDEFINES="-Wno-double-promotion -DTEST_USE_DOUBLE -DJCV_USE_DOUBLE=1 -DJCV_REAL_TYPE=double -DJCV_ATAN2=atan2 -DJCV_SQRT=sqrt -DJCV_REAL_TYPE_EPSILON=DBL_EPSILON"
 #CFLAGS="${CFLAGS} ${DOUBLEDEFINES}"
 
