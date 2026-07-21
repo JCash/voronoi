@@ -114,6 +114,41 @@ and writes a 1024 x 768 `example.svg` in the current directory. Run
 `build\main.exe --help` on Windows to see all options, including image size,
 relaxation, input files, and SVG output.
 
+<details>
+<summary>Configuration defines</summary>
+
+Define configuration macros before including `jc_voronoi.h`. Use the same
+configuration in every translation unit that includes the header.
+
+| Define | Purpose | Default |
+|--------|---------|---------|
+| `JC_VORONOI_IMPLEMENTATION` | Emits the implementation; define it in exactly one translation unit | Not defined |
+| `JCV_REAL_TYPE` | Scalar type used for coordinates and calculations | `float` |
+| `JCV_REAL_TYPE_EPSILON` | Epsilon used when comparing scalar values | `FLT_EPSILON` |
+| `JCV_ATAN2` | Two-argument arctangent function matching `JCV_REAL_TYPE` | `atan2f` |
+| `JCV_SQRT` | Square-root function matching `JCV_REAL_TYPE` | `sqrtf` |
+| `JCV_PI` | Pi constant matching `JCV_REAL_TYPE` | Single-precision pi |
+| `JCV_FLT_MAX` | Largest supported coordinate magnitude | `FLT_MAX` equivalent |
+| `JC_VORONOI_CLIP_IMPLEMENTATION` | Emits the optional `jc_voronoi_clip.h` implementation | Not defined |
+
+### Double floating point precision
+
+For double-precision coordinates and calculations, override the scalar type,
+math functions, limits, and constants before including the header:
+
+```C
+#define JCV_REAL_TYPE double
+#define JCV_REAL_TYPE_EPSILON DBL_EPSILON
+#define JCV_ATAN2 atan2
+#define JCV_SQRT sqrt
+#define JCV_FLT_MAX DBL_MAX
+#define JCV_PI 3.14159265358979323846264338327950288
+#define JC_VORONOI_IMPLEMENTATION
+#include "jc_voronoi.h"
+```
+
+</details>
+
 # Usage
 
 * [Migration guide](./MIGRATION_GUIDE.md)
@@ -239,8 +274,7 @@ does not allocate a separate vertex array; clients can create one only when it
 is needed, without comparing floating-point coordinates:
 
 ```C
-jcv_point* vertices = malloc(
-    (size_t)jcv_get_num_vertices(&diagram) * sizeof(*vertices));
+jcv_point* vertices = malloc((size_t)jcv_get_num_vertices(&diagram) * sizeof(*vertices));
 jcv_diagram_get_vertices(&diagram, vertices);
 
 jcv_edge_iter iter;
@@ -283,41 +317,6 @@ void relax_points(const jcv_diagram* diagram, jcv_point* points)
         points[site->index].y = sum.y / count;
     }
 }
-```
-
-</details>
-
-<details>
-<summary>Configuration defines</summary>
-
-Define configuration macros before including `jc_voronoi.h`. Use the same
-configuration in every translation unit that includes the header.
-
-| Define | Purpose | Default |
-|--------|---------|---------|
-| `JC_VORONOI_IMPLEMENTATION` | Emits the implementation; define it in exactly one translation unit | Not defined |
-| `JCV_REAL_TYPE` | Scalar type used for coordinates and calculations | `float` |
-| `JCV_REAL_TYPE_EPSILON` | Epsilon used when comparing scalar values | `FLT_EPSILON` |
-| `JCV_ATAN2` | Two-argument arctangent function matching `JCV_REAL_TYPE` | `atan2f` |
-| `JCV_SQRT` | Square-root function matching `JCV_REAL_TYPE` | `sqrtf` |
-| `JCV_PI` | Pi constant matching `JCV_REAL_TYPE` | Single-precision pi |
-| `JCV_FLT_MAX` | Largest supported coordinate magnitude | `FLT_MAX` equivalent |
-| `JC_VORONOI_CLIP_IMPLEMENTATION` | Emits the optional `jc_voronoi_clip.h` implementation | Not defined |
-
-### Double floating point precision
-
-For double-precision coordinates and calculations, override the scalar type,
-math functions, limits, and constants before including the header:
-
-```C
-#define JCV_REAL_TYPE double
-#define JCV_REAL_TYPE_EPSILON DBL_EPSILON
-#define JCV_ATAN2 atan2
-#define JCV_SQRT sqrt
-#define JCV_FLT_MAX DBL_MAX
-#define JCV_PI 3.14159265358979323846264338327950288
-#define JC_VORONOI_IMPLEMENTATION
-#include "jc_voronoi.h"
 ```
 
 </details>
