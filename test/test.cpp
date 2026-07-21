@@ -830,6 +830,24 @@ TEST_F(VoronoiTest, unique_vertices)
     }
 }
 
+// Issue: https://github.com/JCash/voronoi/issues/83
+TEST_F(VoronoiTest, issue83_fillgaps_terminates)
+{
+    jcv_point points[] = {
+        {1.5484909, -0.21024238},
+        {1.5413352, -0.21024236},
+        {1.5378445, -0.21024236},
+        {1.5343539, -0.21024235},
+        {1.5308806, -0.19333011},
+    };
+    int num_points = (int)(sizeof(points) / sizeof(points[0]));
+    jcv_rect rect = {{-4, -4}, {4, 4}};
+
+    jcv_diagram_generate(num_points, points, &rect, 0, &ctx->diagram);
+
+    ASSERT_EQ(num_points, ctx->diagram.numsites);
+}
+
 TEST_F(VoronoiTest, issue91_cells_are_closed)
 {
     jcv_point points[] = {
