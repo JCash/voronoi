@@ -206,6 +206,36 @@ TEST_F(VoronoiTest, ceil_floor)
     }
 }
 
+TEST_F(VoronoiTest, pseudo_angle_preserves_polar_order)
+{
+    const jcv_point directions[] = {
+        { 1,  0}, { 2,  1}, { 1,  1}, { 1,  2},
+        { 0,  1}, {-1,  2}, {-1,  1}, {-2,  1},
+        {-1,  0}, {-2, -1}, {-1, -1}, {-1, -2},
+        { 0, -1}, { 1, -2}, { 1, -1}, { 2, -1}
+    };
+
+    jcv_real previous = jcv_pseudo_angle(directions[0].x, directions[0].y);
+    ASSERT_EQ((jcv_real)0, previous);
+    for( size_t i = 1; i < sizeof(directions) / sizeof(directions[0]); ++i )
+    {
+        jcv_real current = jcv_pseudo_angle(directions[i].x, directions[i].y);
+        ASSERT_GT(current, previous);
+        previous = current;
+    }
+    ASSERT_LT(previous, (jcv_real)4);
+
+    ASSERT_EQ(jcv_pseudo_angle((jcv_real)1, (jcv_real)1),
+              jcv_pseudo_angle((jcv_real)100, (jcv_real)100));
+    ASSERT_EQ((jcv_real)0, jcv_pseudo_angle((jcv_real)0, (jcv_real)0));
+
+    const jcv_real large = (jcv_real)JCV_FLT_MAX;
+    ASSERT_EQ((jcv_real)0.5, jcv_pseudo_angle(large, large));
+    ASSERT_EQ((jcv_real)1.5, jcv_pseudo_angle(-large, large));
+    ASSERT_EQ((jcv_real)2.5, jcv_pseudo_angle(-large, -large));
+    ASSERT_EQ((jcv_real)3.5, jcv_pseudo_angle(large, -large));
+}
+
 TEST_F(VoronoiTest, parallel_horiz_2)
 {
     jcv_point points[] = { {IMAGE_SIZE/4, IMAGE_SIZE/2}, {(IMAGE_SIZE*3)/4, IMAGE_SIZE/2} };

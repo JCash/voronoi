@@ -1585,6 +1585,35 @@ static inline const jcv_point* jcv_graphedge_pos(const jcv_graphedge* edge, int 
     return &edge->edge->pos[source_index];
 }
 
+// A monotonic mapping of [0, 2*pi) to [0, 4). It preserves polar ordering
+// without the cost of atan2. The scaled fallback avoids overflowing the
+// denominator for very large, finite coordinates.
+static inline jcv_real jcv_pseudo_angle(jcv_real x, jcv_real y)
+{
+    jcv_real absx = jcv_abs(x);
+    jcv_real absy = jcv_abs(y);
+    jcv_real denominator = absx + absy;
+    if( denominator == (jcv_real)0 )
+        return (jcv_real)0;
+
+    jcv_real angle;
+    if( denominator <= (jcv_real)JCV_FLT_MAX )
+    {
+        angle = y / denominator;
+    }
+    else
+    {
+        jcv_real scale = jcv_max(absx, absy);
+        angle = (y / scale) / (absx / scale + absy / scale);
+    }
+
+    if( x < (jcv_real)0 )
+        angle = (jcv_real)2 - angle;
+    else if( y < (jcv_real)0 )
+        angle = (jcv_real)4 + angle;
+    return angle;
+}
+
 static inline jcv_real jcv_calc_sort_metric(const jcv_site* site, const jcv_graphedge* edge)
 {
     const jcv_point* pos0 = jcv_graphedge_pos(edge, 0);
@@ -1592,11 +1621,7 @@ static inline jcv_real jcv_calc_sort_metric(const jcv_site* site, const jcv_grap
     jcv_real half = 1/(jcv_real)2;
     jcv_real x = (pos0->x + pos1->x) * half;
     jcv_real y = (pos0->y + pos1->y) * half;
-    jcv_real diffy = y - site->p.y;
-    jcv_real angle = JCV_ATAN2( diffy, x - site->p.x );
-    if( diffy < 0 )
-        angle = angle + 2 * JCV_PI;
-    return angle;
+    return jcv_pseudo_angle(x - site->p.x, y - site->p.y);
 }
 
 static inline int jcv_graphedge_eq(jcv_graphedge* a, jcv_graphedge* b)
