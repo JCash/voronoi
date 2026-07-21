@@ -286,6 +286,29 @@ while (jcv_edge_next(&iter, &edge))
 }
 ```
 
+To build a mapping from each vertex to its connected sites, iterate over each
+site's edges and link the first endpoint. Since the edges form an ordered,
+closed loop, this visits each vertex of the site exactly once:
+
+```C
+int num_vertices = jcv_get_num_vertices(&diagram);
+allocate_vertex_site_storage(num_vertices);
+
+const jcv_site* sites = jcv_diagram_get_sites(&diagram);
+for( int i = 0; i < diagram.numsites; ++i )
+{
+    const jcv_site* site = &sites[i];
+    jcv_edge_iter iter;
+    jcv_edge edge;
+
+    jcv_site_get_edges(&diagram, site, &iter);
+    while( jcv_edge_next(&iter, &edge) )
+        link_vertex_site(edge.vertices[0], site);
+}
+```
+
+Here, `allocate_vertex_site_storage` and `link_vertex_site` are client-defined.
+
 </details>
 
 <details>
