@@ -456,14 +456,11 @@ int jcv_get_num_vertices( const jcv_diagram* diagram )
 
 void jcv_diagram_get_vertices( const jcv_diagram* diagram, jcv_point* vertices )
 {
-    const jcv_site* sites = diagram->internal->sites;
-    for( int i = 0; i < diagram->numsites; ++i )
+    for( const jcv_edge* edge = jcv_diagram_get_edges(diagram); edge;
+         edge = jcv_diagram_get_next_edge(edge) )
     {
-        for( const jcv_graphedge* edge = sites[i].edges; edge; edge = edge->next )
-        {
-            vertices[edge->vertices[0]] = edge->pos[0];
-            vertices[edge->vertices[1]] = edge->pos[1];
-        }
+        vertices[edge->vertices[0]] = edge->pos[0];
+        vertices[edge->vertices[1]] = edge->pos[1];
     }
 }
 
