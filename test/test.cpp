@@ -1012,6 +1012,54 @@ TEST_F(VoronoiTest, issue_missing_border_edges)
     ASSERT_EQ(5, edge_count);
 }
 
+TEST_F(VoronoiTest, issue68_two_sites_have_all_clipping_edges)
+{
+#if defined(TEST_USE_DOUBLE)
+    const jcv_point points[] = {
+        {888.19238281250000, 377.82843017578125},
+        {914.00000000000000, 341.00000000000000},
+    };
+    const int expected_edge_counts[] = {5, 3};
+#else
+    const jcv_point points[] = {
+        {883.382263f, 340.749908f},
+        {850.622253f, 378.323486f},
+    };
+    const int expected_edge_counts[] = {3, 5};
+#endif
+    const int num_points = (int)(sizeof(points) / sizeof(points[0]));
+    const jcv_rect rect = {{600, 250}, {1000, 650}};
+
+    jcv_diagram_generate(num_points, points, &rect, 0, &ctx->diagram);
+    ASSERT_EQ(num_points, ctx->diagram.numsites);
+
+    const jcv_site* sites = jcv_diagram_get_sites(&ctx->diagram);
+    bool seen[] = {false, false};
+    for( int i = 0; i < ctx->diagram.numsites; ++i )
+    {
+        int point_index = -1;
+        for( int j = 0; j < num_points; ++j )
+        {
+            if( check_point_eq(&points[j], &sites[i].p) )
+            {
+                point_index = j;
+                break;
+            }
+        }
+        ASSERT_NE(-1, point_index);
+        ASSERT_FALSE(seen[point_index]);
+        seen[point_index] = true;
+        ASSERT_EQ(1, is_closed_loop(&ctx->diagram, &sites[i]));
+
+        int edge_count = 0;
+        test_graphedge_iter graph_iter;
+        test_site_get_edges(&ctx->diagram, &sites[i], &graph_iter);
+        while( test_graphedge_next(&graph_iter) )
+            ++edge_count;
+        ASSERT_EQ(expected_edge_counts[point_index], edge_count);
+    }
+}
+
 TEST_F(VoronoiTest, issue47_no_invalid_edges_span_clipping_rect)
 {
     const jcv_point points[] = {
