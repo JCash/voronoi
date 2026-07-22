@@ -2177,7 +2177,10 @@ ABOUT:
     A fast single file 2D voronoi diagram generator
 
 HISTORY:
-    0.10    2026-07-21  - Replaced persistent graph-edge copies with shared edges and iterators
+    0.10    2026-07-22  - Replaced the Red-Black beachline tree with RAVL
+                          Optimized edge sorting with an overflow-safe pseudo-angle
+                          Skipped gap filling for interior cells when using the default box clipper
+            2026-07-21  - Replaced persistent graph-edge copies with shared edges and iterators
             2026-07-20  - Build per-site edge topology after the sweep
             2026-07-20  - Added unique vertex indices and vertex extraction
             2026-07-20  - Fix invalid topology handling for near-collinear sites
