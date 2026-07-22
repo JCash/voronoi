@@ -1015,24 +1015,24 @@ static int jcv_halfedge_rightof(const jcv_halfedge* he, const jcv_point* p)
 // be found in logarithmic time.
 static void jcv_beachline_init(jcv_context_internal* internal)
 {
-    jcv_halfedge* nil = &internal->beachline_nil;
-    memset(nil, 0, sizeof(*nil));
-    nil->tree_parent = nil;
-    nil->tree_left = nil;
-    nil->tree_right = nil;
-    nil->tree_rank = 0;
-    internal->beachline_root = nil;
+    jcv_halfedge* sentinel = &internal->beachline_nil;
+    memset(sentinel, 0, sizeof(*sentinel));
+    sentinel->tree_parent = sentinel;
+    sentinel->tree_left = sentinel;
+    sentinel->tree_right = sentinel;
+    sentinel->tree_rank = 0;
+    internal->beachline_root = sentinel;
 }
 
 static void jcv_tree_rotate_left(jcv_context_internal* internal, jcv_halfedge* node)
 {
-    jcv_halfedge* nil = &internal->beachline_nil;
+    jcv_halfedge* sentinel = &internal->beachline_nil;
     jcv_halfedge* child = node->tree_right;
     node->tree_right = child->tree_left;
-    if (child->tree_left != nil)
+    if (child->tree_left != sentinel)
         child->tree_left->tree_parent = node;
     child->tree_parent = node->tree_parent;
-    if (node->tree_parent == nil)
+    if (node->tree_parent == sentinel)
         internal->beachline_root = child;
     else if (node == node->tree_parent->tree_left)
         node->tree_parent->tree_left = child;
@@ -1044,13 +1044,13 @@ static void jcv_tree_rotate_left(jcv_context_internal* internal, jcv_halfedge* n
 
 static void jcv_tree_rotate_right(jcv_context_internal* internal, jcv_halfedge* node)
 {
-    jcv_halfedge* nil = &internal->beachline_nil;
+    jcv_halfedge* sentinel = &internal->beachline_nil;
     jcv_halfedge* child = node->tree_left;
     node->tree_left = child->tree_right;
-    if (child->tree_right != nil)
+    if (child->tree_right != sentinel)
         child->tree_right->tree_parent = node;
     child->tree_parent = node->tree_parent;
-    if (node->tree_parent == nil)
+    if (node->tree_parent == sentinel)
         internal->beachline_root = child;
     else if (node == node->tree_parent->tree_right)
         node->tree_parent->tree_right = child;
@@ -1062,16 +1062,16 @@ static void jcv_tree_rotate_right(jcv_context_internal* internal, jcv_halfedge* 
 
 static jcv_halfedge* jcv_tree_minimum(jcv_context_internal* internal, jcv_halfedge* node)
 {
-    jcv_halfedge* nil = &internal->beachline_nil;
-    while (node->tree_left != nil)
+    jcv_halfedge* sentinel = &internal->beachline_nil;
+    while (node->tree_left != sentinel)
         node = node->tree_left;
     return node;
 }
 
 static void jcv_tree_transplant(jcv_context_internal* internal, jcv_halfedge* oldnode, jcv_halfedge* newnode)
 {
-    jcv_halfedge* nil = &internal->beachline_nil;
-    if (oldnode->tree_parent == nil)
+    jcv_halfedge* sentinel = &internal->beachline_nil;
+    if (oldnode->tree_parent == sentinel)
         internal->beachline_root = newnode;
     else if (oldnode == oldnode->tree_parent->tree_left)
         oldnode->tree_parent->tree_left = newnode;
@@ -1080,9 +1080,9 @@ static void jcv_tree_transplant(jcv_context_internal* internal, jcv_halfedge* ol
     newnode->tree_parent = oldnode->tree_parent;
 }
 
-static int jcv_ravl_rank(const jcv_halfedge* node, const jcv_halfedge* nil)
+static int jcv_ravl_rank(const jcv_halfedge* node, const jcv_halfedge* sentinel)
 {
-    return node == nil ? -1 : (int)node->tree_rank;
+    return node == sentinel ? -1 : (int)node->tree_rank;
 }
 
 // RAVL insertion is rank-balanced like AVL insertion, but deletion is relaxed.
@@ -1091,31 +1091,31 @@ static int jcv_ravl_rank(const jcv_halfedge* node, const jcv_halfedge* nil)
 // reaches that path.
 static void jcv_ravl_insert_fixup(jcv_context_internal* internal, jcv_halfedge* node)
 {
-    jcv_halfedge* nil = &internal->beachline_nil;
+    jcv_halfedge* sentinel = &internal->beachline_nil;
     jcv_halfedge* parent = node->tree_parent;
 
     // A 0-child rank difference is fixed by promotion while the sibling has
     // rank difference 1. This propagates the violation toward the root without
     // rotating.
-    while (parent != nil && parent->tree_rank == node->tree_rank)
+    while (parent != sentinel && parent->tree_rank == node->tree_rank)
     {
         int node_is_right = parent->tree_right == node;
         jcv_halfedge* sibling = node_is_right ? parent->tree_left : parent->tree_right;
-        int sibling_difference = (int)parent->tree_rank - jcv_ravl_rank(sibling, nil);
+        int sibling_difference = (int)parent->tree_rank - jcv_ravl_rank(sibling, sentinel);
         if (sibling_difference != 1)
             break;
         ++parent->tree_rank;
         node = parent;
         parent = node->tree_parent;
     }
-    if (parent == nil || parent->tree_rank != node->tree_rank)
+    if (parent == sentinel || parent->tree_rank != node->tree_rank)
         return;
 
     // Promotion stopped at a 0,2 violation. Use a single outer rotation when
     // the inserted path is straight, otherwise a double inner rotation.
     int node_is_right = parent->tree_right == node;
     jcv_halfedge* inner = node_is_right ? node->tree_left : node->tree_right;
-    int inner_difference = (int)node->tree_rank - jcv_ravl_rank(inner, nil);
+    int inner_difference = (int)node->tree_rank - jcv_ravl_rank(inner, sentinel);
     if (inner_difference >= 2)
     {
         if (node_is_right)
@@ -1143,12 +1143,12 @@ static void jcv_ravl_insert_fixup(jcv_context_internal* internal, jcv_halfedge* 
 
 static void jcv_ravl_remove(jcv_context_internal* internal, jcv_halfedge* node)
 {
-    jcv_halfedge* nil = &internal->beachline_nil;
-    if (node->tree_left == nil)
+    jcv_halfedge* sentinel = &internal->beachline_nil;
+    if (node->tree_left == sentinel)
     {
         jcv_tree_transplant(internal, node, node->tree_right);
     }
-    else if (node->tree_right == nil)
+    else if (node->tree_right == sentinel)
     {
         jcv_tree_transplant(internal, node, node->tree_left);
     }
@@ -1169,33 +1169,33 @@ static void jcv_ravl_remove(jcv_context_internal* internal, jcv_halfedge* node)
 
     // RAVL deliberately performs no deletion rotations. Resetting detached
     // nodes catches accidental reuse and keeps the sentinel self-contained.
-    node->tree_parent = nil;
-    node->tree_left = nil;
-    node->tree_right = nil;
+    node->tree_parent = sentinel;
+    node->tree_left = sentinel;
+    node->tree_right = sentinel;
     node->tree_rank = 0;
-    nil->tree_parent = nil;
+    sentinel->tree_parent = sentinel;
 }
 
 static void jcv_beachline_insert_after(jcv_context_internal* internal, jcv_halfedge* after, jcv_halfedge* node)
 {
-    jcv_halfedge* nil = &internal->beachline_nil;
-    jcv_halfedge* parent = nil;
+    jcv_halfedge* sentinel = &internal->beachline_nil;
+    jcv_halfedge* parent = sentinel;
 
-    node->tree_left = nil;
-    node->tree_right = nil;
+    node->tree_left = sentinel;
+    node->tree_right = sentinel;
     node->tree_rank = 0;
 
-    if (internal->beachline_root == nil)
+    if (internal->beachline_root == sentinel)
     {
         internal->beachline_root = node;
     }
     else if (after == internal->beachline_start)
     {
         parent = jcv_tree_minimum(internal, internal->beachline_root);
-        assert(parent->tree_left == nil);
+        assert(parent->tree_left == sentinel);
         parent->tree_left = node;
     }
-    else if (after->tree_right == nil)
+    else if (after->tree_right == sentinel)
     {
         parent = after;
         parent->tree_right = node;
@@ -1203,7 +1203,7 @@ static void jcv_beachline_insert_after(jcv_context_internal* internal, jcv_halfe
     else
     {
         parent = jcv_tree_minimum(internal, after->tree_right);
-        assert(parent->tree_left == nil);
+        assert(parent->tree_left == sentinel);
         parent->tree_left = node;
     }
 
@@ -1401,10 +1401,10 @@ static inline jcv_site* jcv_nextsite(jcv_context_internal* internal)
 static jcv_halfedge* jcv_get_edge_above_x(jcv_context_internal* internal, const jcv_point* p)
 {
     // Gets the arc on the beach line at the x coordinate (i.e. right above the new site event)
-    jcv_halfedge* nil = &internal->beachline_nil;
+    jcv_halfedge* sentinel = &internal->beachline_nil;
     jcv_halfedge* node = internal->beachline_root;
     jcv_halfedge* predecessor = internal->beachline_start;
-    while (node != nil)
+    while (node != sentinel)
     {
         if (jcv_halfedge_rightof(node, p))
         {
