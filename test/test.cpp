@@ -835,6 +835,61 @@ static inline int is_closed_loop(const jcv_diagram* diagram, const jcv_site* sit
                         test_graphedge_get_position(diagram, first, 0));
 }
 
+#if 0
+// TODO: Re-enable when degenerate circle events have a shared robustness
+// policy for the Red-Black and RAVL beach-line implementations. See
+// ../plan_degenerate_inputs.md.
+static inline int is_counter_clockwise(const jcv_diagram* diagram, const jcv_site* site)
+{
+    double twice_area = 0.0;
+    test_graphedge_iter iter;
+    test_site_get_edges(diagram, site, &iter);
+    for( const jcv_edge* edge = test_graphedge_next(&iter); edge; edge = test_graphedge_next(&iter) )
+    {
+        const jcv_point* p0 = test_graphedge_get_position(diagram, edge, 0);
+        const jcv_point* p1 = test_graphedge_get_position(diagram, edge, 1);
+        double x0 = (double)p0->x - (double)site->p.x;
+        double y0 = (double)p0->y - (double)site->p.y;
+        double x1 = (double)p1->x - (double)site->p.x;
+        double y1 = (double)p1->y - (double)site->p.y;
+        twice_area += x0 * y1 - y0 * x1;
+    }
+    return twice_area > 0.0;
+}
+
+static uint32_t near_cocircular_random_next(uint32_t* state)
+{
+    *state = *state * UINT32_C(1664525) + UINT32_C(1013904223);
+    return *state;
+}
+
+TEST_F(VoronoiTest, near_cocircular_cells_are_closed_and_ccw)
+{
+    const int num_points = 1000;
+    jcv_point* points = new jcv_point[num_points];
+    uint32_t state = 45;
+    for( int i = 0; i < num_points; ++i )
+    {
+        float angle = 6.2831853071795864769f * (float)i / (float)num_points;
+        float radius = 3000.0f + (float)(near_cocircular_random_next(&state) % 7) * 0.0001f;
+        points[i].x = (jcv_real)(5000.0f + radius * cosf(angle));
+        points[i].y = (jcv_real)(5000.0f + radius * sinf(angle));
+    }
+    jcv_rect rect = {{-100, -100}, {10100, 10100}};
+    jcv_diagram_generate(num_points, points, &rect, 0, &ctx->diagram);
+
+    ASSERT_EQ(num_points, ctx->diagram.numsites);
+    ASSERT_EQ(0, validate_vertex_indices(&ctx->diagram));
+    const jcv_site* sites = jcv_diagram_get_sites(&ctx->diagram);
+    for( int i = 0; i < ctx->diagram.numsites; ++i )
+    {
+        ASSERT_TRUE(is_closed_loop(&ctx->diagram, &sites[i]));
+        ASSERT_TRUE(is_counter_clockwise(&ctx->diagram, &sites[i]));
+    }
+    delete[] points;
+}
+#endif
+
 static int collect_rb_inorder(jcv_halfedge* node, jcv_halfedge* nil, jcv_halfedge** nodes, int count)
 {
     if (node == nil)
