@@ -837,7 +837,7 @@ static inline int is_closed_loop(const jcv_diagram* diagram, const jcv_site* sit
 
 #if 0
 // TODO: Re-enable when degenerate circle events have a shared robustness
-// policy for the Red-Black and RAVL beach-line implementations. See
+// policy independent of the beach-line tree implementation. See
 // ../plan_degenerate_inputs.md.
 static inline int is_counter_clockwise(const jcv_diagram* diagram, const jcv_site* site)
 {
@@ -890,47 +890,44 @@ TEST_F(VoronoiTest, near_cocircular_cells_are_closed_and_ccw)
 }
 #endif
 
-static int collect_rb_inorder(jcv_halfedge* node, jcv_halfedge* nil, jcv_halfedge** nodes, int count)
+static int collect_tree_inorder(jcv_halfedge* node, jcv_halfedge* nil, jcv_halfedge** nodes, int count)
 {
     if (node == nil)
         return count;
-    count = collect_rb_inorder(node->rb_left, nil, nodes, count);
+    count = collect_tree_inorder(node->tree_left, nil, nodes, count);
     nodes[count++] = node;
-    return collect_rb_inorder(node->rb_right, nil, nodes, count);
+    return collect_tree_inorder(node->tree_right, nil, nodes, count);
 }
 
-static int validate_rb_node(jcv_halfedge* node, jcv_halfedge* nil, jcv_halfedge* parent)
+static int validate_ravl_node(jcv_halfedge* node, jcv_halfedge* nil, jcv_halfedge* parent)
 {
     if (node == nil)
-        return 1;
+        return -1;
 
-    EXPECT_EQ(parent, node->rb_parent);
-    if (node->rb_red)
-    {
-        EXPECT_EQ(0, node->rb_left->rb_red);
-        EXPECT_EQ(0, node->rb_right->rb_red);
-    }
-
-    int left_height = validate_rb_node(node->rb_left, nil, node);
-    int right_height = validate_rb_node(node->rb_right, nil, node);
-    EXPECT_EQ(left_height, right_height);
-    return left_height + (node->rb_red ? 0 : 1);
+    EXPECT_EQ(parent, node->tree_parent);
+    int left_height = validate_ravl_node(node->tree_left, nil, node);
+    int right_height = validate_ravl_node(node->tree_right, nil, node);
+    int left_rank = node->tree_left == nil ? -1 : (int)node->tree_left->tree_rank;
+    int right_rank = node->tree_right == nil ? -1 : (int)node->tree_right->tree_rank;
+    EXPECT_LT(left_rank, (int)node->tree_rank);
+    EXPECT_LT(right_rank, (int)node->tree_rank);
+    int height = 1 + (left_height > right_height ? left_height : right_height);
+    EXPECT_LE(height, (int)node->tree_rank);
+    return height;
 }
 
 static void validate_beachline(jcv_context_internal* internal, int expected_count)
 {
     jcv_halfedge* nil = &internal->beachline_nil;
-    ASSERT_EQ(0, nil->rb_red);
 
     if (internal->beachline_root != nil)
     {
-        ASSERT_EQ(nil, internal->beachline_root->rb_parent);
-        ASSERT_EQ(0, internal->beachline_root->rb_red);
-        validate_rb_node(internal->beachline_root, nil, nil);
+        ASSERT_EQ(nil, internal->beachline_root->tree_parent);
+        validate_ravl_node(internal->beachline_root, nil, nil);
     }
 
     jcv_halfedge* tree_nodes[32];
-    int tree_count = collect_rb_inorder(internal->beachline_root, nil, tree_nodes, 0);
+    int tree_count = collect_tree_inorder(internal->beachline_root, nil, tree_nodes, 0);
     ASSERT_EQ(expected_count, tree_count);
 
     int list_count = 0;
@@ -946,7 +943,7 @@ static void validate_beachline(jcv_context_internal* internal, int expected_coun
     ASSERT_EQ(expected_count, list_count);
 }
 
-TEST_F(VoronoiTest, beachline_rb_insert_remove)
+TEST_F(VoronoiTest, beachline_ravl_insert_remove)
 {
     jcv_context_internal internal;
     jcv_halfedge start;
