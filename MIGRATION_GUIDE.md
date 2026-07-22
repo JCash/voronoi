@@ -67,3 +67,7 @@ site.
 Public structs are no longer packed and several layouts changed. Rebuild all
 code that uses the header; do not mix 0.9 and 0.10 objects across an ABI
 boundary.
+
+`JCV_DISABLE_STRUCT_PACKING` was removed because struct packing is no longer
+used. Remove this define from build configurations; defining it has no effect
+in 0.10.
