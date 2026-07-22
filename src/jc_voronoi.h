@@ -132,7 +132,8 @@ struct jcv_point_
 struct jcv_site_
 {
     jcv_point       p;
-    int             index;  // Index into the original list of points
+    uint32_t        index : 31; // Index into the original input points
+    uint32_t        boundary : 1; // The site's cell touches the clipping boundary
 };
 
 // The coefficients a, b and c are from the general line equation: ax * by + c = 0
@@ -368,14 +369,14 @@ typedef struct jcv_halfedge_
     jcv_edge_internal*      edge;
     struct jcv_halfedge_*   left;
     struct jcv_halfedge_*   right;
-    struct jcv_halfedge_*   rb_parent;
-    struct jcv_halfedge_*   rb_left;
-    struct jcv_halfedge_*   rb_right;
+    struct jcv_halfedge_*   tree_parent;
+    struct jcv_halfedge_*   tree_left;
+    struct jcv_halfedge_*   tree_right;
     jcv_point               vertex;
     jcv_real                y;
-    int                     direction; // 0=left, 1=right
+    uint32_t                direction : 1; // 0=left, 1=right
+    uint32_t                tree_rank : 31;
     int                     pqpos;
-    uint8_t                 rb_red;
 } jcv_halfedge;
 
 typedef struct jcv_memoryblock_
@@ -929,12 +930,12 @@ static inline jcv_halfedge* jcv_halfedge_new(jcv_context_internal* internal, jcv
     he->edge        = e;
     he->left        = 0;
     he->right       = 0;
-    he->rb_parent   = &internal->beachline_nil;
-    he->rb_left     = &internal->beachline_nil;
-    he->rb_right    = &internal->beachline_nil;
-    he->direction   = direction;
+    he->tree_parent = &internal->beachline_nil;
+    he->tree_left   = &internal->beachline_nil;
+    he->tree_right  = &internal->beachline_nil;
+    he->direction   = (uint32_t)direction;
+    he->tree_rank   = 0;
     he->pqpos       = 0;
-    he->rb_red      = 0;
     // These are set outside
     //he->y
     //he->vertex
@@ -1010,244 +1011,169 @@ static int jcv_halfedge_rightof(const jcv_halfedge* he, const jcv_point* p)
 }
 
 // The linked beachline provides constant-time neighboring halfedges. The
-// red-black tree indexes that same order so the predecessor at a site event can
+// rank-balanced RAVL tree indexes that order so a site's predecessor can
 // be found in logarithmic time.
 static void jcv_beachline_init(jcv_context_internal* internal)
 {
     jcv_halfedge* nil = &internal->beachline_nil;
     memset(nil, 0, sizeof(*nil));
-    nil->rb_parent = nil;
-    nil->rb_left = nil;
-    nil->rb_right = nil;
-    nil->rb_red = 0;
+    nil->tree_parent = nil;
+    nil->tree_left = nil;
+    nil->tree_right = nil;
+    nil->tree_rank = 0;
     internal->beachline_root = nil;
 }
 
-static void jcv_rb_rotate_left(jcv_context_internal* internal, jcv_halfedge* node)
+static void jcv_tree_rotate_left(jcv_context_internal* internal, jcv_halfedge* node)
 {
     jcv_halfedge* nil = &internal->beachline_nil;
-    jcv_halfedge* child = node->rb_right;
-    node->rb_right = child->rb_left;
-    if (child->rb_left != nil)
-        child->rb_left->rb_parent = node;
-    child->rb_parent = node->rb_parent;
-    if (node->rb_parent == nil)
+    jcv_halfedge* child = node->tree_right;
+    node->tree_right = child->tree_left;
+    if (child->tree_left != nil)
+        child->tree_left->tree_parent = node;
+    child->tree_parent = node->tree_parent;
+    if (node->tree_parent == nil)
         internal->beachline_root = child;
-    else if (node == node->rb_parent->rb_left)
-        node->rb_parent->rb_left = child;
+    else if (node == node->tree_parent->tree_left)
+        node->tree_parent->tree_left = child;
     else
-        node->rb_parent->rb_right = child;
-    child->rb_left = node;
-    node->rb_parent = child;
+        node->tree_parent->tree_right = child;
+    child->tree_left = node;
+    node->tree_parent = child;
 }
 
-static void jcv_rb_rotate_right(jcv_context_internal* internal, jcv_halfedge* node)
+static void jcv_tree_rotate_right(jcv_context_internal* internal, jcv_halfedge* node)
 {
     jcv_halfedge* nil = &internal->beachline_nil;
-    jcv_halfedge* child = node->rb_left;
-    node->rb_left = child->rb_right;
-    if (child->rb_right != nil)
-        child->rb_right->rb_parent = node;
-    child->rb_parent = node->rb_parent;
-    if (node->rb_parent == nil)
+    jcv_halfedge* child = node->tree_left;
+    node->tree_left = child->tree_right;
+    if (child->tree_right != nil)
+        child->tree_right->tree_parent = node;
+    child->tree_parent = node->tree_parent;
+    if (node->tree_parent == nil)
         internal->beachline_root = child;
-    else if (node == node->rb_parent->rb_right)
-        node->rb_parent->rb_right = child;
+    else if (node == node->tree_parent->tree_right)
+        node->tree_parent->tree_right = child;
     else
-        node->rb_parent->rb_left = child;
-    child->rb_right = node;
-    node->rb_parent = child;
+        node->tree_parent->tree_left = child;
+    child->tree_right = node;
+    node->tree_parent = child;
 }
 
-static void jcv_rb_insert_fixup(jcv_context_internal* internal, jcv_halfedge* node)
-{
-    while (node->rb_parent->rb_red)
-    {
-        if (node->rb_parent == node->rb_parent->rb_parent->rb_left)
-        {
-            jcv_halfedge* uncle = node->rb_parent->rb_parent->rb_right;
-            if (uncle->rb_red)
-            {
-                node->rb_parent->rb_red = 0;
-                uncle->rb_red = 0;
-                node->rb_parent->rb_parent->rb_red = 1;
-                node = node->rb_parent->rb_parent;
-            }
-            else
-            {
-                if (node == node->rb_parent->rb_right)
-                {
-                    node = node->rb_parent;
-                    jcv_rb_rotate_left(internal, node);
-                }
-                node->rb_parent->rb_red = 0;
-                node->rb_parent->rb_parent->rb_red = 1;
-                jcv_rb_rotate_right(internal, node->rb_parent->rb_parent);
-            }
-        }
-        else
-        {
-            jcv_halfedge* uncle = node->rb_parent->rb_parent->rb_left;
-            if (uncle->rb_red)
-            {
-                node->rb_parent->rb_red = 0;
-                uncle->rb_red = 0;
-                node->rb_parent->rb_parent->rb_red = 1;
-                node = node->rb_parent->rb_parent;
-            }
-            else
-            {
-                if (node == node->rb_parent->rb_left)
-                {
-                    node = node->rb_parent;
-                    jcv_rb_rotate_right(internal, node);
-                }
-                node->rb_parent->rb_red = 0;
-                node->rb_parent->rb_parent->rb_red = 1;
-                jcv_rb_rotate_left(internal, node->rb_parent->rb_parent);
-            }
-        }
-    }
-    internal->beachline_root->rb_red = 0;
-}
-
-static jcv_halfedge* jcv_rb_minimum(jcv_context_internal* internal, jcv_halfedge* node)
+static jcv_halfedge* jcv_tree_minimum(jcv_context_internal* internal, jcv_halfedge* node)
 {
     jcv_halfedge* nil = &internal->beachline_nil;
-    while (node->rb_left != nil)
-        node = node->rb_left;
+    while (node->tree_left != nil)
+        node = node->tree_left;
     return node;
 }
 
-static void jcv_rb_transplant(jcv_context_internal* internal, jcv_halfedge* oldnode, jcv_halfedge* newnode)
+static void jcv_tree_transplant(jcv_context_internal* internal, jcv_halfedge* oldnode, jcv_halfedge* newnode)
 {
     jcv_halfedge* nil = &internal->beachline_nil;
-    if (oldnode->rb_parent == nil)
+    if (oldnode->tree_parent == nil)
         internal->beachline_root = newnode;
-    else if (oldnode == oldnode->rb_parent->rb_left)
-        oldnode->rb_parent->rb_left = newnode;
+    else if (oldnode == oldnode->tree_parent->tree_left)
+        oldnode->tree_parent->tree_left = newnode;
     else
-        oldnode->rb_parent->rb_right = newnode;
-    newnode->rb_parent = oldnode->rb_parent;
+        oldnode->tree_parent->tree_right = newnode;
+    newnode->tree_parent = oldnode->tree_parent;
 }
 
-static void jcv_rb_remove_fixup(jcv_context_internal* internal, jcv_halfedge* node)
+static int jcv_ravl_rank(const jcv_halfedge* node, const jcv_halfedge* nil)
 {
-    while (node != internal->beachline_root && !node->rb_red)
-    {
-        if (node == node->rb_parent->rb_left)
-        {
-            jcv_halfedge* sibling = node->rb_parent->rb_right;
-            if (sibling->rb_red)
-            {
-                sibling->rb_red = 0;
-                node->rb_parent->rb_red = 1;
-                jcv_rb_rotate_left(internal, node->rb_parent);
-                sibling = node->rb_parent->rb_right;
-            }
-            if (!sibling->rb_left->rb_red && !sibling->rb_right->rb_red)
-            {
-                sibling->rb_red = 1;
-                node = node->rb_parent;
-            }
-            else
-            {
-                if (!sibling->rb_right->rb_red)
-                {
-                    sibling->rb_left->rb_red = 0;
-                    sibling->rb_red = 1;
-                    jcv_rb_rotate_right(internal, sibling);
-                    sibling = node->rb_parent->rb_right;
-                }
-                sibling->rb_red = node->rb_parent->rb_red;
-                node->rb_parent->rb_red = 0;
-                sibling->rb_right->rb_red = 0;
-                jcv_rb_rotate_left(internal, node->rb_parent);
-                node = internal->beachline_root;
-            }
-        }
-        else
-        {
-            jcv_halfedge* sibling = node->rb_parent->rb_left;
-            if (sibling->rb_red)
-            {
-                sibling->rb_red = 0;
-                node->rb_parent->rb_red = 1;
-                jcv_rb_rotate_right(internal, node->rb_parent);
-                sibling = node->rb_parent->rb_left;
-            }
-            if (!sibling->rb_right->rb_red && !sibling->rb_left->rb_red)
-            {
-                sibling->rb_red = 1;
-                node = node->rb_parent;
-            }
-            else
-            {
-                if (!sibling->rb_left->rb_red)
-                {
-                    sibling->rb_right->rb_red = 0;
-                    sibling->rb_red = 1;
-                    jcv_rb_rotate_left(internal, sibling);
-                    sibling = node->rb_parent->rb_left;
-                }
-                sibling->rb_red = node->rb_parent->rb_red;
-                node->rb_parent->rb_red = 0;
-                sibling->rb_left->rb_red = 0;
-                jcv_rb_rotate_right(internal, node->rb_parent);
-                node = internal->beachline_root;
-            }
-        }
-    }
-    node->rb_red = 0;
+    return node == nil ? -1 : (int)node->tree_rank;
 }
 
-static void jcv_rb_remove(jcv_context_internal* internal, jcv_halfedge* node)
+// RAVL insertion is rank-balanced like AVL insertion, but deletion is relaxed.
+// A node's rank must remain greater than both child ranks; stale excess rank
+// left by deletion is allowed and is repaired only when a later insertion
+// reaches that path.
+static void jcv_ravl_insert_fixup(jcv_context_internal* internal, jcv_halfedge* node)
 {
     jcv_halfedge* nil = &internal->beachline_nil;
-    jcv_halfedge* replacement = node;
-    jcv_halfedge* child;
-    uint8_t replacement_was_red = replacement->rb_red;
+    jcv_halfedge* parent = node->tree_parent;
 
-    if (node->rb_left == nil)
+    // A 0-child rank difference is fixed by promotion while the sibling has
+    // rank difference 1. This propagates the violation toward the root without
+    // rotating.
+    while (parent != nil && parent->tree_rank == node->tree_rank)
     {
-        child = node->rb_right;
-        jcv_rb_transplant(internal, node, node->rb_right);
+        int node_is_right = parent->tree_right == node;
+        jcv_halfedge* sibling = node_is_right ? parent->tree_left : parent->tree_right;
+        int sibling_difference = (int)parent->tree_rank - jcv_ravl_rank(sibling, nil);
+        if (sibling_difference != 1)
+            break;
+        ++parent->tree_rank;
+        node = parent;
+        parent = node->tree_parent;
     }
-    else if (node->rb_right == nil)
+    if (parent == nil || parent->tree_rank != node->tree_rank)
+        return;
+
+    // Promotion stopped at a 0,2 violation. Use a single outer rotation when
+    // the inserted path is straight, otherwise a double inner rotation.
+    int node_is_right = parent->tree_right == node;
+    jcv_halfedge* inner = node_is_right ? node->tree_left : node->tree_right;
+    int inner_difference = (int)node->tree_rank - jcv_ravl_rank(inner, nil);
+    if (inner_difference >= 2)
     {
-        child = node->rb_left;
-        jcv_rb_transplant(internal, node, node->rb_left);
+        if (node_is_right)
+            jcv_tree_rotate_left(internal, parent);
+        else
+            jcv_tree_rotate_right(internal, parent);
+        --parent->tree_rank;
     }
     else
     {
-        replacement = jcv_rb_minimum(internal, node->rb_right);
-        replacement_was_red = replacement->rb_red;
-        child = replacement->rb_right;
-        if (replacement->rb_parent == node)
-        {
-            child->rb_parent = replacement;
-        }
+        assert(inner_difference == 1);
+        if (node_is_right)
+            jcv_tree_rotate_right(internal, node);
         else
+            jcv_tree_rotate_left(internal, node);
+        if (node_is_right)
+            jcv_tree_rotate_left(internal, parent);
+        else
+            jcv_tree_rotate_right(internal, parent);
+        ++inner->tree_rank;
+        --node->tree_rank;
+        --parent->tree_rank;
+    }
+}
+
+static void jcv_ravl_remove(jcv_context_internal* internal, jcv_halfedge* node)
+{
+    jcv_halfedge* nil = &internal->beachline_nil;
+    if (node->tree_left == nil)
+    {
+        jcv_tree_transplant(internal, node, node->tree_right);
+    }
+    else if (node->tree_right == nil)
+    {
+        jcv_tree_transplant(internal, node, node->tree_left);
+    }
+    else
+    {
+        jcv_halfedge* replacement = jcv_tree_minimum(internal, node->tree_right);
+        if (replacement->tree_parent != node)
         {
-            jcv_rb_transplant(internal, replacement, replacement->rb_right);
-            replacement->rb_right = node->rb_right;
-            replacement->rb_right->rb_parent = replacement;
+            jcv_tree_transplant(internal, replacement, replacement->tree_right);
+            replacement->tree_right = node->tree_right;
+            replacement->tree_right->tree_parent = replacement;
         }
-        jcv_rb_transplant(internal, node, replacement);
-        replacement->rb_left = node->rb_left;
-        replacement->rb_left->rb_parent = replacement;
-        replacement->rb_red = node->rb_red;
+        jcv_tree_transplant(internal, node, replacement);
+        replacement->tree_left = node->tree_left;
+        replacement->tree_left->tree_parent = replacement;
+        replacement->tree_rank = node->tree_rank;
     }
 
-    if (!replacement_was_red)
-        jcv_rb_remove_fixup(internal, child);
-
-    node->rb_parent = nil;
-    node->rb_left = nil;
-    node->rb_right = nil;
-    node->rb_red = 0;
-    nil->rb_parent = nil;
-    nil->rb_red = 0;
+    // RAVL deliberately performs no deletion rotations. Resetting detached
+    // nodes catches accidental reuse and keeps the sentinel self-contained.
+    node->tree_parent = nil;
+    node->tree_left = nil;
+    node->tree_right = nil;
+    node->tree_rank = 0;
+    nil->tree_parent = nil;
 }
 
 static void jcv_beachline_insert_after(jcv_context_internal* internal, jcv_halfedge* after, jcv_halfedge* node)
@@ -1255,9 +1181,9 @@ static void jcv_beachline_insert_after(jcv_context_internal* internal, jcv_halfe
     jcv_halfedge* nil = &internal->beachline_nil;
     jcv_halfedge* parent = nil;
 
-    node->rb_left = nil;
-    node->rb_right = nil;
-    node->rb_red = 1;
+    node->tree_left = nil;
+    node->tree_right = nil;
+    node->tree_rank = 0;
 
     if (internal->beachline_root == nil)
     {
@@ -1265,30 +1191,30 @@ static void jcv_beachline_insert_after(jcv_context_internal* internal, jcv_halfe
     }
     else if (after == internal->beachline_start)
     {
-        parent = jcv_rb_minimum(internal, internal->beachline_root);
-        assert(parent->rb_left == nil);
-        parent->rb_left = node;
+        parent = jcv_tree_minimum(internal, internal->beachline_root);
+        assert(parent->tree_left == nil);
+        parent->tree_left = node;
     }
-    else if (after->rb_right == nil)
+    else if (after->tree_right == nil)
     {
         parent = after;
-        parent->rb_right = node;
+        parent->tree_right = node;
     }
     else
     {
-        parent = jcv_rb_minimum(internal, after->rb_right);
-        assert(parent->rb_left == nil);
-        parent->rb_left = node;
+        parent = jcv_tree_minimum(internal, after->tree_right);
+        assert(parent->tree_left == nil);
+        parent->tree_left = node;
     }
 
-    node->rb_parent = parent;
+    node->tree_parent = parent;
     jcv_halfedge_link(after, node);
-    jcv_rb_insert_fixup(internal, node);
+    jcv_ravl_insert_fixup(internal, node);
 }
 
 static void jcv_beachline_remove(jcv_context_internal* internal, jcv_halfedge* node)
 {
-    jcv_rb_remove(internal, node);
+    jcv_ravl_remove(internal, node);
     jcv_halfedge_unlink(node);
 }
 
@@ -1483,11 +1409,11 @@ static jcv_halfedge* jcv_get_edge_above_x(jcv_context_internal* internal, const 
         if (jcv_halfedge_rightof(node, p))
         {
             predecessor = node;
-            node = node->rb_right;
+            node = node->tree_right;
         }
         else
         {
-            node = node->rb_left;
+            node = node->tree_left;
         }
     }
     return predecessor;
@@ -1585,6 +1511,35 @@ static inline const jcv_point* jcv_graphedge_pos(const jcv_graphedge* edge, int 
     return &edge->edge->pos[source_index];
 }
 
+// A monotonic mapping of [0, 2*pi) to [0, 4). It preserves polar ordering
+// without the cost of atan2. The scaled fallback avoids overflowing the
+// denominator for very large, finite coordinates.
+static inline jcv_real jcv_pseudo_angle(jcv_real x, jcv_real y)
+{
+    jcv_real absx = jcv_abs(x);
+    jcv_real absy = jcv_abs(y);
+    jcv_real denominator = absx + absy;
+    if( denominator == (jcv_real)0 )
+        return (jcv_real)0;
+
+    jcv_real angle;
+    if( denominator <= (jcv_real)JCV_FLT_MAX )
+    {
+        angle = y / denominator;
+    }
+    else
+    {
+        jcv_real scale = jcv_max(absx, absy);
+        angle = (y / scale) / (absx / scale + absy / scale);
+    }
+
+    if( x < (jcv_real)0 )
+        angle = (jcv_real)2 - angle;
+    else if( y < (jcv_real)0 )
+        angle = (jcv_real)4 + angle;
+    return angle;
+}
+
 static inline jcv_real jcv_calc_sort_metric(const jcv_site* site, const jcv_graphedge* edge)
 {
     const jcv_point* pos0 = jcv_graphedge_pos(edge, 0);
@@ -1592,11 +1547,7 @@ static inline jcv_real jcv_calc_sort_metric(const jcv_site* site, const jcv_grap
     jcv_real half = 1/(jcv_real)2;
     jcv_real x = (pos0->x + pos1->x) * half;
     jcv_real y = (pos0->y + pos1->y) * half;
-    jcv_real diffy = y - site->p.y;
-    jcv_real angle = JCV_ATAN2( diffy, x - site->p.x );
-    if( diffy < 0 )
-        angle = angle + 2 * JCV_PI;
-    return angle;
+    return jcv_pseudo_angle(x - site->p.x, y - site->p.y);
 }
 
 static inline int jcv_graphedge_eq(jcv_graphedge* a, jcv_graphedge* b)
@@ -1660,6 +1611,13 @@ static void jcv_build_graph_edges(jcv_context_internal* internal)
             e->pos[1] = e->pos[0];
             e->a = JCV_INVALID_VALUE;
             continue;
+        }
+        if( internal->clipper.fill_fn == jcv_boxshape_fillgaps &&
+            (jcv_point_on_box_edge(&e->pos[0], &internal->clipper.min, &internal->clipper.max) ||
+             jcv_point_on_box_edge(&e->pos[1], &internal->clipper.min, &internal->clipper.max)) )
+        {
+            e->sites[0]->boundary = 1;
+            e->sites[1]->boundary = 1;
         }
         numgraphedges += 2;
     }
@@ -1843,9 +1801,13 @@ static void jcv_fillgaps(jcv_diagram* diagram)
     if (!internal->clipper.fill_fn)
         return;
 
+    int skip_interior_sites = internal->numsites > 1 &&
+        internal->clipper.fill_fn == jcv_boxshape_fillgaps;
     for( int i = 0; i < internal->numsites; ++i )
     {
         jcv_site* site = &internal->sites[i];
+        if( skip_interior_sites && !site->boundary )
+            continue;
         internal->clipper.fill_fn(&internal->clipper, internal, site);
     }
 }
@@ -2115,7 +2077,8 @@ void jcv_diagram_generate_useralloc(int num_points, const jcv_point* points, con
     for( int i = 0; i < num_points; ++i )
     {
         sites[i].p        = points[i];
-        sites[i].index    = i;
+        sites[i].index    = (uint32_t)i;
+        sites[i].boundary = 0;
     }
 
     qsort(sites, (size_t)num_points, sizeof(jcv_site), jcv_point_cmp);

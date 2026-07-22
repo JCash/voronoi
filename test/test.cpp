@@ -95,6 +95,14 @@ struct VoronoiTest : public jc_test_base_class {
     }
 };
 
+static int g_counting_fill_calls;
+
+static void counting_box_fillgaps(const jcv_clipper* clipper, jcv_context_internal* internal, jcv_site* site)
+{
+    ++g_counting_fill_calls;
+    jcv_boxshape_fillgaps(clipper, internal, site);
+}
+
 static bool check_point_eq(const jcv_point* a, const jcv_point* b)
 {
     return a->x == b->x && a->y == b->y;
@@ -204,6 +212,52 @@ TEST_F(VoronoiTest, ceil_floor)
         ASSERT_NEAR((jcv_real) 1000000.0f, jcv_ceil((jcv_real)999999.5f), JCV_REAL_TYPE_EPSILON);
         ASSERT_NEAR((jcv_real)  999999.0f, jcv_floor((jcv_real) 999999.5f), JCV_REAL_TYPE_EPSILON);
     }
+}
+
+TEST_F(VoronoiTest, pseudo_angle_preserves_polar_order)
+{
+    const jcv_point directions[] = {
+        { 1,  0}, { 2,  1}, { 1,  1}, { 1,  2},
+        { 0,  1}, {-1,  2}, {-1,  1}, {-2,  1},
+        {-1,  0}, {-2, -1}, {-1, -1}, {-1, -2},
+        { 0, -1}, { 1, -2}, { 1, -1}, { 2, -1}
+    };
+
+    jcv_real previous = jcv_pseudo_angle(directions[0].x, directions[0].y);
+    ASSERT_EQ((jcv_real)0, previous);
+    for( size_t i = 1; i < sizeof(directions) / sizeof(directions[0]); ++i )
+    {
+        jcv_real current = jcv_pseudo_angle(directions[i].x, directions[i].y);
+        ASSERT_GT(current, previous);
+        previous = current;
+    }
+    ASSERT_LT(previous, (jcv_real)4);
+
+    ASSERT_EQ(jcv_pseudo_angle((jcv_real)1, (jcv_real)1),
+              jcv_pseudo_angle((jcv_real)100, (jcv_real)100));
+    ASSERT_EQ((jcv_real)0, jcv_pseudo_angle((jcv_real)0, (jcv_real)0));
+
+    const jcv_real large = (jcv_real)JCV_FLT_MAX;
+    ASSERT_EQ((jcv_real)0.5, jcv_pseudo_angle(large, large));
+    ASSERT_EQ((jcv_real)1.5, jcv_pseudo_angle(-large, large));
+    ASSERT_EQ((jcv_real)2.5, jcv_pseudo_angle(-large, -large));
+    ASSERT_EQ((jcv_real)3.5, jcv_pseudo_angle(large, -large));
+}
+
+TEST_F(VoronoiTest, site_index_and_boundary_share_storage)
+{
+    struct previous_site_layout
+    {
+        jcv_point p;
+        int index;
+    };
+
+    ASSERT_EQ(sizeof(previous_site_layout), sizeof(jcv_site));
+    jcv_site site = {};
+    site.index = UINT32_C(0x7fffffff);
+    site.boundary = 1;
+    ASSERT_EQ(UINT32_C(0x7fffffff), site.index);
+    ASSERT_EQ(1u, site.boundary);
 }
 
 TEST_F(VoronoiTest, parallel_horiz_2)
@@ -335,7 +389,7 @@ static jcv_context_internal* setup_test_context_internal(int num_points, jcv_poi
     for( int i = 0; i < num_points; ++i )
     {
         sites[i].p        = points[i];
-        sites[i].index    = i;
+        sites[i].index    = (uint32_t)i;
     }
     qsort(sites, (size_t)num_points, sizeof(jcv_site), jcv_point_cmp);
 
@@ -390,6 +444,45 @@ TEST_F(VoronoiTest, prune_duplicates)
     ASSERT_EQ( 3, rect.max.y );
 
     teardown_test_context_internal(internal);
+}
+
+TEST_F(VoronoiTest, custom_clipper_fill_visits_all_sites)
+{
+    jcv_point points[] = {
+        {20,20}, {50,20}, {80,20},
+        {20,50}, {50,50}, {80,50},
+        {20,80}, {50,80}, {80,80}
+    };
+    jcv_rect rect = {{0,0}, {100,100}};
+    jcv_clipper clipper = {};
+    clipper.test_fn = jcv_boxshape_test;
+    clipper.clip_fn = jcv_boxshape_clip;
+    clipper.fill_fn = counting_box_fillgaps;
+
+    g_counting_fill_calls = 0;
+    jcv_diagram_generate((int)(sizeof(points) / sizeof(points[0])), points, &rect, &clipper, &ctx->diagram);
+    ASSERT_EQ(ctx->diagram.numsites, g_counting_fill_calls);
+}
+
+TEST_F(VoronoiTest, box_clipper_marks_only_boundary_sites)
+{
+    jcv_point points[] = {
+        {20,20}, {50,20}, {80,20},
+        {20,50}, {50,50}, {80,50},
+        {20,80}, {50,80}, {80,80}
+    };
+    jcv_rect rect = {{0,0}, {100,100}};
+    jcv_diagram_generate((int)(sizeof(points) / sizeof(points[0])), points, &rect, 0, &ctx->diagram);
+
+    int boundary_sites = 0;
+    const jcv_site* sites = jcv_diagram_get_sites(&ctx->diagram);
+    for( int i = 0; i < ctx->diagram.numsites; ++i )
+    {
+        boundary_sites += sites[i].boundary;
+        if( sites[i].p.x == 50 && sites[i].p.y == 50 )
+            ASSERT_EQ(0u, sites[i].boundary);
+    }
+    ASSERT_EQ(8, boundary_sites);
 }
 
 TEST_F(VoronoiTest, prune_not_in_shape)
@@ -742,47 +835,99 @@ static inline int is_closed_loop(const jcv_diagram* diagram, const jcv_site* sit
                         test_graphedge_get_position(diagram, first, 0));
 }
 
-static int collect_rb_inorder(jcv_halfedge* node, jcv_halfedge* nil, jcv_halfedge** nodes, int count)
+#if 0
+// TODO: Re-enable when degenerate circle events have a shared robustness
+// policy independent of the beach-line tree implementation. See
+// ../plan_degenerate_inputs.md.
+static inline int is_counter_clockwise(const jcv_diagram* diagram, const jcv_site* site)
+{
+    double twice_area = 0.0;
+    test_graphedge_iter iter;
+    test_site_get_edges(diagram, site, &iter);
+    for( const jcv_edge* edge = test_graphedge_next(&iter); edge; edge = test_graphedge_next(&iter) )
+    {
+        const jcv_point* p0 = test_graphedge_get_position(diagram, edge, 0);
+        const jcv_point* p1 = test_graphedge_get_position(diagram, edge, 1);
+        double x0 = (double)p0->x - (double)site->p.x;
+        double y0 = (double)p0->y - (double)site->p.y;
+        double x1 = (double)p1->x - (double)site->p.x;
+        double y1 = (double)p1->y - (double)site->p.y;
+        twice_area += x0 * y1 - y0 * x1;
+    }
+    return twice_area > 0.0;
+}
+
+static uint32_t near_cocircular_random_next(uint32_t* state)
+{
+    *state = *state * UINT32_C(1664525) + UINT32_C(1013904223);
+    return *state;
+}
+
+TEST_F(VoronoiTest, near_cocircular_cells_are_closed_and_ccw)
+{
+    const int num_points = 1000;
+    jcv_point* points = new jcv_point[num_points];
+    uint32_t state = 45;
+    for( int i = 0; i < num_points; ++i )
+    {
+        float angle = 6.2831853071795864769f * (float)i / (float)num_points;
+        float radius = 3000.0f + (float)(near_cocircular_random_next(&state) % 7) * 0.0001f;
+        points[i].x = (jcv_real)(5000.0f + radius * cosf(angle));
+        points[i].y = (jcv_real)(5000.0f + radius * sinf(angle));
+    }
+    jcv_rect rect = {{-100, -100}, {10100, 10100}};
+    jcv_diagram_generate(num_points, points, &rect, 0, &ctx->diagram);
+
+    ASSERT_EQ(num_points, ctx->diagram.numsites);
+    ASSERT_EQ(0, validate_vertex_indices(&ctx->diagram));
+    const jcv_site* sites = jcv_diagram_get_sites(&ctx->diagram);
+    for( int i = 0; i < ctx->diagram.numsites; ++i )
+    {
+        ASSERT_TRUE(is_closed_loop(&ctx->diagram, &sites[i]));
+        ASSERT_TRUE(is_counter_clockwise(&ctx->diagram, &sites[i]));
+    }
+    delete[] points;
+}
+#endif
+
+static int collect_tree_inorder(jcv_halfedge* node, jcv_halfedge* nil, jcv_halfedge** nodes, int count)
 {
     if (node == nil)
         return count;
-    count = collect_rb_inorder(node->rb_left, nil, nodes, count);
+    count = collect_tree_inorder(node->tree_left, nil, nodes, count);
     nodes[count++] = node;
-    return collect_rb_inorder(node->rb_right, nil, nodes, count);
+    return collect_tree_inorder(node->tree_right, nil, nodes, count);
 }
 
-static int validate_rb_node(jcv_halfedge* node, jcv_halfedge* nil, jcv_halfedge* parent)
+static int validate_ravl_node(jcv_halfedge* node, jcv_halfedge* nil, jcv_halfedge* parent)
 {
     if (node == nil)
-        return 1;
+        return -1;
 
-    EXPECT_EQ(parent, node->rb_parent);
-    if (node->rb_red)
-    {
-        EXPECT_EQ(0, node->rb_left->rb_red);
-        EXPECT_EQ(0, node->rb_right->rb_red);
-    }
-
-    int left_height = validate_rb_node(node->rb_left, nil, node);
-    int right_height = validate_rb_node(node->rb_right, nil, node);
-    EXPECT_EQ(left_height, right_height);
-    return left_height + (node->rb_red ? 0 : 1);
+    EXPECT_EQ(parent, node->tree_parent);
+    int left_height = validate_ravl_node(node->tree_left, nil, node);
+    int right_height = validate_ravl_node(node->tree_right, nil, node);
+    int left_rank = node->tree_left == nil ? -1 : (int)node->tree_left->tree_rank;
+    int right_rank = node->tree_right == nil ? -1 : (int)node->tree_right->tree_rank;
+    EXPECT_LT(left_rank, (int)node->tree_rank);
+    EXPECT_LT(right_rank, (int)node->tree_rank);
+    int height = 1 + (left_height > right_height ? left_height : right_height);
+    EXPECT_LE(height, (int)node->tree_rank);
+    return height;
 }
 
 static void validate_beachline(jcv_context_internal* internal, int expected_count)
 {
     jcv_halfedge* nil = &internal->beachline_nil;
-    ASSERT_EQ(0, nil->rb_red);
 
     if (internal->beachline_root != nil)
     {
-        ASSERT_EQ(nil, internal->beachline_root->rb_parent);
-        ASSERT_EQ(0, internal->beachline_root->rb_red);
-        validate_rb_node(internal->beachline_root, nil, nil);
+        ASSERT_EQ(nil, internal->beachline_root->tree_parent);
+        validate_ravl_node(internal->beachline_root, nil, nil);
     }
 
     jcv_halfedge* tree_nodes[32];
-    int tree_count = collect_rb_inorder(internal->beachline_root, nil, tree_nodes, 0);
+    int tree_count = collect_tree_inorder(internal->beachline_root, nil, tree_nodes, 0);
     ASSERT_EQ(expected_count, tree_count);
 
     int list_count = 0;
@@ -798,7 +943,7 @@ static void validate_beachline(jcv_context_internal* internal, int expected_coun
     ASSERT_EQ(expected_count, list_count);
 }
 
-TEST_F(VoronoiTest, beachline_rb_insert_remove)
+TEST_F(VoronoiTest, beachline_ravl_insert_remove)
 {
     jcv_context_internal internal;
     jcv_halfedge start;
