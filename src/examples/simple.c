@@ -33,7 +33,8 @@ int main(int argc, char** argv) {
   jcv_diagram diagram;
   jcv_point points[NPOINT];
   const jcv_site* sites;
-  jcv_graphedge* graph_edge;
+  jcv_edge_iter edge_iter;
+  jcv_edge graph_edge;
 
   memset(&diagram, 0, sizeof(jcv_diagram));
 
@@ -54,12 +55,11 @@ int main(int argc, char** argv) {
   sites = jcv_diagram_get_sites(&diagram);
   for (i=0; i<diagram.numsites; i++) {
 
-    graph_edge = sites[i].edges;
-    while (graph_edge) {
+    jcv_site_get_edges(&diagram, &sites[i], &edge_iter);
+    while (jcv_edge_next(&edge_iter, &graph_edge)) {
       // This approach will potentially print shared edges twice
-      printf("%f %f\n", (double)graph_edge->pos[0].x, (double)graph_edge->pos[0].y);
-      printf("%f %f\n", (double)graph_edge->pos[1].x, (double)graph_edge->pos[1].y);
-      graph_edge = graph_edge->next;
+      printf("%f %f\n", (double)graph_edge.pos[0].x, (double)graph_edge.pos[0].y);
+      printf("%f %f\n", (double)graph_edge.pos[1].x, (double)graph_edge.pos[1].y);
     }
   }
 

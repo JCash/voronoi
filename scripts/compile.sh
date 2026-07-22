@@ -7,7 +7,7 @@ if [ "$USE_ASAN" != "" ]; then
     ASAN_OPTIONS=detect_stack_use_after_return=1
     ASAN="-fsanitize=address -fno-omit-frame-pointer -fsanitize-address-use-after-scope -fsanitize=undefined"
     ASAN_LDFLAGS="-fsanitize=address "
-    OPT="-g -O1"
+    OPT="-g -O0"
     echo Using ASAN=${ASAN}
 fi
 
@@ -28,7 +28,16 @@ if [ "Darwin" == "$(uname)" ]; then
     fi
 fi
 
-CFLAGS="-g -O1 -Wall -Weverything -Wno-float-equal -pedantic -Wno-declaration-after-statement -Isrc"
+CFLAGS="-g -O2 -std=c11 -Wall -Weverything -Wno-double-promotion -Wno-float-equal -pedantic -Wno-declaration-after-statement -Isrc"
+if ${CC} -Werror -Wallocator-wrappers -x c -fsyntax-only /dev/null >/dev/null 2>&1; then
+    CFLAGS="${CFLAGS} -Wno-allocator-wrappers"
+fi
+if ${CC} -Werror -Wpadded -x c -fsyntax-only /dev/null >/dev/null 2>&1; then
+    # Natural struct alignment is intentional.
+    CFLAGS="${CFLAGS} -Wno-padded"
+fi
+DOUBLEDEFINES="-Wno-double-promotion -DTEST_USE_DOUBLE -DJCV_USE_DOUBLE=1 -DJCV_REAL_TYPE=double -DJCV_ATAN2=atan2 -DJCV_SQRT=sqrt -DJCV_REAL_TYPE_EPSILON=DBL_EPSILON"
+#CFLAGS="${CFLAGS} ${DOUBLEDEFINES}"
 
-${CC} ${ASAN} ${ARCH} -c src/stb_wrapper.c -o build/stb_wrapper.o
+${CC} ${ASAN} ${ARCH} ${SYSROOT} -c src/stb_wrapper.c -o build/stb_wrapper.o
 ${CC} ${ASAN} -o build/main ${ARCH} -std=${STDVERSION} ${OPT} ${CFLAGS} -lm  ${SYSROOT} build/stb_wrapper.o src/main.c

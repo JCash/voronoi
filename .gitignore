@@ -33,4 +33,8 @@ test/fastjet/**
 test/voronoi++/**
 test/ivank/**
 test/shaneosullivan/**
+external
 
+.vscode
+**/.DS_Store
+tmp

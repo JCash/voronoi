@@ -1,26 +1,166 @@
 #include <cstring>
 #include <cstdlib>
+#include <cmath>
 #include <float.h>
 
 static size_t g_MallocCount = 0;
-static size_t g_MallocSize 	= 0;
+static size_t g_MallocSize = 0;
+static size_t g_CurrentMallocSize = 0;
+static size_t g_PeakMallocSize = 0;
+static size_t g_RetainedDiagramSize = 0;
+
+struct AllocationHeader
+{
+	size_t size;
+	size_t marker;
+};
+
+static const size_t ALLOCATION_MARKER = (size_t)0x4a43564d;
 
 void* override_alloc(size_t sz)
 {
 	++g_MallocCount;
 	g_MallocSize += sz;
-	return malloc(sz);
+	g_CurrentMallocSize += sz;
+	g_PeakMallocSize = g_PeakMallocSize > g_CurrentMallocSize ? g_PeakMallocSize : g_CurrentMallocSize;
+	AllocationHeader* header = (AllocationHeader*)malloc(sizeof(AllocationHeader) + sz);
+	header->size = sz;
+	header->marker = ALLOCATION_MARKER;
+	return header + 1;
+}
+
+void override_free(void* p)
+{
+	if( !p )
+		return;
+	AllocationHeader* header = ((AllocationHeader*)p) - 1;
+	if( header->marker == ALLOCATION_MARKER )
+	{
+		g_CurrentMallocSize = header->size <= g_CurrentMallocSize ? g_CurrentMallocSize - header->size : 0;
+		header->marker = 0;
+	}
+	free(header);
 }
 #define malloc(_X)	override_alloc(_X)
+#define free(_X)	override_free(_X)
 
 void* operator new(std::size_t sz)
 {
     return override_alloc(sz);
 }
 
+void* operator new[](std::size_t sz)
+{
+    return override_alloc(sz);
+}
+
+void operator delete(void* p) noexcept
+{
+	override_free(p);
+}
+
+void operator delete[](void* p) noexcept
+{
+	override_free(p);
+}
+
+void operator delete(void* p, std::size_t) noexcept
+{
+	override_free(p);
+}
+
+void operator delete[](void* p, std::size_t) noexcept
+{
+	override_free(p);
+}
+
 #if defined(USE_JC_VORONOI)
 #define JC_VORONOI_IMPLEMENTATION
 #include "src/jc_voronoi.h"
+
+#if defined(USE_JC_VORONOI_LEGACY_API)
+typedef jcv_graphedge PerfGraphEdge;
+
+struct PerfEdgeIter
+{
+	const jcv_edge* current;
+};
+
+struct PerfGraphEdgeIter
+{
+	const jcv_graphedge* current;
+};
+
+static void perf_edge_begin(const jcv_diagram* diagram, PerfEdgeIter* iter)
+{
+	iter->current = jcv_diagram_get_edges(diagram);
+}
+
+static const jcv_edge* perf_edge_next(PerfEdgeIter* iter)
+{
+	const jcv_edge* edge = iter->current;
+	if( edge )
+		iter->current = jcv_diagram_get_next_edge(edge);
+	return edge;
+}
+
+static void perf_graph_edge_begin(const jcv_diagram*, const jcv_site* site, PerfGraphEdgeIter* iter)
+{
+	iter->current = site->edges;
+}
+
+static const PerfGraphEdge* perf_graph_edge_next(PerfGraphEdgeIter* iter)
+{
+	const jcv_graphedge* edge = iter->current;
+	if( edge )
+		iter->current = edge->next;
+	return edge;
+}
+
+static const jcv_point* perf_graph_edge_position(const jcv_diagram*, const PerfGraphEdge* edge, int endpoint)
+{
+	return &edge->pos[endpoint];
+}
+#else
+typedef jcv_edge PerfGraphEdge;
+
+struct PerfEdgeIter
+{
+	jcv_edge_iter iterator;
+	jcv_edge current;
+};
+
+struct PerfGraphEdgeIter
+{
+	jcv_edge_iter iterator;
+	jcv_edge current;
+};
+
+static void perf_edge_begin(const jcv_diagram* diagram, PerfEdgeIter* iter)
+{
+	jcv_diagram_get_edges(diagram, &iter->iterator);
+}
+
+static const jcv_edge* perf_edge_next(PerfEdgeIter* iter)
+{
+	return jcv_edge_next(&iter->iterator, &iter->current) ? &iter->current : 0;
+}
+
+static void perf_graph_edge_begin(const jcv_diagram* diagram, const jcv_site* site, PerfGraphEdgeIter* iter)
+{
+	jcv_site_get_edges(diagram, site, &iter->iterator);
+}
+
+static const jcv_edge* perf_graph_edge_next(PerfGraphEdgeIter* iter)
+{
+	return jcv_edge_next(&iter->iterator, &iter->current) ? &iter->current : 0;
+}
+
+static const jcv_point* perf_graph_edge_position(const jcv_diagram*, const jcv_edge* edge, int endpoint)
+{
+	return &edge->pos[endpoint];
+}
+#endif
 #endif
 
 #if defined(USE_BOOST)
@@ -71,6 +211,12 @@ struct Context
 	float* sitesy;
 	PointF dgmin;
 	PointF dgmax;
+	volatile double totalcellarea;
+#if defined(USE_JC_VORONOI)
+	volatile jcv_real vertexchecksum;
+	jcv_diagram vertexdiagram;
+	jcv_point* vertices;
+#endif
 
 	const char* testname;
 
@@ -81,6 +227,9 @@ struct Context
 #endif
 #if defined(USE_BOOST)
 	std::vector<boost::polygon::point_data<float> > boost_points;
+	boost::polygon::voronoi_diagram<double> boost_vertexdiagram;
+	std::vector<PointD> boost_vertices;
+	volatile double boost_vertexchecksum;
 #endif
 
 	std::vector< std::pair<PointF, PointF> > collectededges;
@@ -91,32 +240,33 @@ struct Context
 
 #define MAP_DIMENSION 4096
 
-void setup_sites(int count, Context* context)
+void fill_random_sites(PointF* sites, int count)
 {
-	context->count = count;
-	context->fsites = new PointF[count];
-	context->dsites = new PointD[count];
-	context->sitesx = new float[count];
-	context->sitesy = new float[count];
-	context->dpoints.resize(count);
-#if defined(USE_VORONOIPP)
-	context->vpp_sites.resize(count);
-#endif
-#if defined(USE_BOOST)
-	context->boost_points.resize(count);
-#endif
-
-	context->dgmin = PointF(FLT_MAX, FLT_MAX);
-	context->dgmax = PointF(-FLT_MAX, -FLT_MAX);
-
-    int pointoffset = 10; // move the points inwards, for aestetic reasons
+	const int pointoffset = 10; // move the points inwards, for aesthetic reasons
 	srand(0);
 	for( int i = 0; i < count; ++i )
 	{
-		float x = float(pointoffset + rand() % (MAP_DIMENSION-2*pointoffset));
-		float y = float(pointoffset + rand() % (MAP_DIMENSION-2*pointoffset));
-		context->fsites[i].x = x;
-		context->fsites[i].y = y;
+		sites[i].x = float(pointoffset + rand() % (MAP_DIMENSION-2*pointoffset));
+		sites[i].y = float(pointoffset + rand() % (MAP_DIMENSION-2*pointoffset));
+	}
+}
+
+void fill_symmetric_diagonal_pairs(PointF* sites, int count)
+{
+	for( int i = 0; i < count; ++i )
+	{
+		const float value = float(i / 2 + 1);
+		sites[i].x = (i & 1) ? -value : value;
+		sites[i].y = -value;
+	}
+}
+
+void populate_site_arrays(Context* context)
+{
+	for( int i = 0; i < context->count; ++i )
+	{
+		const float x = context->fsites[i].x;
+		const float y = context->fsites[i].y;
 		context->dsites[i].x = x;
 		context->dsites[i].y = y;
 		context->sitesx[i] = x;
@@ -136,6 +286,32 @@ void setup_sites(int count, Context* context)
 		context->boost_points[i] = boost::polygon::point_data<float>(x, y);
 #endif
 	}
+}
+
+void setup_sites(int count, Context* context)
+{
+	context->count = count;
+	context->fsites = new PointF[count];
+	context->dsites = new PointD[count];
+	context->sitesx = new float[count];
+	context->sitesy = new float[count];
+	context->dpoints.resize(count);
+#if defined(USE_VORONOIPP)
+	context->vpp_sites.resize(count);
+#endif
+#if defined(USE_BOOST)
+	context->boost_points.resize(count);
+#endif
+
+	context->dgmin = PointF(FLT_MAX, FLT_MAX);
+	context->dgmax = PointF(-FLT_MAX, -FLT_MAX);
+
+	const bool symmetric_diagonal_pairs = context->testname && strcmp(context->testname, "symmetric_diagonal_pairs") == 0;
+	if (symmetric_diagonal_pairs)
+		fill_symmetric_diagonal_pairs(context->fsites, count);
+	else
+		fill_random_sites(context->fsites, count);
+	populate_site_arrays(context);
 
 	context->dgmin.x -= 1;
 	context->dgmin.y -= 1;
@@ -143,19 +319,29 @@ void setup_sites(int count, Context* context)
 	context->dgmax.y += 1;
 
 	context->collectedges = false;
+#if defined(USE_JC_VORONOI)
+	memset(&context->vertexdiagram, 0, sizeof(context->vertexdiagram));
+	context->vertices = 0;
+#endif
 }
 
 void start_test(const char* name, Context* context)
 {
 	g_MallocCount = 0;
 	g_MallocSize  = 0;
+	g_CurrentMallocSize = 0;
+	g_PeakMallocSize = 0;
+	g_RetainedDiagramSize = 0;
 }
 
 void stop_test(const char* name, Context* context)
 {
-	size_t overheadsize = context->count * sizeof(std::chrono::duration<float>);
-	size_t overheadnumallocations = 1;
-	printf("%s\tused %lu bytes in %lu allocations\n", name, g_MallocSize/context->numiterations - overheadsize, g_MallocCount/context->numiterations - overheadnumallocations);
+	size_t overheadsize = (size_t)context->numiterations * sizeof(std::chrono::duration<double>);
+	size_t usedsize = g_PeakMallocSize >= overheadsize ? g_PeakMallocSize - overheadsize : 0;
+	size_t retainedsize = g_RetainedDiagramSize >= overheadsize ? g_RetainedDiagramSize - overheadsize : 0;
+	size_t allocations = g_MallocCount > 0 ? g_MallocCount - 1 : 0;
+	printf("%s\tpeak %lu bytes, retained %lu bytes in %lu allocations\n",
+		name, usedsize, retainedsize, allocations/context->numiterations);
 }
 
 void null_setup(Context* context)
@@ -163,19 +349,42 @@ void null_setup(Context* context)
 }
 
 #if defined(USE_JC_VORONOI)
-int jc_voronoi(Context* context)
+int jc_voronoi_impl(Context* context, bool calculatecellarea)
 {
 	jcv_diagram diagram = { 0 };
 	jcv_rect rect = { {context->dgmin.x, context->dgmin.y}, {context->dgmax.x, context->dgmax.y} };
-	jcv_diagram_generate(context->count, (const jcv_point*)context->fsites, &rect, &diagram );
+	jcv_diagram_generate(context->count, (const jcv_point*)context->fsites, &rect, 0, &diagram );
+
+	if( calculatecellarea )
+	{
+		double totalarea = 0.0;
+		const jcv_site* sites = jcv_diagram_get_sites( &diagram );
+		for( int i = 0; i < diagram.numsites; ++i )
+		{
+			double twicearea = 0.0;
+			PerfGraphEdgeIter graph_iter;
+			perf_graph_edge_begin(&diagram, &sites[i], &graph_iter);
+			for( const PerfGraphEdge* edge = perf_graph_edge_next(&graph_iter); edge; edge = perf_graph_edge_next(&graph_iter) )
+			{
+				const jcv_point* pos0 = perf_graph_edge_position(&diagram, edge, 0);
+				const jcv_point* pos1 = perf_graph_edge_position(&diagram, edge, 1);
+				twicearea += (double)pos0->x * (double)pos1->y -
+				             (double)pos1->x * (double)pos0->y;
+			}
+			totalarea += std::fabs(twicearea) * 0.5;
+		}
+		context->totalcellarea = totalarea;
+	}
 
 	if( context->collectedges )
 	{
-		const jcv_edge* edge = jcv_diagram_get_edges( &diagram );
+		PerfEdgeIter edge_iter;
+		perf_edge_begin(&diagram, &edge_iter);
+		const jcv_edge* edge = perf_edge_next(&edge_iter);
 		while( edge )
 		{
 			context->collectededges.push_back( std::make_pair( PointF(edge->pos[0].x, edge->pos[0].y), PointF(edge->pos[1].x, edge->pos[1].y) ) );
-			edge = jcv_diagram_get_next_edge(edge);
+			edge = perf_edge_next(&edge_iter);
 		}
 
 		context->collectedcells.reserve(context->count);
@@ -187,11 +396,14 @@ int jc_voronoi(Context* context)
 
 			std::vector< std::pair<PointF, PointF> > collectedsiteedges;
 
-			const jcv_graphedge* e = site.edges;
-			while( e )
+			PerfGraphEdgeIter graph_iter;
+			perf_graph_edge_begin(&diagram, &site, &graph_iter);
+			const PerfGraphEdge* e;
+			while( (e = perf_graph_edge_next(&graph_iter)) != 0 )
 			{
-				collectedsiteedges.push_back( std::make_pair(PointF(e->pos[0].x, e->pos[0].y), PointF(e->pos[1].x, e->pos[1].y)) );
-				e = e->next;
+				const jcv_point* pos0 = perf_graph_edge_position(&diagram, e, 0);
+				const jcv_point* pos1 = perf_graph_edge_position(&diagram, e, 1);
+				collectedsiteedges.push_back( std::make_pair(PointF(pos0->x, pos0->y), PointF(pos1->x, pos1->y)) );
 			}
 
 			context->collectedcells.push_back( std::make_pair(PointF(site.p.x, site.p.y), collectedsiteedges) );
@@ -199,8 +411,43 @@ int jc_voronoi(Context* context)
 
 	}
 
+	g_RetainedDiagramSize = std::max(g_RetainedDiagramSize, g_CurrentMallocSize);
 	jcv_diagram_free( &diagram );
 	return 0;
+}
+
+int jc_voronoi(Context* context)
+{
+	return jc_voronoi_impl(context, false);
+}
+
+int jc_voronoi_cell_areas(Context* context)
+{
+	return jc_voronoi_impl(context, true);
+}
+
+void setup_jc_voronoi_vertices(Context* context)
+{
+	jcv_rect rect = { {context->dgmin.x, context->dgmin.y}, {context->dgmax.x, context->dgmax.y} };
+	jcv_diagram_generate(context->count, (const jcv_point*)context->fsites, &rect, 0, &context->vertexdiagram);
+	context->vertices = new jcv_point[jcv_get_num_vertices(&context->vertexdiagram)];
+}
+
+int jc_voronoi_get_vertices(Context* context)
+{
+	jcv_diagram_get_vertices(&context->vertexdiagram, context->vertices);
+	int numvertices = jcv_get_num_vertices(&context->vertexdiagram);
+	if( numvertices > 0 )
+		context->vertexchecksum = context->vertices[numvertices-1].x;
+	return 0;
+}
+
+void teardown_jc_voronoi_vertices(Context* context)
+{
+	delete[] context->vertices;
+	context->vertices = 0;
+	jcv_diagram_free(&context->vertexdiagram);
+	memset(&context->vertexdiagram, 0, sizeof(context->vertexdiagram));
 }
 #endif
 
@@ -313,7 +560,8 @@ static void clip_infinite_edge( Context* context, const boost::polygon::voronoi_
 		direction.y(p2.x - p1.x);
 	} else {
 	}
-	coordinate_type side = MAP_DIMENSION;
+	coordinate_type side = 2.0 * (std::max)(context->dgmax.x - context->dgmin.x,
+										 context->dgmax.y - context->dgmin.y);
 	coordinate_type koef = side / (std::max)(fabs(direction.x()), fabs(direction.y()));
 	if (edge.vertex0() == NULL) {
 	  clipped_edge.push_back( PointF(origin.x() - direction.x() * koef, origin.y() - direction.y() * koef));
@@ -383,7 +631,34 @@ static int boost_voronoi(Context* context)
 			context->collectedcells.push_back( std::make_pair( context->fsites[index], collectedgraphedges ) );
 		}
 	}
+	g_RetainedDiagramSize = std::max(g_RetainedDiagramSize, g_CurrentMallocSize);
 	return 0;
+}
+
+static void setup_boost_vertices(Context* context)
+{
+	boost::polygon::construct_voronoi(context->boost_points.begin(), context->boost_points.end(), &context->boost_vertexdiagram);
+	context->boost_vertices.resize(context->boost_vertexdiagram.vertices().size());
+}
+
+static int boost_get_vertices(Context* context)
+{
+	size_t index = 0;
+	for( boost::polygon::voronoi_diagram<double>::const_vertex_iterator it = context->boost_vertexdiagram.vertices().begin();
+		 it != context->boost_vertexdiagram.vertices().end(); ++it, ++index )
+	{
+		context->boost_vertices[index].x = it->x();
+		context->boost_vertices[index].y = it->y();
+	}
+	if( !context->boost_vertices.empty() )
+		context->boost_vertexchecksum = context->boost_vertices.back().x;
+	return 0;
+}
+
+static void teardown_boost_vertices(Context* context)
+{
+	context->boost_vertices.clear();
+	context->boost_vertexdiagram.clear();
 }
 #endif
 
@@ -539,7 +814,7 @@ static void output_image(const char* name, Context* context)
 	}
 
 	char path[512];
-	sprintf(path, "images/voronoi_%s_%d.png", name, context->count);
+	snprintf(path, sizeof(path), "images/voronoi_%s_%d.png", name, context->count);
 	stbi_write_png(path, MAP_DIMENSION, MAP_DIMENSION, 3, data, MAP_DIMENSION*3);
 	printf("wrote %s\n", path);
 
@@ -567,7 +842,7 @@ void generate_diagram(const char* name, Context* context, SetupFunc setupfunc, F
 template<typename SetupFunc, typename Func>
 void run_test(const char* implname, const char* testname, Context* context, SetupFunc setupfunc, Func func)
 {
-	char buffer[32];
+	char buffer[64];
 	snprintf(buffer, sizeof(buffer), "%s %s", implname, testname);
 	buffer[sizeof(buffer)-1] = 0;
 
@@ -580,6 +855,24 @@ void run_test(const char* implname, const char* testname, Context* context, Setu
 
 	timeit.report(std::cout, buffer, 0.0f);
 	generate_diagram(implname, context, null_setup, func);
+	printf("# collected %zu edges across %zu cells\n",
+		   context->collectededges.size(), context->collectedcells.size());
+}
+
+template<typename Func>
+void run_postprocess_test(const char* name, const char* testname, Context* context, Func func)
+{
+	char buffer[64];
+	snprintf(buffer, sizeof(buffer), "%s %s", name, testname);
+	buffer[sizeof(buffer)-1] = 0;
+
+	printf("# n %d  it %d\n", context->count, context->numiterations);
+
+	CTimeIt timeit;
+	start_test(buffer, context);
+	timeit.run<int>(context->numiterations, null_setup, func, context);
+	stop_test(buffer, context);
+	timeit.report(std::cout, buffer, 0.0f);
 }
 
 int main(int argc, const char** argv)
@@ -593,12 +886,11 @@ int main(int argc, const char** argv)
 		iterations = atol(argv[2]);
 
 	Context context;
-	setup_sites(count, &context);
-	context.numiterations = iterations;
-
-	context.testname = 0;
+	context.testname = "random";
 	if( argc > 3 )
 		context.testname = argv[3];
+	setup_sites(count, &context);
+	context.numiterations = iterations;
 
 	context.generate_images = 0;
 	if( argc > 4 )
@@ -611,10 +903,20 @@ int main(int argc, const char** argv)
 
 #if defined(USE_JC_VORONOI)
 	run_test("jc_voronoi", context.testname, &context, null_setup, jc_voronoi);
+	run_test("jc_voronoi_cell_areas", context.testname, &context, null_setup, jc_voronoi_cell_areas);
+	printf("# total cell area %.17g\n", context.totalcellarea);
+	setup_jc_voronoi_vertices(&context);
+	run_postprocess_test("jc_voronoi_get_vertices", context.testname, &context, jc_voronoi_get_vertices);
+	printf("# collected %d unique vertices\n", jcv_get_num_vertices(&context.vertexdiagram));
+	teardown_jc_voronoi_vertices(&context);
 #elif defined(USE_FASTJET)
 	run_test("fastjet", context.testname, &context, null_setup, fastjet_voronoi);
 #elif defined(USE_BOOST)
 	run_test("boost", context.testname, &context, null_setup, boost_voronoi);
+	setup_boost_vertices(&context);
+	run_postprocess_test("boost_get_vertices", context.testname, &context, boost_get_vertices);
+	printf("# collected %zu unique vertices\n", context.boost_vertexdiagram.vertices().size());
+	teardown_boost_vertices(&context);
 #elif defined(USE_VORONOIPP)
 	run_test("voronoi++", context.testname, &context, null_setup, voronoiplusplus_voronoi);
 #elif defined(USE_SHANEOSULLIVAN)
