@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">Get Delauney Edges</title>
+  <desc id="desc">Grouped bar chart comparing WebAssembly and JavaScript Voronoi libraries for 10k, 100k, and the 100k pathological case. Times are medians in milliseconds; lower is better. Bars above 500 milliseconds are truncated with a jagged top.</desc>
+  <style>.stat-hit{fill:transparent;pointer-events:all}</style>
+  <rect width="1200" height="720" fill="#f8fafc"/>
+  <text x="70" y="49" font-family="system-ui, sans-serif" font-size="27" font-weight="700" fill="#152238">Get Delauney Edges</text>
+  <text x="70" y="76" font-family="system-ui, sans-serif" font-size="15" fill="#536174">Diagram generation + complete edge retrieval · median time · lower is better</text>
+  <line x1="120" y1="575" x2="1150" y2="575" stroke="#d8dee8"/>
+  <text x="108" y="580" font-family="system-ui, sans-serif" font-size="13" fill="#536174" text-anchor="end">0</text>
+  <line x1="120" y1="482" x2="1150" y2="482" stroke="#d8dee8"/>
+  <text x="108" y="487" font-family="system-ui, sans-serif" font-size="13" fill="#536174" text-anchor="end">80.00 ms</text>
+  <line x1="120" y1="389" x2="1150" y2="389" stroke="#d8dee8"/>
+  <text x="108" y="394" font-family="system-ui, sans-serif" font-size="13" fill="#536174" text-anchor="end">160.00 ms</text>
+  <line x1="120" y1="296" x2="1150" y2="296" stroke="#d8dee8"/>
+  <text x="108" y="301" font-family="system-ui, sans-serif" font-size="13" fill="#536174" text-anchor="end">240.00 ms</text>
+  <line x1="120" y1="203" x2="1150" y2="203" stroke="#d8dee8"/>
+  <text x="108" y="208" font-family="system-ui, sans-serif" font-size="13" fill="#536174" text-anchor="end">320.00 ms</text>
+  <line x1="120" y1="110" x2="1150" y2="110" stroke="#d8dee8"/>
+  <text x="108" y="115" font-family="system-ui, sans-serif" font-size="13" fill="#536174" text-anchor="end">400.00 ms</text>
+  <text x="291.66666666666663" y="612" font-family="system-ui, sans-serif" font-size="15" font-weight="600" fill="#26354a" text-anchor="middle">10k</text>
+  <rect x="211.66666666666663" y="570.32" width="48" height="4.68" rx="4" fill="#5267d9"/>
+  <text x="235.66666666666663" y="562.32" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">4.02 ms</text>
+  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="211.66666666666663" y="560.00" width="48" height="15.00"><title>JCV 0.10, 10k: median 4.02 ms</title></rect></g>
+  <rect x="267.66666666666663" y="567.62" width="48" height="7.38" rx="4" fill="#14a38b"/>
+  <text x="291.66666666666663" y="545.62" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">6.35 ms</text>
+  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="267.66666666666663" y="560.00" width="48" height="15.00"><title>d3-delaunay, 10k: median 6.35 ms</title></rect></g>
+  <rect x="323.66666666666663" y="541.50" width="48" height="33.50" rx="4" fill="#e08b35"/>
+  <text x="347.66666666666663" y="533.50" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">28.81 ms</text>
+  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="323.66666666666663" y="541.50" width="48" height="33.50"><title>d3-voronoi, 10k: median 28.81 ms</title></rect></g>
+  <text x="635" y="612" font-family="system-ui, sans-serif" font-size="15" font-weight="600" fill="#26354a" text-anchor="middle">100k</text>
+  <rect x="555" y="523.29" width="48" height="51.71" rx="4" fill="#5267d9"/>
+  <text x="579" y="515.29" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">44.48 ms</text>
+  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="555" y="523.29" width="48" height="51.71"><title>JCV 0.10, 100k: median 44.48 ms</title></rect></g>
+  <rect x="611" y="519.83" width="48" height="55.17" rx="4" fill="#14a38b"/>
+  <text x="635" y="497.83" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">47.46 ms</text>
+  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="611" y="519.83" width="48" height="55.17"><title>d3-delaunay, 100k: median 47.46 ms</title></rect></g>
+  <rect x="667" y="221.74" width="48" height="353.26" rx="4" fill="#e08b35"/>
+  <text x="691" y="213.74" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">303.88 ms</text>
+  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="667" y="221.74" width="48" height="353.26"><title>d3-voronoi, 100k: median 303.88 ms</title></rect></g>
+  <text x="978.3333333333333" y="612" font-family="system-ui, sans-serif" font-size="15" font-weight="600" fill="#26354a" text-anchor="middle">100k pathological</text>
+  <rect x="898.3333333333333" y="556.09" width="48" height="18.91" rx="4" fill="#5267d9"/>
+  <text x="922.3333333333333" y="548.09" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">16.27 ms</text>
+  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="898.3333333333333" y="556.09" width="48" height="18.91"><title>JCV 0.10, 100k pathological: median 16.27 ms</title></rect></g>
+  <rect x="954.3333333333333" y="544.37" width="48" height="30.63" rx="4" fill="#14a38b"/>
+  <text x="978.3333333333333" y="522.37" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">26.35 ms</text>
+  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="954.3333333333333" y="544.37" width="48" height="30.63"><title>d3-delaunay, 100k pathological: median 26.35 ms</title></rect></g>
+  <rect x="1010.3333333333333" y="439.07" width="48" height="135.93" rx="4" fill="#e08b35"/>
+  <text x="1034.3333333333333" y="431.07" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">116.93 ms</text>
+  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="1010.3333333333333" y="439.07" width="48" height="135.93"><title>d3-voronoi, 100k pathological: median 116.93 ms</title></rect></g>
+  <rect x="285" y="660" width="16" height="16" rx="3" fill="#5267d9"/><text x="309" y="674" font-family="system-ui, sans-serif" font-size="14" fill="#344258">JCV 0.10</text>
+  <rect x="495" y="660" width="16" height="16" rx="3" fill="#14a38b"/><text x="519" y="674" font-family="system-ui, sans-serif" font-size="14" fill="#344258">d3-delaunay</text>
+  <rect x="705" y="660" width="16" height="16" rx="3" fill="#e08b35"/><text x="729" y="674" font-family="system-ui, sans-serif" font-size="14" fill="#344258">d3-voronoi</text>
+</svg>

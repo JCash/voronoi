@@ -28,6 +28,9 @@
 *.app
 
 build/**
+site/vendor/
+site/benchmark/vendor/
+benchmark/node_modules/
 test/boost/**
 test/fastjet/**
 test/voronoi++/**

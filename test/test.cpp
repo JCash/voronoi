@@ -89,6 +89,12 @@ struct VoronoiTest : public jc_test_base_class {
     void TearDown()
     {
         if (ctx->diagram.internal) {
+            int iterated_count = 0;
+            test_edge_iter iter;
+            test_diagram_get_edges(&ctx->diagram, &iter);
+            while( test_edge_next(&iter) )
+                ++iterated_count;
+            ASSERT_EQ( iterated_count, jcv_diagram_get_edge_count(&ctx->diagram) );
             jcv_diagram_free(&ctx->diagram);
         }
         delete ctx;
@@ -212,6 +218,68 @@ TEST_F(VoronoiTest, ceil_floor)
         ASSERT_NEAR((jcv_real) 1000000.0f, jcv_ceil((jcv_real)999999.5f), JCV_REAL_TYPE_EPSILON);
         ASSERT_NEAR((jcv_real)  999999.0f, jcv_floor((jcv_real) 999999.5f), JCV_REAL_TYPE_EPSILON);
     }
+}
+
+TEST_F(VoronoiTest, site_sort_adversarial_inputs)
+{
+    const int count = 257;
+    jcv_site sites[count];
+
+    for( int input = 0; input < 5; ++input )
+    {
+        uint32_t random = UINT32_C(0x12345678);
+        for( int i = 0; i < count; ++i )
+        {
+            int value = i;
+            if( input == 1 )
+                value = count - 1 - i;
+
+            if( input < 2 )
+            {
+                sites[i].p.y = (jcv_real)(value / 17);
+                sites[i].p.x = (jcv_real)(value % 17);
+            }
+            else if( input == 2 )
+            {
+                random = random * UINT32_C(1664525) + UINT32_C(1013904223);
+                sites[i].p.y = (jcv_real)7;
+                sites[i].p.x = (jcv_real)(random & UINT32_C(0xffff));
+            }
+            else if( input == 3 )
+            {
+                sites[i].p.y = (jcv_real)(i % 3);
+                sites[i].p.x = (jcv_real)(i % 7);
+            }
+            else
+            {
+                random = random * UINT32_C(1664525) + UINT32_C(1013904223);
+                sites[i].p.x = (jcv_real)(int32_t)random;
+                random = random * UINT32_C(1664525) + UINT32_C(1013904223);
+                sites[i].p.y = (jcv_real)(int32_t)random;
+            }
+            sites[i].index = (uint32_t)i;
+            sites[i].boundary = (uint32_t)(i & 1);
+        }
+
+        jcv_sites_sort(sites, count);
+
+        bool seen[count] = {};
+        for( int i = 0; i < count; ++i )
+        {
+            ASSERT_LT(sites[i].index, (uint32_t)count);
+            ASSERT_FALSE(seen[sites[i].index]);
+            seen[sites[i].index] = true;
+            ASSERT_EQ((uint32_t)(sites[i].index & 1), sites[i].boundary);
+            if( i > 0 )
+                ASSERT_FALSE(jcv_site_less(&sites[i], &sites[i-1]));
+        }
+    }
+
+    jcv_site equal[2] = {};
+    equal[0].p.x = equal[1].p.x = (jcv_real)1;
+    equal[0].p.y = equal[1].p.y = (jcv_real)2;
+    ASSERT_FALSE(jcv_site_less(&equal[0], &equal[1]));
+    ASSERT_FALSE(jcv_site_less(&equal[1], &equal[0]));
 }
 
 TEST_F(VoronoiTest, pseudo_angle_preserves_polar_order)
@@ -391,7 +459,7 @@ static jcv_context_internal* setup_test_context_internal(int num_points, jcv_poi
         sites[i].p        = points[i];
         sites[i].index    = (uint32_t)i;
     }
-    qsort(sites, (size_t)num_points, sizeof(jcv_site), jcv_point_cmp);
+    jcv_sites_sort(sites, num_points);
 
     return internal;
 }
@@ -534,6 +602,20 @@ TEST_F(VoronoiTest, same_site)
     jcv_diagram_generate(num_points, points, 0, 0, &ctx->diagram);
 
     ASSERT_EQ( 1, ctx->diagram.numsites );
+}
+
+TEST_F(VoronoiTest, diagram_edge_count_matches_iterator)
+{
+    jcv_point points[] = { {10, 10}, {90, 10}, {50, 90} };
+    jcv_diagram_generate(3, points, 0, 0, &ctx->diagram);
+
+    int iterated_count = 0;
+    test_edge_iter iter;
+    test_diagram_get_edges(&ctx->diagram, &iter);
+    while( test_edge_next(&iter) )
+        ++iterated_count;
+
+    ASSERT_EQ( iterated_count, jcv_diagram_get_edge_count(&ctx->diagram) );
 }
 
 TEST_F(VoronoiTest, many)
@@ -943,6 +1025,48 @@ static void validate_beachline(jcv_context_internal* internal, int expected_coun
     ASSERT_EQ(expected_count, list_count);
 }
 
+TEST_F(VoronoiTest, priority_queue_push_remove_pop)
+{
+    const jcv_real values[][2] = {
+        {4, 3}, {1, 5}, {3, 1}, {1, 2},
+        {2, 9}, {8, 0}, {2, 4}, {5, 7},
+    };
+    const int count = (int)(sizeof(values) / sizeof(values[0]));
+    jcv_halfedge nodes[count];
+    jcv_halfedge* items[count + 2];
+    jcv_priorityqueue queue;
+    memset(nodes, 0, sizeof(nodes));
+    memset(items, 0, sizeof(items));
+    jcv_pq_create(&queue, count + 2, items);
+
+    for( int i = 0; i < count; ++i )
+    {
+        nodes[i].y = values[i][0];
+        nodes[i].vertex.x = values[i][1];
+        jcv_pq_push(&queue, &nodes[i]);
+        ASSERT_EQ(&nodes[i], queue.items[nodes[i].pqpos]);
+        for( int child = 2; child < queue.numitems; ++child )
+            ASSERT_FALSE(jcv_halfedge_compare(queue.items[child >> 1], queue.items[child]));
+    }
+
+    jcv_pq_remove(&queue, &nodes[2]);
+    ASSERT_EQ(0, nodes[2].pqpos);
+    jcv_pq_remove(&queue, &nodes[2]);
+
+    jcv_halfedge* previous = 0;
+    int popped = 0;
+    while( !jcv_pq_empty(&queue) )
+    {
+        jcv_halfedge* current = jcv_pq_pop(&queue);
+        ASSERT_EQ(0, current->pqpos);
+        if( previous )
+            ASSERT_FALSE(jcv_halfedge_compare(previous, current));
+        previous = current;
+        ++popped;
+    }
+    ASSERT_EQ(count - 1, popped);
+}
+
 TEST_F(VoronoiTest, beachline_ravl_insert_remove)
 {
     jcv_context_internal internal;
@@ -1325,6 +1449,7 @@ TEST_F(VoronoiTest, Delauney)
     jcv_delauney_iter iter;
     jcv_delauney_begin( &ctx->diagram, &iter );
     jcv_delauney_edge delauney_edge;
+    ASSERT_EQ(3, jcv_delauney_get_edge_count(&ctx->diagram));
 
     bool seen[3][3] = {};
     int count = 0;
@@ -1349,6 +1474,65 @@ TEST_F(VoronoiTest, Delauney)
     ASSERT_TRUE(seen[0][1] || seen[1][0]);
     ASSERT_TRUE(seen[0][2] || seen[2][0]);
     ASSERT_TRUE(seen[1][2] || seen[2][1]);
+}
+
+TEST_F(VoronoiTest, Delauney_only_matches_full_diagram)
+{
+    jcv_point points[] = {
+        {0.5, 0.5},
+        {2.0, 0.8},
+        {3.0, 2.0},
+        {1.8, 3.2},
+        {0.3, 2.4},
+        {1.5, 1.7},
+    };
+    const int num_points = (int)(sizeof(points) / sizeof(points[0]));
+    bool full_edges[num_points][num_points] = {};
+    bool delauney_edges[num_points][num_points] = {};
+
+    jcv_diagram_generate(num_points, points, 0, 0, &ctx->diagram);
+    jcv_delauney_iter full_iter;
+    jcv_delauney_begin(&ctx->diagram, &full_iter);
+    jcv_delauney_edge edge;
+    int full_count = 0;
+    while( jcv_delauney_next(&full_iter, &edge) )
+    {
+        int a = (int)edge.sites[0]->index;
+        int b = (int)edge.sites[1]->index;
+        full_edges[a][b] = full_edges[b][a] = true;
+        ++full_count;
+    }
+
+    jcv_diagram delauney = {};
+    jcv_delauney_generate(num_points, points, 0, 0, &delauney);
+    ASSERT_EQ(num_points, delauney.numsites);
+    ASSERT_EQ(0, delauney.numvertices);
+    ASSERT_EQ(0, jcv_diagram_get_edge_count(&delauney));
+    ASSERT_EQ(full_count, jcv_delauney_get_edge_count(&delauney));
+
+    jcv_edge_iter voronoi_iter;
+    jcv_edge voronoi_edge;
+    jcv_diagram_get_edges(&delauney, &voronoi_iter);
+    ASSERT_FALSE(jcv_edge_next(&voronoi_iter, &voronoi_edge));
+
+    jcv_delauney_iter iter;
+    jcv_delauney_begin(&delauney, &iter);
+    int delauney_count = 0;
+    while( jcv_delauney_next(&iter, &edge) )
+    {
+        int a = (int)edge.sites[0]->index;
+        int b = (int)edge.sites[1]->index;
+        ASSERT_FALSE(delauney_edges[a][b]);
+        delauney_edges[a][b] = delauney_edges[b][a] = true;
+        ++delauney_count;
+    }
+
+    ASSERT_EQ(full_count, delauney_count);
+    ASSERT_EQ(jcv_delauney_get_edge_count(&delauney), delauney_count);
+    for( int a = 0; a < num_points; ++a )
+        for( int b = 0; b < num_points; ++b )
+            ASSERT_EQ(full_edges[a][b], delauney_edges[a][b]);
+    jcv_diagram_free(&delauney);
 }
 
 TEST_F(VoronoiTest, Delauney_edge_remains_valid_after_next)
