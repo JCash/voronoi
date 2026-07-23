@@ -1,21 +1,40 @@
 
-|Branch      | macOS/Linux/Windows |
-|------------|---------------------|
-|master      | [![Build](https://github.com/JCash/voronoi/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/JCash/voronoi/actions/workflows/build.yml) |
-|dev         | [![Build](https://github.com/JCash/voronoi/actions/workflows/build.yml/badge.svg?branch=dev)](https://github.com/JCash/voronoi/actions/workflows/build.yml) |
+|Branch      | master | dev        |
+|------------|--------|------------|
+|macOS/Linux/Windows | [![Build](https://github.com/JCash/voronoi/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/JCash/voronoi/actions/workflows/build.yml) | [![Build](https://github.com/JCash/voronoi/actions/workflows/build.yml/badge.svg?branch=dev)](https://github.com/JCash/voronoi/actions/workflows/build.yml) |
 
 
 # jc_voronoi
 A fast C header only implementation for creating 2D Voronoi diagrams from a point set
 
-<img src="images/example1.svg" alt="vanilla" width="350"> <img src="images/example2.png" alt="custom clipping" width="350">
+## Feature comparisons
+
+| Feature vs Impl        | voronoi++ | boost | fastjet | jcv |
+|-----------------------:|-----------|-------|---------|-----|
+| Language               |    C++    |  C++  |    C    |  C  |
+| Edge clip              |     *     |       |    *    |  *  |
+| Generate Edges         |     *     |   *   |    *    |  *  |
+| Generate Cells         |     *     |   *   |         |  *  |
+| Cell Edges Not Flipped |           |   *   |         |  *  |
+| Cell Edges CCW         |           |   *   |         |  *  |
+| Easy Relaxation        |           |       |         |  *  |
+| Custom Allocator       |           |       |         |  *  |
+| Delauney generation    |           |       |         |  *  |
+
+<img src="images/example1.svg" alt="Voronoid and Delauney diagrams" width="350"> <img src="images/example2.png" alt="Custom clipping" width="350">
 
 * Uses [Fortune's sweep algorithm.](https://en.wikipedia.org/wiki/Fortune%27s_algorithm)
 * Disclaimer: This software is supplied "AS IS" without any warranties and support
 * [LICENSE](./LICENSE) ([The MIT license](http://choosealicense.com/licenses/mit/))
 * [Showcases](./SHOWCASES.md)
 
-# Brief
+## Benchmarks
+
+* [Benchmarks](./BENCHMARKS.md)
+
+<img src="images/benchmark/release-0.10.0-performance.svg" alt="Performance" width="350">
+
+# About this library
 
 I was realizing that the previous 2D voronoi generator I was using, was taking up too much time in my app,
 and worse, sometimes it also produced errors.
@@ -38,20 +57,6 @@ So this project set out to achieve a combination of the good things the other li
 * A clear license
 
 But mostly, I did it for fun :)
-
-# Feature comparisons
-
-| Feature vs Impl        | voronoi++ | boost | fastjet | jcv |
-|-----------------------:|-----------|-------|---------|-----|
-| Language               |    C++    |  C++  |    C    |  C  |
-| Edge clip              |     *     |       |    *    |  *  |
-| Generate Edges         |     *     |   *   |    *    |  *  |
-| Generate Cells         |     *     |   *   |         |  *  |
-| Cell Edges Not Flipped |           |   *   |         |  *  |
-| Cell Edges CCW         |           |   *   |         |  *  |
-| Easy Relaxation        |           |       |         |  *  |
-| Custom Allocator       |           |       |         |  *  |
-| Delauney generation    |           |       |         |  *  |
 
 # Build
 
@@ -454,64 +459,10 @@ void draw_delauney(const jcv_diagram* diagram)
 
 </details>
 
-# Some Numbers
-
-*Tests run on a Intel(R) Core(TM) i7-7567U CPU @ 3.50GHz MBP with 16 GB 2133 MHz LPDDR3 ram. Each test ran 20 times, and the minimum time is presented below*
-
-*I removed the voronoi++ from the results, since it was consistently 10x-15x slower than the rest and consumed way more memory*
-_
-<br/>
-<img src="test/images/timings_voronoi.png" alt="timings" width="350">
-<img src="test/images/memory_voronoi.png" alt="memory" width="350">
-<img src="test/images/num_allocations_voronoi.png" alt="num_allocations" width="350">
-
-[Same stats, as tables](./test/report.md)
-
-
-# General thoughts
-
-## Fastjet
-
-The Fastjet version is built upon Steven Fortune's original C version, which Shane O'Sullivan improved upon.
-Given the robustness and speed improvements of the implementation done by Fastjet,
-that should be the base line to compare other implementations with.
-
-Unfortunately, the code is not very readable, and the license is unclear (GPL?)
-
-Also, if you want access to the actual cells, you have to recreate that yourself using the edges.
-
-
-## Boost
-
-Using boost might be convenient for some, but the sheer amount of code is too great in many cases.
-I had to install 5 modules of boost to compile (config, core, mpl, preprocessor and polygon).
-If you install full boost, that's 650mb of source.
-
-It is ~2x as slow as the fastest algorithms, and takes ~2.5x as much memory.
-
-The boost implementation also puts the burden of clipping the final edges on the client.
-
-The code consists of only templated headers, and it increases compile time a *lot*.
-For simply generating a 2D voronoi diagram using points as input, it is clearly overkill.
-
-
-## Voronoi++
-
-The performance of it is very slow (~20x slower than fastjet) and
-And it uses ~2.5x-3x more memory than the fastest algorithms.
-
-Using the same data sets as the other algorithms, it breaks under some conditions.
-
-
-## O'Sullivan
-
-A C++ version of the original C version from Steven Fortune.
-
-Although fast, it's not completely robust and will produce errors.
-
-
-
 # Gallery
 
 I'd love to see what you're using this software for!
 If possible, please send me images and some brief explanation of your usage of this library!
+
+* [Showcases](./SHOWCASES.md)
+
