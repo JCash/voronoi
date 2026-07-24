@@ -185,6 +185,17 @@ the 10k, 100k, and 100k pathological (issue48) inputs. It also generates module-
 source-LOC comparisons. To update only those code-size results, run
 `npm run code-size --prefix benchmark`.
 
+## Releasing
+
+Create and push a version tag such as `v0.11.0`. The release workflow uses the
+tag as the package version and writes it into the packaged copy of
+`CMakeLists.txt`; the tagged source commit is not modified.
+
+Pushing the tag creates the GitHub release and publishes the WebAssembly
+assets. It also publishes a minimal CMake source package, its SHA-256 checksum,
+and a generated `jc-voronoi.rb` Homebrew formula whose URL and checksum refer
+to that exact source package.
+
 <details>
 <summary>Configuration defines</summary>
 
