@@ -107,8 +107,6 @@ JCV copies one packed result from WebAssembly into a JavaScript-owned `ArrayBuff
 | 100k | 56.0 MiB | 18.0 MiB | 165.0 MiB | 173.0 MiB |
 | 100k pathological | 60.1 MiB | 15.7 MiB | 162.1 MiB | 181.8 MiB |
 
-<img src="images/benchmark/wasm-memory.svg" alt="Retained WebAssembly and JavaScript memory" width="350">
-
 Each memory sample starts a fresh Node.js process, prepares the library-specific input, forces garbage collection, records a baseline, generates and retains one public diagram, forces garbage collection again, and records the resident-memory delta. Values are medians of 3 isolated samples. Input arrays and initialized library runtimes are part of the baseline. Resident memory is runtime- and operating-system-dependent, so compare entries only within the environment reported below.
 
 ### Worker-backed JCV peak and retained memory
@@ -119,7 +117,7 @@ Each memory sample starts a fresh Node.js process, prepares the library-specific
 | 100k | 50.9 MiB | 10.7 MiB | 67.2 MiB | 32.8 MiB |
 | 100k pathological | 59.1 MiB | 9.4 MiB | 77.3 MiB | 32.3 MiB |
 
-<img src="images/benchmark/wasm-worker-memory.svg" alt="Worker-backed JCV peak and retained memory" width="350">
+<img src="images/benchmark/wasm-memory.svg" alt="Worker-backed JCV peak and retained memory" width="350">
 
 The tracked peak is the transferred input, the worker's WebAssembly linear memory, and the packed JavaScript result while all three coexist. Retained diagram memory is the exact packed buffer size after transfer and worker termination. RSS values are median process deltas from 3 isolated samples; allocators may keep released pages resident, so retained RSS can remain above the memory still owned by the API.
 

@@ -219,84 +219,20 @@ function memoryChart(results) {
   const top = 110;
   const bottom = 575;
   const plotHeight = bottom - top;
-  const measuredMaximum = Math.max(...Object.values(results).flatMap((result) =>
-    LIBRARIES.map(([library]) => result[library]),
-  ));
-  const maximum = niceMaximum(measuredMaximum * 1.1);
-  const caseWidth = (width - left - right) / CASES.length;
-  const barWidth = 48;
-  const barGap = 8;
-  const groupWidth = LIBRARIES.length * barWidth + (LIBRARIES.length - 1) * barGap;
-  const lines = [];
-
-  lines.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="title desc">`);
-  lines.push('  <title id="title">Retained WebAssembly and JavaScript Memory</title>');
-  lines.push('  <desc id="desc">Grouped bar chart comparing median retained resident-memory deltas after generating one diagram in a fresh Node.js process. Lower is better.</desc>');
-  lines.push("  <style>.stat-hit{fill:transparent;pointer-events:all}</style>");
-  lines.push('  <rect width="1200" height="720" fill="#f8fafc"/>');
-  lines.push('  <text x="70" y="49" font-family="system-ui, sans-serif" font-size="27" font-weight="700" fill="#152238">Retained WebAssembly and JavaScript Memory</text>');
-  lines.push('  <text x="70" y="76" font-family="system-ui, sans-serif" font-size="15" fill="#536174">Fresh process · public diagram API · median retained RSS delta · lower is better</text>');
-
-  for (let tick = 0; tick <= 5; ++tick) {
-    const value = maximum * tick / 5;
-    const y = bottom - plotHeight * tick / 5;
-    lines.push(`  <line x1="${left}" y1="${y}" x2="${width - right}" y2="${y}" stroke="#d8dee8"/>`);
-    lines.push(`  <text x="${left - 12}" y="${y + 5}" font-family="system-ui, sans-serif" font-size="13" fill="#536174" text-anchor="end">${escapeXml(tick === 0 ? "0" : formatBytes(value))}</text>`);
-  }
-
-  CASES.forEach(([caseName], caseIndex) => {
-    const center = left + caseWidth * (caseIndex + 0.5);
-    const startX = center - groupWidth / 2;
-    lines.push(`  <text x="${center}" y="612" font-family="system-ui, sans-serif" font-size="15" font-weight="600" fill="#26354a" text-anchor="middle">${caseName}</text>`);
-    LIBRARIES.forEach(([library, color], libraryIndex) => {
-      const value = results[caseName][library];
-      const x = startX + libraryIndex * (barWidth + barGap);
-      const barHeight = Math.max(1, value / maximum * plotHeight);
-      const y = bottom - barHeight;
-      const labelY = Math.max(top - 5, y - 8 - (libraryIndex % 2) * 14);
-      const formatted = formatBytes(value);
-      lines.push(`  <rect x="${x}" y="${y.toFixed(2)}" width="${barWidth}" height="${barHeight.toFixed(2)}" rx="4" fill="${color}"/>`);
-      lines.push(`  <text x="${x + barWidth / 2}" y="${labelY.toFixed(2)}" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">${escapeXml(formatted)}</text>`);
-      lines.push(`  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="${x}" y="${Math.min(y, bottom - 15).toFixed(2)}" width="${barWidth}" height="${Math.max(15, barHeight).toFixed(2)}"><title>${escapeXml(`${library}, ${caseName}: median retained ${formatted}`)}</title></rect></g>`);
-    });
-  });
-
-  const legendWidth = 210;
-  const legendStart = (width - legendWidth * LIBRARIES.length) / 2;
-  LIBRARIES.forEach(([library, color], index) => {
-    const x = legendStart + index * legendWidth;
-    lines.push(`  <rect x="${x}" y="660" width="16" height="16" rx="3" fill="${color}"/><text x="${x + 24}" y="674" font-family="system-ui, sans-serif" font-size="14" fill="#344258">${escapeXml(library)}</text>`);
-  });
-  lines.push("</svg>");
-  return `${lines.join("\n")}\n`;
-}
-
-function workerMemoryChart(results) {
-  const width = 1200;
-  const height = 720;
-  const left = 115;
-  const right = 50;
-  const top = 110;
-  const bottom = 575;
-  const plotHeight = bottom - top;
-  const series = [
-    ["peakBytes", "Peak", "#5267d9"],
-    ["packedBytes", "Retained", "#14a38b"],
-  ];
   const maximum = niceMaximum(Math.max(...Object.values(results).map((result) => result.peakBytes)) * 1.1);
   const caseWidth = (width - left - right) / CASES.length;
-  const barWidth = 72;
-  const barGap = 12;
-  const groupWidth = series.length * barWidth + (series.length - 1) * barGap;
+  const barWidth = 90;
+  const peakColor = "#aeb8f2";
+  const retainedColor = "#5267d9";
   const lines = [];
 
   lines.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="title desc">`);
   lines.push('  <title id="title">Worker-backed JCV Memory</title>');
-  lines.push('  <desc id="desc">Peak tracked worker payload and retained packed diagram memory after terminating the worker. Lower is better.</desc>');
+  lines.push('  <desc id="desc">Each pale bar shows peak tracked worker payload and its darker lower portion shows retained packed diagram memory after terminating the worker.</desc>');
   lines.push("  <style>.stat-hit{fill:transparent;pointer-events:all}</style>");
   lines.push('  <rect width="1200" height="720" fill="#f8fafc"/>');
   lines.push('  <text x="70" y="49" font-family="system-ui, sans-serif" font-size="27" font-weight="700" fill="#152238">Worker-backed JCV Memory</text>');
-  lines.push('  <text x="70" y="76" font-family="system-ui, sans-serif" font-size="15" fill="#536174">Input + WASM heap + packed result at peak · packed result retained · lower is better</text>');
+  lines.push('  <text x="70" y="76" font-family="system-ui, sans-serif" font-size="15" fill="#536174">Darker portion is retained · lower is better</text>');
 
   for (let tick = 0; tick <= 5; ++tick) {
     const value = maximum * tick / 5;
@@ -307,25 +243,25 @@ function workerMemoryChart(results) {
 
   CASES.forEach(([caseName], caseIndex) => {
     const center = left + caseWidth * (caseIndex + 0.5);
-    const startX = center - groupWidth / 2;
+    const x = center - barWidth / 2;
+    const peak = results[caseName].peakBytes;
+    const retained = results[caseName].packedBytes;
+    const peakHeight = Math.max(1, peak / maximum * plotHeight);
+    const retainedHeight = Math.max(1, retained / maximum * plotHeight);
+    const peakY = bottom - peakHeight;
+    const retainedY = bottom - retainedHeight;
     lines.push(`  <text x="${center}" y="612" font-family="system-ui, sans-serif" font-size="15" font-weight="600" fill="#26354a" text-anchor="middle">${caseName}</text>`);
-    series.forEach(([key, label, color], seriesIndex) => {
-      const value = results[caseName][key];
-      const x = startX + seriesIndex * (barWidth + barGap);
-      const barHeight = Math.max(1, value / maximum * plotHeight);
-      const y = bottom - barHeight;
-      const formatted = formatBytes(value);
-      lines.push(`  <rect x="${x}" y="${y.toFixed(2)}" width="${barWidth}" height="${barHeight.toFixed(2)}" rx="4" fill="${color}"/>`);
-      lines.push(`  <text x="${x + barWidth / 2}" y="${Math.max(top - 5, y - 8).toFixed(2)}" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a" text-anchor="middle">${escapeXml(formatted)}</text>`);
-      lines.push(`  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="${x}" y="${Math.min(y, bottom - 15).toFixed(2)}" width="${barWidth}" height="${Math.max(15, barHeight).toFixed(2)}"><title>${escapeXml(`${caseName}, ${label}: ${formatted}`)}</title></rect></g>`);
-    });
+    lines.push(`  <rect x="${x}" y="${peakY.toFixed(2)}" width="${barWidth}" height="${peakHeight.toFixed(2)}" rx="4" fill="${peakColor}"/>`);
+    lines.push(`  <rect x="${x}" y="${retainedY.toFixed(2)}" width="${barWidth}" height="${retainedHeight.toFixed(2)}" rx="4" fill="${retainedColor}"/>`);
+    const labelY = Math.max(top - 5, peakY - 22);
+    lines.push(`  <text x="${center}" y="${labelY.toFixed(2)}" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a" text-anchor="middle">${escapeXml(formatBytes(peak))}</text>`);
+    lines.push(`  <text x="${center}" y="${(labelY + 14).toFixed(2)}" font-family="system-ui, sans-serif" font-size="11" fill="${retainedColor}" text-anchor="middle">${escapeXml(formatBytes(retained))}</text>`);
+    lines.push(`  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="${x}" y="${Math.min(peakY, bottom - 15).toFixed(2)}" width="${barWidth}" height="${Math.max(15, peakHeight).toFixed(2)}"><title>${escapeXml(`${caseName}: peak ${formatBytes(peak)}; retained ${formatBytes(retained)}`)}</title></rect></g>`);
   });
 
-  const legendStart = 430;
-  series.forEach(([, label, color], index) => {
-    const x = legendStart + index * 190;
-    lines.push(`  <rect x="${x}" y="660" width="16" height="16" rx="3" fill="${color}"/><text x="${x + 24}" y="674" font-family="system-ui, sans-serif" font-size="14" fill="#344258">${label}</text>`);
-  });
+  lines.push(`  <rect x="485" y="651" width="42" height="20" rx="3" fill="${peakColor}"/>`);
+  lines.push(`  <rect x="485" y="660" width="42" height="11" rx="2" fill="${retainedColor}"/>`);
+  lines.push('  <text x="537" y="667" font-family="system-ui, sans-serif" font-size="14" fill="#344258">peak / retained</text>');
   lines.push("</svg>");
   return `${lines.join("\n")}\n`;
 }
@@ -425,8 +361,6 @@ function markdown(results, memoryResults, workerMemoryResults, codeSizes) {
   }
   lines.push(
     "",
-    '<img src="images/benchmark/wasm-memory.svg" alt="Retained WebAssembly and JavaScript memory" width="350">',
-    "",
     `Each memory sample starts a fresh Node.js process, prepares the library-specific input, forces garbage collection, records a baseline, generates and retains one public diagram, forces garbage collection again, and records the resident-memory delta. Values are medians of ${MEMORY_SAMPLES} isolated samples. Input arrays and initialized library runtimes are part of the baseline. Resident memory is runtime- and operating-system-dependent, so compare entries only within the environment reported below.`,
     "",
   );
@@ -443,7 +377,7 @@ function markdown(results, memoryResults, workerMemoryResults, codeSizes) {
   }
   lines.push(
     "",
-    '<img src="images/benchmark/wasm-worker-memory.svg" alt="Worker-backed JCV peak and retained memory" width="350">',
+    '<img src="images/benchmark/wasm-memory.svg" alt="Worker-backed JCV peak and retained memory" width="350">',
     "",
     `The tracked peak is the transferred input, the worker's WebAssembly linear memory, and the packed JavaScript result while all three coexist. Retained diagram memory is the exact packed buffer size after transfer and worker termination. RSS values are median process deltas from ${MEMORY_SAMPLES} isolated samples; allocators may keep released pages resident, so retained RSS can remain above the memory still owned by the API.`,
     "",
@@ -493,9 +427,8 @@ for (const [fileKey, , operationKey, chartTitle] of OPERATIONS) {
   }
 }
 const memoryResults = collectMemoryResults();
-await writeFile(path.join(imageDirectory, "wasm-memory.svg"), memoryChart(memoryResults));
 const workerMemoryResults = collectWorkerMemoryResults();
-await writeFile(path.join(imageDirectory, "wasm-worker-memory.svg"), workerMemoryChart(workerMemoryResults));
+await writeFile(path.join(imageDirectory, "wasm-memory.svg"), memoryChart(workerMemoryResults));
 const codeSizes = await collectCodeSizes(wasmDirectory);
 await writeFile(path.join(imageDirectory, "wasm-code-size.svg"), codeSizeChart(codeSizes));
 const reportPath = path.join(repository, "Benchmarks.md");
