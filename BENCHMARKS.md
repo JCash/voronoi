@@ -61,7 +61,7 @@ Times are medians and lower is better. The benchmark exercises each library's pu
 
 The random cases use a deterministic seed. `100k pathological` is the issue48 input with 99,998 symmetric diagonal-pair sites. Each measurement has two untimed warmups followed by 10 samples for 10k and five samples for 100k and the pathological case.
 
-JCV copies one packed result from WebAssembly into a JavaScript-owned `ArrayBuffer` and disposes each result inside the timed operation. Site access materializes ergonomic `Site` objects; edge rendering reads packed vertex arrays without creating edge objects; Delauney access reads the packed adjacency count. Other libraries expose different public output forms: d3-voronoi and voronoi eagerly provide arrays, while d3-delaunay renders its Voronoi mesh. These rows therefore compare public access workflows, not identical post-processing algorithms.
+JCV copies one packed result from WebAssembly into a JavaScript-owned `ArrayBuffer` and disposes each result inside the timed operation. Site access materializes ergonomic `Site` objects; edge rendering reads packed vertex arrays without creating edge objects. The Delauney row instead uses JCV's adjacency-only generator and returns every edge as flat coordinates, without constructing a Voronoi diagram. Other libraries expose different public output forms: d3-voronoi and voronoi eagerly provide arrays, while d3-delaunay renders its Voronoi mesh. These rows therefore compare public access workflows, not identical post-processing algorithms.
 
 ### Voronoi Diagram Generation
 
@@ -93,9 +93,9 @@ JCV copies one packed result from WebAssembly into a JavaScript-owned `ArrayBuff
 
 | Case | JCV 0.10 | d3-delaunay | d3-voronoi | gorhill/voronoi |
 |---|---:|---:|---:|---:|
-| 10k | 8.00 ms | 6.18 ms | 31.31 ms | — |
-| 100k | 100.65 ms | 48.01 ms | 390.36 ms | — |
-| 100k pathological | 33.14 ms | 23.97 ms | 129.53 ms | — |
+| 10k | 4.19 ms | 6.04 ms | 30.83 ms | — |
+| 100k | 45.66 ms | 47.74 ms | 380.67 ms | — |
+| 100k pathological | 16.60 ms | 23.82 ms | 111.00 ms | — |
 
 <img src="images/benchmark/wasm-delauney-edges.svg" alt="Get Delauney Edges" width="350">
 
@@ -126,7 +126,7 @@ The tracked peak is the transferred input, the worker's WebAssembly linear memor
 
 | Library | Dependencies | Compound module | Brotli | Compound LOC |
 |---|---:|---:|---:|---:|
-| JCV 0.10 | 0 | 27.8 KiB | 10.2 KiB | 2,830 |
+| JCV 0.10 | 0 | 27.8 KiB | 10.2 KiB | 2,832 |
 | d3-delaunay | 2 (delaunator, robust-predicates) | 18.6 KiB | 6.1 KiB | 1,258 |
 | d3-voronoi | 0 | 9.0 KiB | 3.4 KiB | 864 |
 | gorhill/voronoi | 0 | 16.0 KiB | 4.1 KiB | 1,072 |

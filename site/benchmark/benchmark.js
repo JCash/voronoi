@@ -58,7 +58,7 @@ function prepareJcv(points, bounds) {
       diagram.render(context);
       return checksum;
     }),
-    delauney: () => withDiagram((diagram) => diagram.numDelauneyEdges),
+    delauney: () => voronoi.delauneyEdges(points, { bounds }).length / 4,
   };
 }
 

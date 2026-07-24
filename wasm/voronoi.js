@@ -452,14 +452,14 @@ export async function loadVoronoi(moduleOptions = {}) {
     });
   }
 
-  function generateEdges(points, width, height, generateEdgesNative) {
+  function generateEdges(points, nativeArguments, generateEdgesNative) {
     return withPoints(points, (flat, pointsPointer) => {
       let countPointer = 0;
       let edgesPointer = 0;
       try {
         countPointer = module._malloc(Int32Array.BYTES_PER_ELEMENT);
         edgesPointer = generateEdgesNative(
-          pointsPointer, flat.length / 2, width, height, countPointer,
+          pointsPointer, flat.length / 2, ...nativeArguments, countPointer,
         );
         const edgeCount = module.HEAP32[countPointer / Int32Array.BYTES_PER_ELEMENT];
         if (edgeCount === -2) throw new Error("Voronoi output allocation failed");
@@ -479,10 +479,10 @@ export async function loadVoronoi(moduleOptions = {}) {
   return {
     generate,
     edges: (points, width, height) => generateEdges(
-      points, width, height, module._jcv_voronoi_edges,
+      points, [width, height], module._jcv_voronoi_edges,
     ),
-    delauneyEdges: (points, width, height) => generateEdges(
-      points, width, height, module._jcv_delauney_edges,
+    delauneyEdges: (points, boundsOrWidth, height) => generateEdges(
+      points, parseBounds(boundsOrWidth, height), module._jcv_delauney_edges,
     ),
     _wasmMemoryBytes: () => module.HEAPU8.buffer.byteLength,
   };

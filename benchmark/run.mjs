@@ -84,7 +84,7 @@ function prepareJcv(voronoi, points, bounds) {
       diagram.render(context);
       return checksum;
     }),
-    delauney: () => withDiagram((diagram) => diagram.numDelauneyEdges),
+    delauney: () => voronoi.delauneyEdges(points, { bounds }).length / 4,
   };
 }
 
@@ -362,7 +362,7 @@ function markdown(results, memoryResults, workerMemoryResults, codeSizes) {
     "",
     "The random cases use a deterministic seed. `100k pathological` is the issue48 input with 99,998 symmetric diagonal-pair sites. Each measurement has two untimed warmups followed by 10 samples for 10k and five samples for 100k and the pathological case.",
     "",
-    "JCV copies one packed result from WebAssembly into a JavaScript-owned `ArrayBuffer` and disposes each result inside the timed operation. Site access materializes ergonomic `Site` objects; edge rendering reads packed vertex arrays without creating edge objects; Delauney access reads the packed adjacency count. Other libraries expose different public output forms: d3-voronoi and voronoi eagerly provide arrays, while d3-delaunay renders its Voronoi mesh. These rows therefore compare public access workflows, not identical post-processing algorithms.",
+    "JCV copies one packed result from WebAssembly into a JavaScript-owned `ArrayBuffer` and disposes each result inside the timed operation. Site access materializes ergonomic `Site` objects; edge rendering reads packed vertex arrays without creating edge objects. The Delauney row instead uses JCV's adjacency-only generator and returns every edge as flat coordinates, without constructing a Voronoi diagram. Other libraries expose different public output forms: d3-voronoi and voronoi eagerly provide arrays, while d3-delaunay renders its Voronoi mesh. These rows therefore compare public access workflows, not identical post-processing algorithms.",
     "",
   ];
 

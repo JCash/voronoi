@@ -73,6 +73,7 @@ export interface Voronoi {
   edges(points: PointInput, width: number, height: number): Float32Array;
 
   /** Returns flat x0, y0, x1, y1 coordinates for every Delaunay edge. */
+  delauneyEdges(points: PointInput, options: GenerateOptions): Float32Array;
   delauneyEdges(
     points: PointInput,
     width: number,

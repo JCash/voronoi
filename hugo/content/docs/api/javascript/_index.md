@@ -29,6 +29,7 @@ The JavaScript API loads the WebAssembly module and exposes persistent diagram o
 <tr><td><a href="#worker-backed-generation"><code>workerVoronoi.generate(points, options)</code></a></td><td>Generate a <code>Diagram</code> in a one-shot worker.</td></tr>
 <tr><td><a href="#compatibility-helpers"><code>voronoi.edges(points, width, height)</code></a></td><td>Return flat Voronoi edge coordinates.</td></tr>
 <tr><td><a href="#compatibility-helpers"><code>voronoi.delauneyEdges(points, width, height)</code></a></td><td>Return flat Delauney edge coordinates.</td></tr>
+<tr><td><a href="#compatibility-helpers"><code>voronoi.delauneyEdges(points, options)</code></a></td><td>Return flat Delauney edge coordinates using explicit bounds.</td></tr>
 <tr><td><a href="#diagram"><code>diagram.site(inputIndex)</code></a></td><td>Return the retained <code>Site</code>, or <code>null</code> when pruned.</td></tr>
 <tr><td><a href="#diagram"><code>diagram.cell(inputIndex)</code></a></td><td>Return the site's <code>Cell</code>, or <code>null</code> when pruned.</td></tr>
 <tr><td><a href="#diagram"><code>diagram.neighbors(inputIndex)</code></a></td><td>Return neighboring <code>Site</code> objects.</td></tr>
@@ -132,6 +133,6 @@ The result buffer is garbage-collected normally; `dispose()` is optional.
 
 ## Compatibility helpers
 
-`voronoi.edges(points, width, height)` and `voronoi.delauneyEdges(points, width, height)` return flat `Float32Array` coordinate pairs for applications that need the earlier bulk-output API.
+`voronoi.edges(points, width, height)` and `voronoi.delauneyEdges(points, width, height)` return flat `Float32Array` coordinate pairs for applications that need the earlier bulk-output API. `delauneyEdges` also accepts `{ bounds: [minX, minY, maxX, maxY] }` or `{ width, height }`.
 
 See [Examples - JS](../../../examples/js/) for a complete example.

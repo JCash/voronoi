@@ -22,9 +22,19 @@ for (const coordinate of edges) {
 
 assert.equal(voronoi.edges([], 100, 100).length, 0);
 const delauneyEdges = voronoi.delauneyEdges(points, 100, 100);
+assert.deepEqual(
+  voronoi.delauneyEdges(points, { bounds: [0, 0, 100, 100] }),
+  delauneyEdges,
+);
 assert.ok(delauneyEdges.length > 0);
 assert.equal(delauneyEdges.length % 4, 0);
 for (const coordinate of delauneyEdges) assert.ok(Number.isFinite(coordinate));
+const negativeDelauneyEdges = voronoi.delauneyEdges([
+  { x: -90, y: -90 },
+  { x: 90, y: -90 },
+  { x: 0, y: -10 },
+], { bounds: [-100, -100, 100, 0] });
+assert.ok(negativeDelauneyEdges.length > 0);
 
 const diagram = voronoi.generate(points, { bounds: [0, 0, 100, 100] });
 const workerPoints = new Float32Array(points.flatMap(({ x, y }) => [x, y]));

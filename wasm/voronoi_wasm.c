@@ -328,8 +328,10 @@ float* jcv_voronoi_edges(const float* xy,
 EMSCRIPTEN_KEEPALIVE
 float* jcv_delauney_edges(const float* xy,
                           int num_points,
-                          float width,
-                          float height,
+                          float min_x,
+                          float min_y,
+                          float max_x,
+                          float max_y,
                           int* output_count)
 {
     jcv_diagram diagram = {0};
@@ -343,7 +345,7 @@ float* jcv_delauney_edges(const float* xy,
     if (output_count == NULL)
         return NULL;
     *output_count = -1;
-    if (num_points < 0 || width <= 0.0f || height <= 0.0f ||
+    if (num_points < 0 || max_x <= min_x || max_y <= min_y ||
         (num_points > 0 && xy == NULL))
         return NULL;
     if (num_points == 0)
@@ -352,10 +354,10 @@ float* jcv_delauney_edges(const float* xy,
         return NULL;
     }
 
-    rect.min.x = 0.0f;
-    rect.min.y = 0.0f;
-    rect.max.x = width;
-    rect.max.y = height;
+    rect.min.x = min_x;
+    rect.min.y = min_y;
+    rect.max.x = max_x;
+    rect.max.y = max_y;
     jcv_delauney_generate(num_points, (const jcv_point*)xy, &rect, NULL, &diagram);
     edge_count = jcv_delauney_get_edge_count(&diagram);
 
