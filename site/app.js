@@ -1,11 +1,15 @@
+import { diagramToJSON } from "./diagram_json.js";
+
 const canvas = document.querySelector("#diagram");
 const context = canvas.getContext("2d");
 const countInput = document.querySelector("#site-count");
 const countOutput = document.querySelector("#site-count-output");
 const status = document.querySelector("#status");
 const delauneyButton = document.querySelector("#delauney");
+const copyButton = document.querySelector("#copy-json");
 let points = [];
 let voronoi;
+let diagram;
 let draggedPoint = -1;
 let showDelauney = false;
 
@@ -26,28 +30,27 @@ function draw() {
   if (!canvas.width || !voronoi) return;
   const { width, height } = canvas;
   const scaled = points.map(({ x, y }) => ({ x: x * width, y: y * height }));
-  const edges = voronoi.edges(scaled, width, height);
-  const delauneyEdges = showDelauney
-    ? voronoi.delauneyEdges(scaled, width, height)
-    : new Float32Array();
+  diagram?.dispose();
+  diagram = voronoi.generate(scaled, width, height);
   context.fillStyle = "#1a1c19";
   context.fillRect(0, 0, width, height);
   if (showDelauney) {
     context.strokeStyle = "#ff9367aa";
     context.lineWidth = Math.max(1, window.devicePixelRatio || 1);
     context.beginPath();
-    for (let i = 0; i < delauneyEdges.length; i += 4) {
-      context.moveTo(delauneyEdges[i], delauneyEdges[i + 1]);
-      context.lineTo(delauneyEdges[i + 2], delauneyEdges[i + 3]);
+    for (const edge of diagram.edges) {
+      if (!edge.sites[0] || !edge.sites[1]) continue;
+      context.moveTo(edge.sites[0].p.x, edge.sites[0].p.y);
+      context.lineTo(edge.sites[1].p.x, edge.sites[1].p.y);
     }
     context.stroke();
   }
   context.strokeStyle = "#72796c";
   context.lineWidth = Math.max(1, window.devicePixelRatio || 1);
   context.beginPath();
-  for (let i = 0; i < edges.length; i += 4) {
-    context.moveTo(edges[i], edges[i + 1]);
-    context.lineTo(edges[i + 2], edges[i + 3]);
+  for (const edge of diagram.edges) {
+    context.moveTo(edge.pos[0].x, edge.pos[0].y);
+    context.lineTo(edge.pos[1].x, edge.pos[1].y);
   }
   context.stroke();
   const radius = 3.25 * (window.devicePixelRatio || 1);
@@ -57,8 +60,29 @@ function draw() {
     context.arc(point.x, point.y, radius, 0, Math.PI * 2);
     context.fill();
   }
-  const delauneyStatus = showDelauney ? ` · ${delauneyEdges.length / 4} Delauney` : "";
-  status.textContent = `${points.length} sites · ${edges.length / 4} edges${delauneyStatus}`;
+  const delauneyCount = showDelauney
+    ? diagram.edges.filter((edge) => edge.sites[0] && edge.sites[1]).length
+    : 0;
+  const delauneyStatus = showDelauney ? ` · ${delauneyCount} Delauney` : "";
+  status.textContent = `${diagram.numSites} sites · ${diagram.edges.length} edges${delauneyStatus}`;
+}
+
+async function copyJSON() {
+  if (!diagram) return;
+  const json = JSON.stringify(diagramToJSON(diagram), null, 2);
+  try {
+    await navigator.clipboard.writeText(json);
+  } catch {
+    const textarea = document.createElement("textarea");
+    textarea.value = json;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.append(textarea);
+    textarea.select();
+    document.execCommand("copy");
+    textarea.remove();
+  }
+  status.textContent = "Full diagram JSON copied";
 }
 
 function eventPoint(event) {
@@ -110,7 +134,9 @@ delauneyButton.addEventListener("click", () => {
   draw();
 });
 document.querySelector("#clear").addEventListener("click", () => { points = []; draw(); });
+copyButton.addEventListener("click", copyJSON);
 new ResizeObserver(resize).observe(canvas);
+window.addEventListener("pagehide", () => diagram?.dispose());
 
 try {
   const { loadVoronoi } = await import("./vendor/voronoi.js");

@@ -135,6 +135,36 @@ const edges = voronoi.edges(
 // Float32Array: x0, y0, x1, y1 for each edge
 ```
 
+For site, cell, and edge information, create a persistent zero-copy diagram.
+The JavaScript objects read directly from a compact native snapshot in
+WebAssembly memory, so dispose the diagram when it is no longer needed:
+
+```js
+const diagram = voronoi.generate(
+  [{ x: 10, y: 20 }, { x: 80, y: 30 }, { x: 40, y: 90 }],
+  { bounds: [0, 0, 100, 100] },
+);
+
+try {
+  const cell = diagram.cell(0); // null if the input site was pruned
+  if (cell) {
+    console.log(cell.site.index, cell.site.p.x, cell.site.p.y);
+    for (const { x, y } of cell.polygon) console.log(x, y);
+    for (const edge of cell.edges) {
+      console.log(edge.pos[0], edge.pos[1], edge.sites[1]);
+    }
+  }
+} finally {
+  diagram.dispose();
+}
+```
+
+`diagram.sites` contains the retained native sites, `diagram.edges` contains
+all native edges, and `diagram.neighbors(inputIndex)` returns neighboring
+`Site` objects. Cell edges are counter-clockwise. Points support both `.x` /
+`.y` access and `[x, y]` destructuring. Accessing a diagram object after
+`dispose()` throws an error.
+
 To build the package locally, install the Emscripten SDK and run
 `./scripts/build_wasm.sh`. The output is written to `build/wasm` by default.
 

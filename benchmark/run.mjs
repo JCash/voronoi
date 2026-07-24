@@ -1,4 +1,5 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -9,8 +10,8 @@ const repository = path.resolve(import.meta.dirname, "..");
 const wasmDirectory = process.env.WASM_OUTPUT_DIR
   ? path.resolve(import.meta.dirname, process.env.WASM_OUTPUT_DIR)
   : path.join(repository, "build", "wasm");
-const { default: createVoronoiModule } = await import(
-  pathToFileURL(path.join(wasmDirectory, "jc_voronoi.js"))
+const { loadVoronoi } = await import(
+  pathToFileURL(path.join(wasmDirectory, "voronoi.js"))
 );
 
 const WIDTH = 4096;
@@ -31,6 +32,7 @@ const LIBRARIES = [
   ["d3-voronoi", "#e08b35"],
   ["gorhill/voronoi", "#b85bb4"],
 ];
+const MEMORY_SAMPLES = 3;
 let sink;
 
 function randomPoints(count) {
@@ -54,18 +56,32 @@ function issue48Points() {
   return { points, bounds: [-50000, -50000, 50000, 0] };
 }
 
-function prepareWasm(module, points, bounds) {
-  const pointer = module._malloc(points.byteLength);
-  module.HEAPF32.set(points, pointer / Float32Array.BYTES_PER_ELEMENT);
-  const args = [pointer, points.length / 2, ...bounds];
+function prepareJcv(voronoi, points, bounds) {
+  const withDiagram = (read) => {
+    const diagram = voronoi.generate(points, { bounds });
+    try {
+      return read(diagram);
+    } finally {
+      diagram.dispose();
+    }
+  };
   return {
-    operations: {
-      generate: () => module._jcv_benchmark_generate(...args),
-      sites: () => module._jcv_benchmark_generate_sites(...args),
-      edges: () => module._jcv_benchmark_generate_edges(...args),
-      delauney: () => module._jcv_benchmark_generate_delauney(...args),
-    },
-    dispose: () => module._free(pointer),
+    generate: () => withDiagram((diagram) => diagram.numSites),
+    sites: () => withDiagram((diagram) => diagram.sites.length),
+    edges: () => withDiagram((diagram) => {
+      let checksum = 0;
+      for (const edge of diagram.edges) {
+        checksum += edge.pos[0].x + edge.pos[0].y + edge.pos[1].x + edge.pos[1].y;
+      }
+      return checksum;
+    }),
+    delauney: () => withDiagram((diagram) => {
+      let count = 0;
+      for (const edge of diagram.edges) {
+        if (edge.sites[0] && edge.sites[1]) ++count;
+      }
+      return count;
+    }),
   };
 }
 
@@ -97,6 +113,12 @@ function formatTime(milliseconds) {
   if (milliseconds < 1) return `${(milliseconds * 1000).toFixed(2)} us`;
   if (milliseconds >= 1000) return `${(milliseconds / 1000).toFixed(2)} s`;
   return `${milliseconds.toFixed(2)} ms`;
+}
+
+function formatBytes(bytes) {
+  if (bytes == null) return "—";
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`;
+  return `${Math.round(bytes / 1024).toLocaleString("en-US")} KiB`;
 }
 
 function escapeXml(value) {
@@ -192,17 +214,106 @@ function chart(operationTitle, operationKey, results) {
   return `${lines.join("\n")}\n`;
 }
 
-function markdown(results, codeSizes) {
+function memoryChart(results) {
+  const width = 1200;
+  const height = 720;
+  const left = 115;
+  const right = 50;
+  const top = 110;
+  const bottom = 575;
+  const plotHeight = bottom - top;
+  const measuredMaximum = Math.max(...Object.values(results).flatMap((result) =>
+    LIBRARIES.map(([library]) => result[library]),
+  ));
+  const maximum = niceMaximum(measuredMaximum * 1.1);
+  const caseWidth = (width - left - right) / CASES.length;
+  const barWidth = 48;
+  const barGap = 8;
+  const groupWidth = LIBRARIES.length * barWidth + (LIBRARIES.length - 1) * barGap;
+  const lines = [];
+
+  lines.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="title desc">`);
+  lines.push('  <title id="title">Retained WebAssembly and JavaScript Memory</title>');
+  lines.push('  <desc id="desc">Grouped bar chart comparing median retained resident-memory deltas after generating one diagram in a fresh Node.js process. Lower is better.</desc>');
+  lines.push("  <style>.stat-hit{fill:transparent;pointer-events:all}</style>");
+  lines.push('  <rect width="1200" height="720" fill="#f8fafc"/>');
+  lines.push('  <text x="70" y="49" font-family="system-ui, sans-serif" font-size="27" font-weight="700" fill="#152238">Retained WebAssembly and JavaScript Memory</text>');
+  lines.push('  <text x="70" y="76" font-family="system-ui, sans-serif" font-size="15" fill="#536174">Fresh process · public diagram API · median retained RSS delta · lower is better</text>');
+
+  for (let tick = 0; tick <= 5; ++tick) {
+    const value = maximum * tick / 5;
+    const y = bottom - plotHeight * tick / 5;
+    lines.push(`  <line x1="${left}" y1="${y}" x2="${width - right}" y2="${y}" stroke="#d8dee8"/>`);
+    lines.push(`  <text x="${left - 12}" y="${y + 5}" font-family="system-ui, sans-serif" font-size="13" fill="#536174" text-anchor="end">${escapeXml(tick === 0 ? "0" : formatBytes(value))}</text>`);
+  }
+
+  CASES.forEach(([caseName], caseIndex) => {
+    const center = left + caseWidth * (caseIndex + 0.5);
+    const startX = center - groupWidth / 2;
+    lines.push(`  <text x="${center}" y="612" font-family="system-ui, sans-serif" font-size="15" font-weight="600" fill="#26354a" text-anchor="middle">${caseName}</text>`);
+    LIBRARIES.forEach(([library, color], libraryIndex) => {
+      const value = results[caseName][library];
+      const x = startX + libraryIndex * (barWidth + barGap);
+      const barHeight = Math.max(1, value / maximum * plotHeight);
+      const y = bottom - barHeight;
+      const labelY = Math.max(top - 5, y - 8 - (libraryIndex % 2) * 14);
+      const formatted = formatBytes(value);
+      lines.push(`  <rect x="${x}" y="${y.toFixed(2)}" width="${barWidth}" height="${barHeight.toFixed(2)}" rx="4" fill="${color}"/>`);
+      lines.push(`  <text x="${x + barWidth / 2}" y="${labelY.toFixed(2)}" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">${escapeXml(formatted)}</text>`);
+      lines.push(`  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="${x}" y="${Math.min(y, bottom - 15).toFixed(2)}" width="${barWidth}" height="${Math.max(15, barHeight).toFixed(2)}"><title>${escapeXml(`${library}, ${caseName}: median retained ${formatted}`)}</title></rect></g>`);
+    });
+  });
+
+  const legendWidth = 210;
+  const legendStart = (width - legendWidth * LIBRARIES.length) / 2;
+  LIBRARIES.forEach(([library, color], index) => {
+    const x = legendStart + index * legendWidth;
+    lines.push(`  <rect x="${x}" y="660" width="16" height="16" rx="3" fill="${color}"/><text x="${x + 24}" y="674" font-family="system-ui, sans-serif" font-size="14" fill="#344258">${escapeXml(library)}</text>`);
+  });
+  lines.push("</svg>");
+  return `${lines.join("\n")}\n`;
+}
+
+function measureRetainedMemory(library, caseName) {
+  const worker = path.join(import.meta.dirname, "memory_worker.mjs");
+  const result = spawnSync(
+    process.execPath,
+    ["--expose-gc", worker, library, caseName, wasmDirectory],
+    { encoding: "utf8", maxBuffer: 1024 * 1024 },
+  );
+  if (result.status !== 0) {
+    throw new Error(`Memory benchmark failed for ${library} / ${caseName}: ${result.stderr}`);
+  }
+  return JSON.parse(result.stdout).bytes;
+}
+
+function collectMemoryResults() {
+  const results = {};
+  for (const [caseName] of CASES) {
+    results[caseName] = {};
+    for (const [library] of LIBRARIES) {
+      process.stdout.write(`  Retained memory: ${caseName}: ${library}\n`);
+      const samples = Array.from(
+        { length: MEMORY_SAMPLES },
+        () => measureRetainedMemory(library, caseName),
+      );
+      results[caseName][library] = median(samples);
+    }
+  }
+  return results;
+}
+
+function markdown(results, memoryResults, codeSizes) {
   const cpu = os.cpus()[0]?.model ?? "Unknown CPU";
   const lines = [
     "<!-- wasm-benchmarks:start -->",
     "## WebAssembly and JavaScript Voronoi performance",
     "",
-    "Times are medians and lower is better. The benchmark compares only calls into each library. Point generation, input conversion, WebAssembly initialization, copying points into WebAssembly memory, garbage collection, and report generation are outside the timed regions.",
+    "Times are medians and lower is better. The benchmark exercises each library's public API. Point generation, comparison-library input conversion, WebAssembly initialization, garbage collection, and report generation are outside the timed regions. JCV's public `generate` call copies the prepared `Float32Array` into WebAssembly memory, and that copy is included.",
     "",
     "The random cases use a deterministic seed. `100k pathological` is the issue48 input with 99,998 symmetric diagonal-pair sites. Each measurement has two untimed warmups followed by 10 samples for 10k and five samples for 100k and the pathological case.",
     "",
-    "For JCV, site access calls `jcv_diagram_get_sites`, an O(1) pointer lookup. Edge and Delauney access consume their complete public iterators. Other libraries expose different public output forms: d3-voronoi and voronoi eagerly provide arrays, while d3-delaunay renders its Voronoi mesh. These rows therefore compare public access workflows, not identical post-processing algorithms.",
+    "JCV uses the zero-copy JavaScript diagram API and disposes every compact native snapshot inside the timed operation. Site access materializes ergonomic `Site` objects; edge access walks every `Edge` and reads both endpoint coordinates; Delauney access walks edges and reads their adjacent sites. Other libraries expose different public output forms: d3-voronoi and voronoi eagerly provide arrays, while d3-delaunay renders its Voronoi mesh. These rows therefore compare public access workflows, not identical post-processing algorithms.",
     "",
   ];
 
@@ -217,6 +328,23 @@ function markdown(results, codeSizes) {
       lines.push("");
     }
   }
+
+  lines.push(
+    "### Retained runtime memory",
+    "",
+    `| Case | ${LIBRARIES.map(([name]) => name).join(" | ")} |`,
+    `|---|${LIBRARIES.map(() => "---:").join("|")}|`,
+  );
+  for (const [caseName] of CASES) {
+    lines.push(`| ${caseName} | ${LIBRARIES.map(([library]) => formatBytes(memoryResults[caseName][library])).join(" | ")} |`);
+  }
+  lines.push(
+    "",
+    '<img src="images/benchmark/wasm-memory.svg" alt="Retained WebAssembly and JavaScript memory" width="350">',
+    "",
+    `Each memory sample starts a fresh Node.js process, prepares the library-specific input, forces garbage collection, records a baseline, generates and retains one public diagram, forces garbage collection again, and records the resident-memory delta. Values are medians of ${MEMORY_SAMPLES} isolated samples. Input arrays and initialized library runtimes are part of the baseline. Resident memory is runtime- and operating-system-dependent, so compare entries only within the environment reported below.`,
+    "",
+  );
 
   lines.push(codeSizeMarkdown(codeSizes), "");
 
@@ -236,26 +364,21 @@ function markdown(results, codeSizes) {
   return lines.join("\n");
 }
 
-const module = await createVoronoiModule();
+const voronoi = await loadVoronoi();
 const results = {};
 for (const [caseName, createInput, samples] of CASES) {
   process.stdout.write(`Benchmarking ${caseName}\n`);
   const { points, bounds } = createInput();
-  const wasm = prepareWasm(module, points, bounds);
   const prepared = {
-    "JCV 0.10": wasm.operations,
+    "JCV 0.10": prepareJcv(voronoi, points, bounds),
     ...prepareComparisons(points, bounds),
   };
   results[caseName] = Object.fromEntries(OPERATIONS.map(([, , key]) => [key, {}]));
-  try {
-    for (const [, title, operationKey] of OPERATIONS) {
-      for (const [library] of LIBRARIES) {
-        process.stdout.write(`  ${title}: ${library}\n`);
-        results[caseName][operationKey][library] = measure(prepared[library][operationKey], samples);
-      }
+  for (const [, title, operationKey] of OPERATIONS) {
+    for (const [library] of LIBRARIES) {
+      process.stdout.write(`  ${title}: ${library}\n`);
+      results[caseName][operationKey][library] = measure(prepared[library][operationKey], samples);
     }
-  } finally {
-    wasm.dispose();
   }
 }
 
@@ -266,10 +389,12 @@ for (const [fileKey, , operationKey, chartTitle] of OPERATIONS) {
     await writeFile(path.join(imageDirectory, `wasm-${fileKey}.svg`), chart(chartTitle, operationKey, results));
   }
 }
+const memoryResults = collectMemoryResults();
+await writeFile(path.join(imageDirectory, "wasm-memory.svg"), memoryChart(memoryResults));
 const codeSizes = await collectCodeSizes(wasmDirectory);
 await writeFile(path.join(imageDirectory, "wasm-code-size.svg"), codeSizeChart(codeSizes));
 const reportPath = path.join(repository, "Benchmarks.md");
-const generatedSection = markdown(results, codeSizes);
+const generatedSection = markdown(results, memoryResults, codeSizes);
 let report;
 try {
   report = await readFile(reportPath, "utf8");

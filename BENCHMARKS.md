@@ -57,35 +57,35 @@ Each entry is peak heap KB / retained heap KB / allocation count.
 <!-- wasm-benchmarks:start -->
 ## WebAssembly and JavaScript Voronoi performance
 
-Times are medians and lower is better. The benchmark compares only calls into each library. Point generation, input conversion, WebAssembly initialization, copying points into WebAssembly memory, garbage collection, and report generation are outside the timed regions.
+Times are medians and lower is better. The benchmark exercises each library's public API. Point generation, comparison-library input conversion, WebAssembly initialization, garbage collection, and report generation are outside the timed regions. JCV's public `generate` call copies the prepared `Float32Array` into WebAssembly memory, and that copy is included.
 
 The random cases use a deterministic seed. `100k pathological` is the issue48 input with 99,998 symmetric diagonal-pair sites. Each measurement has two untimed warmups followed by 10 samples for 10k and five samples for 100k and the pathological case.
 
-For JCV, site access calls `jcv_diagram_get_sites`, an O(1) pointer lookup. Edge and Delauney access consume their complete public iterators. Other libraries expose different public output forms: d3-voronoi and voronoi eagerly provide arrays, while d3-delaunay renders its Voronoi mesh. These rows therefore compare public access workflows, not identical post-processing algorithms.
+JCV uses the zero-copy JavaScript diagram API and disposes every compact native snapshot inside the timed operation. Site access materializes ergonomic `Site` objects; edge access walks every `Edge` and reads both endpoint coordinates; Delauney access walks edges and reads their adjacent sites. Other libraries expose different public output forms: d3-voronoi and voronoi eagerly provide arrays, while d3-delaunay renders its Voronoi mesh. These rows therefore compare public access workflows, not identical post-processing algorithms.
 
 ### Voronoi Diagram Generation
 
 | Case | JCV 0.10 | d3-delaunay | d3-voronoi | gorhill/voronoi |
 |---|---:|---:|---:|---:|
-| 10k | 5.68 ms | 3.02 ms | 26.87 ms | 33.06 ms |
-| 100k | 61.22 ms | 30.71 ms | 275.85 ms | 316.78 ms |
-| 100k pathological | 21.69 ms | 9.26 ms | 125.73 ms | 3.13 s |
+| 10k | 7.98 ms | 3.22 ms | 28.74 ms | 30.44 ms |
+| 100k | 119.73 ms | 31.65 ms | 296.61 ms | 333.71 ms |
+| 100k pathological | 32.78 ms | 9.21 ms | 124.02 ms | 3.25 s |
 
 ### Generate + Get Sites
 
 | Case | JCV 0.10 | d3-delaunay | d3-voronoi | gorhill/voronoi |
 |---|---:|---:|---:|---:|
-| 10k | 5.84 ms | 6.94 ms | 28.04 ms | 35.54 ms |
-| 100k | 61.84 ms | 52.64 ms | 275.01 ms | 324.03 ms |
-| 100k pathological | 21.94 ms | 29.55 ms | 109.45 ms | 2.43 s |
+| 10k | 8.64 ms | 6.88 ms | 27.85 ms | 34.29 ms |
+| 100k | 122.67 ms | 49.65 ms | 291.09 ms | 328.56 ms |
+| 100k pathological | 40.48 ms | 27.53 ms | 112.05 ms | 2.55 s |
 
 ### Generate + Get Edges
 
 | Case | JCV 0.10 | d3-delaunay | d3-voronoi | gorhill/voronoi |
 |---|---:|---:|---:|---:|
-| 10k | 5.90 ms | 11.72 ms | 27.12 ms | 32.55 ms |
-| 100k | 62.90 ms | 108.06 ms | 265.17 ms | 380.60 ms |
-| 100k pathological | 23.10 ms | 47.91 ms | 114.38 ms | 2.59 s |
+| 10k | 11.95 ms | 11.68 ms | 27.53 ms | 35.57 ms |
+| 100k | 156.76 ms | 108.97 ms | 290.97 ms | 379.92 ms |
+| 100k pathological | 72.19 ms | 47.63 ms | 111.12 ms | 2.67 s |
 
 <img src="images/benchmark/wasm-voronoi-edges.svg" alt="Get Voronoi Edges" width="350">
 
@@ -93,18 +93,30 @@ For JCV, site access calls `jcv_diagram_get_sites`, an O(1) pointer lookup. Edge
 
 | Case | JCV 0.10 | d3-delaunay | d3-voronoi | gorhill/voronoi |
 |---|---:|---:|---:|---:|
-| 10k | 4.02 ms | 6.35 ms | 28.81 ms | — |
-| 100k | 44.48 ms | 47.46 ms | 303.88 ms | — |
-| 100k pathological | 16.27 ms | 26.35 ms | 116.93 ms | — |
+| 10k | 11.65 ms | 5.51 ms | 30.70 ms | — |
+| 100k | 152.64 ms | 47.45 ms | 305.90 ms | — |
+| 100k pathological | 77.59 ms | 25.74 ms | 117.89 ms | — |
 
 <img src="images/benchmark/wasm-delauney-edges.svg" alt="Get Delauney Edges" width="350">
+
+### Retained runtime memory
+
+| Case | JCV 0.10 | d3-delaunay | d3-voronoi | gorhill/voronoi |
+|---|---:|---:|---:|---:|
+| 10k | 9.6 MiB | 5.5 MiB | 31.3 MiB | 39.3 MiB |
+| 100k | 43.1 MiB | 17.8 MiB | 165.1 MiB | 177.8 MiB |
+| 100k pathological | 49.0 MiB | 15.6 MiB | 163.0 MiB | 181.8 MiB |
+
+<img src="images/benchmark/wasm-memory.svg" alt="Retained WebAssembly and JavaScript memory" width="350">
+
+Each memory sample starts a fresh Node.js process, prepares the library-specific input, forces garbage collection, records a baseline, generates and retains one public diagram, forces garbage collection again, and records the resident-memory delta. Values are medians of 3 isolated samples. Input arrays and initialized library runtimes are part of the baseline. Resident memory is runtime- and operating-system-dependent, so compare entries only within the environment reported below.
 
 <!-- wasm-code-size:start -->
 ### Code size
 
 | Library | Dependencies | Compound module | Brotli | Compound LOC |
 |---|---:|---:|---:|---:|
-| JCV 0.10 | 0 | 26.6 KiB | 9.4 KiB | 2,213 |
+| JCV 0.10 | 0 | 28.1 KiB | 10.1 KiB | 2,738 |
 | d3-delaunay | 2 (delaunator, robust-predicates) | 18.6 KiB | 6.1 KiB | 1,258 |
 | d3-voronoi | 0 | 9.0 KiB | 3.4 KiB | 864 |
 | gorhill/voronoi | 0 | 16.0 KiB | 4.1 KiB | 1,072 |
