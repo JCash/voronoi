@@ -23,8 +23,8 @@ const CASES = [
 const OPERATIONS = [
   [null, "Voronoi Diagram Generation", "generate", null],
   [null, "Generate + Get Sites", "sites", null],
-  ["voronoi-edges", "Generate + Render Edges", "edges", "Render Voronoi Edges"],
-  ["delauney-edges", "Generate + Get Delauney", "delauney", "Get Delauney Edges"],
+  ["voronoi-edges", "Generate + Render Edges", "edges", "Voronoi diagram"],
+  ["delauney-edges", "Generate + Get Delauney", "delauney", "Delauney diagram"],
 ];
 const LIBRARIES = [
   ["JCV 0.10", "#5267d9"],

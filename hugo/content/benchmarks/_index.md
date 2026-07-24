@@ -17,9 +17,9 @@ The benchmark suite compares native diagram generation, peak and retained memory
 
 The offline suite compares `jc_voronoi` with d3-delaunay, d3-voronoi, and gorhill/voronoi for 10k, 100k, and a pathological 100k-point input.
 
-![Render Voronoi edges](../images/benchmark/wasm-voronoi-edges.svg)
+![Voronoi diagram](../images/benchmark/wasm-voronoi-edges.svg)
 
-![Get Delauney edges](../images/benchmark/wasm-delauney-edges.svg)
+![Delauney diagram](../images/benchmark/wasm-delauney-edges.svg)
 
 ![Peak and retained WebAssembly and JavaScript memory](../images/benchmark/wasm-memory.svg)
 

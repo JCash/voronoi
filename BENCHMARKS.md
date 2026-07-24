@@ -87,7 +87,7 @@ JCV copies one packed result from WebAssembly into a JavaScript-owned `ArrayBuff
 | 100k | 112.98 ms | 126.28 ms | 326.02 ms | 367.44 ms |
 | 100k pathological | 35.45 ms | 48.29 ms | 114.38 ms | 2.72 s |
 
-<img src="images/benchmark/wasm-voronoi-edges.svg" alt="Render Voronoi Edges" width="350">
+<img src="images/benchmark/wasm-voronoi-edges.svg" alt="Voronoi diagram" width="350">
 
 ### Generate + Get Delauney
 
@@ -97,7 +97,7 @@ JCV copies one packed result from WebAssembly into a JavaScript-owned `ArrayBuff
 | 100k | 45.66 ms | 47.74 ms | 380.67 ms | — |
 | 100k pathological | 16.60 ms | 23.82 ms | 111.00 ms | — |
 
-<img src="images/benchmark/wasm-delauney-edges.svg" alt="Get Delauney Edges" width="350">
+<img src="images/benchmark/wasm-delauney-edges.svg" alt="Delauney diagram" width="350">
 
 ### Peak and retained runtime memory
 
