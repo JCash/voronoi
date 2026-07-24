@@ -20,5 +20,6 @@ emcc wasm/voronoi_wasm.c \
   -o "${OUTPUT_DIR}/jc_voronoi.js"
 
 cp wasm/voronoi.js "${OUTPUT_DIR}/voronoi.js"
+cp wasm/voronoi.worker.js "${OUTPUT_DIR}/voronoi.worker.js"
 cp wasm/voronoi.d.ts "${OUTPUT_DIR}/voronoi.d.ts"
 cp wasm/package.json "${OUTPUT_DIR}/package.json"

@@ -34,6 +34,11 @@ The result is copied once into a compact JavaScript-owned `ArrayBuffer`. Sites, 
 
 The buffer is garbage-collected normally. Call `diagram.dispose()` only when you want to release it eagerly and invalidate the diagram immediately.
 
+For large one-off diagrams, `loadVoronoiWorker()` provides the same result through
+an asynchronous `generate()` call. It transfers the packed buffer and terminates
+the worker before resolving, so the WebAssembly heap is not retained with the
+diagram.
+
 Build the package locally with an installed Emscripten SDK:
 
 ```sh

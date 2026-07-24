@@ -18,44 +18,44 @@
   <line x1="115" y1="110" x2="1150" y2="110" stroke="#d8dee8"/>
   <text x="103" y="115" font-family="system-ui, sans-serif" font-size="13" fill="#536174" text-anchor="end">381.5 MiB</text>
   <text x="287.5" y="612" font-family="system-ui, sans-serif" font-size="15" font-weight="600" fill="#26354a" text-anchor="middle">10k</text>
-  <rect x="179.5" y="562.89" width="48" height="12.11" rx="4" fill="#5267d9"/>
-  <text x="203.5" y="554.89" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">9.9 MiB</text>
-  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="179.5" y="560.00" width="48" height="15.00"><title>JCV 0.10, 10k: median retained 9.9 MiB</title></rect></g>
-  <rect x="235.5" y="567.88" width="48" height="7.12" rx="4" fill="#14a38b"/>
-  <text x="259.5" y="545.88" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">5.8 MiB</text>
+  <rect x="179.5" y="563.04" width="48" height="11.96" rx="4" fill="#5267d9"/>
+  <text x="203.5" y="555.04" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">9.8 MiB</text>
+  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="179.5" y="560.00" width="48" height="15.00"><title>JCV 0.10, 10k: median retained 9.8 MiB</title></rect></g>
+  <rect x="235.5" y="567.93" width="48" height="7.07" rx="4" fill="#14a38b"/>
+  <text x="259.5" y="545.93" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">5.8 MiB</text>
   <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="235.5" y="560.00" width="48" height="15.00"><title>d3-delaunay, 10k: median retained 5.8 MiB</title></rect></g>
-  <rect x="291.5" y="536.75" width="48" height="38.25" rx="4" fill="#e08b35"/>
-  <text x="315.5" y="528.75" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">31.4 MiB</text>
-  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="291.5" y="536.75" width="48" height="38.25"><title>d3-voronoi, 10k: median retained 31.4 MiB</title></rect></g>
-  <rect x="347.5" y="526.49" width="48" height="48.51" rx="4" fill="#b85bb4"/>
-  <text x="371.5" y="504.49" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">39.8 MiB</text>
-  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="347.5" y="526.49" width="48" height="48.51"><title>gorhill/voronoi, 10k: median retained 39.8 MiB</title></rect></g>
+  <rect x="291.5" y="535.80" width="48" height="39.20" rx="4" fill="#e08b35"/>
+  <text x="315.5" y="527.80" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">32.2 MiB</text>
+  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="291.5" y="535.80" width="48" height="39.20"><title>d3-voronoi, 10k: median retained 32.2 MiB</title></rect></g>
+  <rect x="347.5" y="527.17" width="48" height="47.83" rx="4" fill="#b85bb4"/>
+  <text x="371.5" y="505.17" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">39.2 MiB</text>
+  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="347.5" y="527.17" width="48" height="47.83"><title>gorhill/voronoi, 10k: median retained 39.2 MiB</title></rect></g>
   <text x="632.5" y="612" font-family="system-ui, sans-serif" font-size="15" font-weight="600" fill="#26354a" text-anchor="middle">100k</text>
-  <rect x="524.5" y="506.78" width="48" height="68.22" rx="4" fill="#5267d9"/>
-  <text x="548.5" y="498.78" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">56.0 MiB</text>
-  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="524.5" y="506.78" width="48" height="68.22"><title>JCV 0.10, 100k: median retained 56.0 MiB</title></rect></g>
-  <rect x="580.5" y="553.13" width="48" height="21.87" rx="4" fill="#14a38b"/>
-  <text x="604.5" y="531.13" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">17.9 MiB</text>
-  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="580.5" y="553.13" width="48" height="21.87"><title>d3-delaunay, 100k: median retained 17.9 MiB</title></rect></g>
-  <rect x="636.5" y="373.79" width="48" height="201.21" rx="4" fill="#e08b35"/>
-  <text x="660.5" y="365.79" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">165.1 MiB</text>
-  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="636.5" y="373.79" width="48" height="201.21"><title>d3-voronoi, 100k: median retained 165.1 MiB</title></rect></g>
-  <rect x="692.5" y="364.14" width="48" height="210.86" rx="4" fill="#b85bb4"/>
-  <text x="716.5" y="342.14" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">173.0 MiB</text>
-  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="692.5" y="364.14" width="48" height="210.86"><title>gorhill/voronoi, 100k: median retained 173.0 MiB</title></rect></g>
+  <rect x="524.5" y="506.72" width="48" height="68.28" rx="4" fill="#5267d9"/>
+  <text x="548.5" y="498.72" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">56.0 MiB</text>
+  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="524.5" y="506.72" width="48" height="68.28"><title>JCV 0.10, 100k: median retained 56.0 MiB</title></rect></g>
+  <rect x="580.5" y="553.10" width="48" height="21.90" rx="4" fill="#14a38b"/>
+  <text x="604.5" y="531.10" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">18.0 MiB</text>
+  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="580.5" y="553.10" width="48" height="21.90"><title>d3-delaunay, 100k: median retained 18.0 MiB</title></rect></g>
+  <rect x="636.5" y="373.91" width="48" height="201.09" rx="4" fill="#e08b35"/>
+  <text x="660.5" y="365.91" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">165.0 MiB</text>
+  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="636.5" y="373.91" width="48" height="201.09"><title>d3-voronoi, 100k: median retained 165.0 MiB</title></rect></g>
+  <rect x="692.5" y="364.16" width="48" height="210.84" rx="4" fill="#b85bb4"/>
+  <text x="716.5" y="342.16" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">173.0 MiB</text>
+  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="692.5" y="364.16" width="48" height="210.84"><title>gorhill/voronoi, 100k: median retained 173.0 MiB</title></rect></g>
   <text x="977.5" y="612" font-family="system-ui, sans-serif" font-size="15" font-weight="600" fill="#26354a" text-anchor="middle">100k pathological</text>
-  <rect x="869.5" y="501.65" width="48" height="73.35" rx="4" fill="#5267d9"/>
-  <text x="893.5" y="493.65" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">60.2 MiB</text>
-  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="869.5" y="501.65" width="48" height="73.35"><title>JCV 0.10, 100k pathological: median retained 60.2 MiB</title></rect></g>
-  <rect x="925.5" y="555.67" width="48" height="19.33" rx="4" fill="#14a38b"/>
-  <text x="949.5" y="533.67" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">15.9 MiB</text>
-  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="925.5" y="555.67" width="48" height="19.33"><title>d3-delaunay, 100k pathological: median retained 15.9 MiB</title></rect></g>
-  <rect x="981.5" y="377.53" width="48" height="197.47" rx="4" fill="#e08b35"/>
-  <text x="1005.5" y="369.53" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">162.0 MiB</text>
-  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="981.5" y="377.53" width="48" height="197.47"><title>d3-voronoi, 100k pathological: median retained 162.0 MiB</title></rect></g>
-  <rect x="1037.5" y="353.78" width="48" height="221.22" rx="4" fill="#b85bb4"/>
-  <text x="1061.5" y="331.78" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">181.5 MiB</text>
-  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="1037.5" y="353.78" width="48" height="221.22"><title>gorhill/voronoi, 100k pathological: median retained 181.5 MiB</title></rect></g>
+  <rect x="869.5" y="501.73" width="48" height="73.27" rx="4" fill="#5267d9"/>
+  <text x="893.5" y="493.73" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">60.1 MiB</text>
+  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="869.5" y="501.73" width="48" height="73.27"><title>JCV 0.10, 100k pathological: median retained 60.1 MiB</title></rect></g>
+  <rect x="925.5" y="555.90" width="48" height="19.10" rx="4" fill="#14a38b"/>
+  <text x="949.5" y="533.90" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">15.7 MiB</text>
+  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="925.5" y="555.90" width="48" height="19.10"><title>d3-delaunay, 100k pathological: median retained 15.7 MiB</title></rect></g>
+  <rect x="981.5" y="377.43" width="48" height="197.57" rx="4" fill="#e08b35"/>
+  <text x="1005.5" y="369.43" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">162.1 MiB</text>
+  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="981.5" y="377.43" width="48" height="197.57"><title>d3-voronoi, 100k pathological: median retained 162.1 MiB</title></rect></g>
+  <rect x="1037.5" y="353.41" width="48" height="221.59" rx="4" fill="#b85bb4"/>
+  <text x="1061.5" y="331.41" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">181.8 MiB</text>
+  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="1037.5" y="353.41" width="48" height="221.59"><title>gorhill/voronoi, 100k pathological: median retained 181.8 MiB</title></rect></g>
   <rect x="180" y="660" width="16" height="16" rx="3" fill="#5267d9"/><text x="204" y="674" font-family="system-ui, sans-serif" font-size="14" fill="#344258">JCV 0.10</text>
   <rect x="390" y="660" width="16" height="16" rx="3" fill="#14a38b"/><text x="414" y="674" font-family="system-ui, sans-serif" font-size="14" fill="#344258">d3-delaunay</text>
   <rect x="600" y="660" width="16" height="16" rx="3" fill="#e08b35"/><text x="624" y="674" font-family="system-ui, sans-serif" font-size="14" fill="#344258">d3-voronoi</text>

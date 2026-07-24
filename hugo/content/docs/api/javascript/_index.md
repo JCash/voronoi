@@ -11,6 +11,7 @@ The JavaScript API loads the WebAssembly module and exposes persistent diagram o
 
 <table class="api-summary"><tbody>
 <tr><td><a href="#voronoi"><code>Voronoi</code></a></td><td>Loaded module used to generate diagrams.</td></tr>
+<tr><td><a href="#worker-backed-generation"><code>VoronoiWorker</code></a></td><td>One-shot asynchronous generator that releases its WebAssembly runtime.</td></tr>
 <tr><td><a href="#diagram"><code>Diagram</code></a></td><td>Persistent generated result and entry point for topology.</td></tr>
 <tr><td><a href="#site"><code>Site</code></a></td><td>Retained input point and cell metadata.</td></tr>
 <tr><td><a href="#cell"><code>Cell</code></a></td><td>One site's polygon, edges, and neighbors.</td></tr>
@@ -22,8 +23,10 @@ The JavaScript API loads the WebAssembly module and exposes persistent diagram o
 
 <table class="api-summary"><tbody>
 <tr><td><a href="#load-the-module"><code>loadVoronoi(options?)</code></a></td><td>Load and initialize the WebAssembly module.</td></tr>
+<tr><td><a href="#worker-backed-generation"><code>loadVoronoiWorker(options?)</code></a></td><td>Create an asynchronous worker-backed generator.</td></tr>
 <tr><td><a href="#voronoi"><code>voronoi.generate(points, width, height)</code></a></td><td>Generate a persistent <code>Diagram</code>.</td></tr>
 <tr><td><a href="#voronoi"><code>voronoi.generate(points, options)</code></a></td><td>Generate a <code>Diagram</code> using explicit bounds or dimensions.</td></tr>
+<tr><td><a href="#worker-backed-generation"><code>workerVoronoi.generate(points, options)</code></a></td><td>Generate a <code>Diagram</code> in a one-shot worker.</td></tr>
 <tr><td><a href="#compatibility-helpers"><code>voronoi.edges(points, width, height)</code></a></td><td>Return flat Voronoi edge coordinates.</td></tr>
 <tr><td><a href="#compatibility-helpers"><code>voronoi.delauneyEdges(points, width, height)</code></a></td><td>Return flat Delauney edge coordinates.</td></tr>
 <tr><td><a href="#diagram"><code>diagram.site(inputIndex)</code></a></td><td>Return the retained <code>Site</code>, or <code>null</code> when pruned.</td></tr>
@@ -56,12 +59,32 @@ const boundedDiagram = voronoi.generate(points, {
 
 `points` may be an array of `{ x, y }` objects or a flat `Float32Array`. Generation performs one bulk copy from WebAssembly into a compact JavaScript-owned `ArrayBuffer`; subsequent access does not call into WebAssembly.
 
+## Worker-backed generation
+
+Use the asynchronous generator for large, one-off diagrams when retained memory
+matters more than worker startup latency:
+
+```js
+import { loadVoronoiWorker } from "./voronoi.js";
+
+const voronoi = await loadVoronoiWorker();
+const diagram = await voronoi.generate(points, {
+  bounds: [minX, minY, maxX, maxY],
+});
+```
+
+Each call starts a module worker, generates and transfers the packed result, and
+terminates the worker before resolving. The returned `Diagram` has the same API
+as a synchronous result, but its WebAssembly heap is no longer retained. Input
+`Float32Array` values are copied before transfer and are never detached.
+
 ## `Diagram`
 
 | Member | Result |
 |---|---|
 | `bounds` | `[minX, minY, maxX, maxY]` |
 | `inputCount` | Number of input points |
+| `byteLength` | Exact size of the packed result buffer |
 | `numSites` | Number of retained sites |
 | `numVertices` | Number of unique vertices |
 | `numEdges` | Number of Voronoi edges |

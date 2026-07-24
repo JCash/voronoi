@@ -34,12 +34,12 @@
   <text x="95" y="495" font-family="system-ui, sans-serif" font-size="17" font-weight="700" fill="#26354a">Compound source LOC</text>
   <text x="1085" y="495" font-family="system-ui, sans-serif" font-size="12" fill="#6b7789" text-anchor="end">nonblank, non-comment LOC</text>
   <rect x="280" y="508" width="700.00" height="18" rx="4" fill="#5267d9"/>
-  <text x="990.00" y="522" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a">2,730</text>
-  <rect x="280" y="533" width="322.56" height="18" rx="4" fill="#14a38b"/>
-  <text x="612.56" y="547" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a">1,258</text>
-  <rect x="280" y="558" width="221.54" height="18" rx="4" fill="#e08b35"/>
-  <text x="511.54" y="572" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a">864</text>
-  <rect x="280" y="583" width="274.87" height="18" rx="4" fill="#b85bb4"/>
-  <text x="564.87" y="597" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a">1,072</text>
+  <text x="990.00" y="522" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a">2,830</text>
+  <rect x="280" y="533" width="311.17" height="18" rx="4" fill="#14a38b"/>
+  <text x="601.17" y="547" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a">1,258</text>
+  <rect x="280" y="558" width="213.71" height="18" rx="4" fill="#e08b35"/>
+  <text x="503.71" y="572" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a">864</text>
+  <rect x="280" y="583" width="265.16" height="18" rx="4" fill="#b85bb4"/>
+  <text x="555.16" y="597" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a">1,072</text>
   <text x="600" y="685" font-family="system-ui, sans-serif" font-size="12" fill="#6b7789" text-anchor="middle">d3-delaunay: 2 dependencies · all others: 0 · JCV Wasm payload excludes generated JavaScript glue</text>
 </svg>

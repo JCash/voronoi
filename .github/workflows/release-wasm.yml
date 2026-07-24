@@ -45,4 +45,5 @@ jobs:
             dist/jc_voronoi-wasm/jc_voronoi.wasm \
             dist/jc_voronoi-wasm/jc_voronoi.js \
             dist/jc_voronoi-wasm/voronoi.js \
+            dist/jc_voronoi-wasm/voronoi.worker.js \
             --clobber

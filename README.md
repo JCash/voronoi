@@ -139,8 +139,8 @@ relaxation, input files, and SVG output.
 
 Version tags automatically publish a browser-ready WebAssembly package on the
 [GitHub Releases page](https://github.com/JCash/voronoi/releases). The package
-contains `jc_voronoi.wasm`, Emscripten's ES-module loader, and a small
-`voronoi.js` wrapper for browsers and Node.js. You can also try the
+contains `jc_voronoi.wasm`, Emscripten's ES-module loader, the JavaScript API,
+and its optional one-shot worker. You can also try the
 [interactive WebAssembly demo](https://jcash.github.io/voronoi/), which is
 rebuilt from the `dev` branch.
 
@@ -182,6 +182,19 @@ Voronoi edges, and `diagram.neighbors(inputIndex)` returns neighboring
 `.y` access and `[x, y]` destructuring. Accessing a diagram object after
 `dispose()` throws an error. Disposal is optional because the result buffer is
 owned and garbage-collected by JavaScript; use it only to release memory eagerly.
+
+Large one-off diagrams can be generated in a disposable worker so the
+WebAssembly heap does not remain alongside the result:
+
+```js
+import { loadVoronoiWorker } from "./voronoi.js";
+
+const voronoi = await loadVoronoiWorker();
+const diagram = await voronoi.generate(points, { bounds: [0, 0, 100, 100] });
+```
+
+The worker transfers the packed result and terminates before `generate()`
+resolves. The returned diagram uses the same JavaScript API.
 
 To build the package locally, install the Emscripten SDK and run
 `./scripts/build_wasm.sh`. The output is written to `build/wasm` by default.

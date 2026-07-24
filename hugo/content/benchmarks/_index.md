@@ -23,6 +23,8 @@ The offline suite compares `jc_voronoi` with d3-delaunay, d3-voronoi, and gorhil
 
 ![Retained WebAssembly and JavaScript memory](../images/benchmark/wasm-memory.svg)
 
+![Worker-backed JCV peak and retained memory](../images/benchmark/wasm-worker-memory.svg)
+
 ![WebAssembly and JavaScript module size](../images/benchmark/wasm-code-size.svg)
 
 [Read the complete methodology and tables on GitHub](https://github.com/JCash/voronoi/blob/dev/BENCHMARKS.md), or [run the offline browser benchmark](../benchmark/).

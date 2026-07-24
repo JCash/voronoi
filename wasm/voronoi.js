@@ -23,6 +23,7 @@ const EDGE_WORDS = 4;
 const CELL_SITE_FLIP = 1;
 const CELL_POSITION_FLIP = 2;
 const CELL_EDGE_SHIFT = 2;
+const DECODE_ONLY = Symbol("decodeOnly");
 
 function flattenPoints(points) {
   if (!Array.isArray(points) && !(points instanceof Float32Array)) {
@@ -64,7 +65,8 @@ function parseBounds(boundsOrWidth, height) {
 }
 
 export async function loadVoronoi(moduleOptions = {}) {
-  const module = await createVoronoiModule(moduleOptions);
+  const decodeOnly = moduleOptions[DECODE_ONLY] === true;
+  const module = decodeOnly ? null : await createVoronoiModule(moduleOptions);
 
   class Point {
     constructor(diagram, kind, index) {
@@ -282,6 +284,11 @@ export async function loadVoronoi(moduleOptions = {}) {
       return this._inputCount;
     }
 
+    get byteLength() {
+      this._assertAlive();
+      return this._buffer.byteLength;
+    }
+
     get numSites() {
       this._assertAlive();
       return this._siteCount;
@@ -395,6 +402,19 @@ export async function loadVoronoi(moduleOptions = {}) {
       this._sites = null;
       this._edges = null;
     }
+
+    _takeBuffer() {
+      this._assertAlive();
+      const buffer = this._buffer;
+      this.dispose();
+      return buffer;
+    }
+  }
+
+  if (decodeOnly) {
+    return {
+      _diagramFromBuffer: (buffer, bounds) => new Diagram(buffer, bounds),
+    };
   }
 
   function withPoints(points, callback) {
@@ -464,5 +484,68 @@ export async function loadVoronoi(moduleOptions = {}) {
     delauneyEdges: (points, width, height) => generateEdges(
       points, width, height, module._jcv_delauney_edges,
     ),
+    _wasmMemoryBytes: () => module.HEAPU8.buffer.byteLength,
+  };
+}
+
+function workerRequest(worker, message, transfer) {
+  return new Promise((resolve, reject) => {
+    const succeed = (value) => {
+      if (value.error) {
+        reject(new Error(value.error));
+      } else {
+        resolve(value);
+      }
+    };
+    if (typeof worker.addEventListener === "function") {
+      worker.addEventListener("message", (event) => succeed(event.data), { once: true });
+      worker.addEventListener("error", reject, { once: true });
+    } else {
+      worker.once("message", succeed);
+      worker.once("error", reject);
+    }
+    worker.postMessage(message, transfer);
+  });
+}
+
+async function createWorker(url) {
+  if (typeof Worker !== "undefined") return new Worker(url, { type: "module" });
+  const { Worker: NodeWorker } = await import("node:worker_threads");
+  return new NodeWorker(url, { type: "module" });
+}
+
+async function terminateWorker(worker) {
+  const result = worker.terminate();
+  if (result && typeof result.then === "function") await result;
+}
+
+export async function loadVoronoiWorker(options = {}) {
+  const decoder = await loadVoronoi({ [DECODE_ONLY]: true });
+  const workerUrl = options.workerUrl ?? new URL("./voronoi.worker.js", import.meta.url);
+
+  return {
+    async generate(points, boundsOrWidth, height) {
+      const bounds = parseBounds(boundsOrWidth, height);
+      const flat = flattenPoints(points);
+      const workerPoints = points instanceof Float32Array ? flat.slice() : flat;
+      const worker = await createWorker(workerUrl);
+      try {
+        const result = await workerRequest(worker, {
+          points: workerPoints.buffer,
+          bounds,
+        }, [workerPoints.buffer]);
+        const diagram = decoder._diagramFromBuffer(result.buffer, bounds);
+        Object.defineProperty(diagram, "_generationMemory", {
+          value: Object.freeze({
+            wasmHeapBytes: result.wasmHeapBytes,
+            inputBytes: result.inputBytes,
+            packedBytes: result.buffer.byteLength,
+          }),
+        });
+        return diagram;
+      } finally {
+        await terminateWorker(worker);
+      }
+    },
   };
 }

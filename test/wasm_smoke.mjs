@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { diagramToJSON } from "../site/diagram_json.js";
 const outputDirectory = process.env.WASM_OUTPUT_DIR || "../build/wasm";
-const { loadVoronoi } = await import(`${outputDirectory}/voronoi.js`);
+const { loadVoronoi, loadVoronoiWorker } = await import(`${outputDirectory}/voronoi.js`);
 
 const voronoi = await loadVoronoi();
+const workerVoronoi = await loadVoronoiWorker();
 const points = [
   { x: 10, y: 10 },
   { x: 90, y: 10 },
@@ -26,6 +27,14 @@ assert.equal(delauneyEdges.length % 4, 0);
 for (const coordinate of delauneyEdges) assert.ok(Number.isFinite(coordinate));
 
 const diagram = voronoi.generate(points, { bounds: [0, 0, 100, 100] });
+const workerPoints = new Float32Array(points.flatMap(({ x, y }) => [x, y]));
+const workerDiagram = await workerVoronoi.generate(workerPoints, { bounds: [0, 0, 100, 100] });
+assert.equal(workerPoints.byteLength, points.length * 2 * Float32Array.BYTES_PER_ELEMENT);
+assert.equal(workerDiagram.numSites, 3);
+assert.equal(workerDiagram.numEdges, diagram.numEdges);
+assert.ok(workerDiagram.byteLength > 0);
+assert.deepEqual(diagramToJSON(workerDiagram), diagramToJSON(diagram));
+workerDiagram.dispose();
 assert.equal(diagram.inputCount, 3);
 assert.equal(diagram.numSites, 3);
 assert.ok(diagram.numVertices > 0);

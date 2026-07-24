@@ -67,25 +67,25 @@ JCV copies one packed result from WebAssembly into a JavaScript-owned `ArrayBuff
 
 | Case | JCV 0.10 | d3-delaunay | d3-voronoi | gorhill/voronoi |
 |---|---:|---:|---:|---:|
-| 10k | 7.43 ms | 3.09 ms | 28.75 ms | 30.97 ms |
-| 100k | 98.90 ms | 30.46 ms | 339.07 ms | 330.20 ms |
-| 100k pathological | 31.88 ms | 9.12 ms | 129.05 ms | 3.17 s |
+| 10k | 7.76 ms | 3.12 ms | 29.06 ms | 34.58 ms |
+| 100k | 98.21 ms | 31.54 ms | 342.88 ms | 335.06 ms |
+| 100k pathological | 32.25 ms | 9.23 ms | 131.46 ms | 3.12 s |
 
 ### Generate + Get Sites
 
 | Case | JCV 0.10 | d3-delaunay | d3-voronoi | gorhill/voronoi |
 |---|---:|---:|---:|---:|
-| 10k | 7.90 ms | 6.78 ms | 28.17 ms | 34.86 ms |
-| 100k | 101.83 ms | 48.16 ms | 317.60 ms | 324.23 ms |
-| 100k pathological | 34.86 ms | 27.35 ms | 113.89 ms | 2.53 s |
+| 10k | 7.97 ms | 7.15 ms | 29.12 ms | 35.52 ms |
+| 100k | 100.84 ms | 49.63 ms | 316.67 ms | 367.06 ms |
+| 100k pathological | 35.00 ms | 27.16 ms | 114.78 ms | 2.54 s |
 
 ### Generate + Render Edges
 
 | Case | JCV 0.10 | d3-delaunay | d3-voronoi | gorhill/voronoi |
 |---|---:|---:|---:|---:|
-| 10k | 8.43 ms | 11.19 ms | 28.14 ms | 31.56 ms |
-| 100k | 102.08 ms | 107.60 ms | 317.79 ms | 380.50 ms |
-| 100k pathological | 36.70 ms | 47.42 ms | 115.17 ms | 2.69 s |
+| 10k | 8.52 ms | 11.47 ms | 29.06 ms | 33.92 ms |
+| 100k | 112.98 ms | 126.28 ms | 326.02 ms | 367.44 ms |
+| 100k pathological | 35.45 ms | 48.29 ms | 114.38 ms | 2.72 s |
 
 <img src="images/benchmark/wasm-voronoi-edges.svg" alt="Render Voronoi Edges" width="350">
 
@@ -93,9 +93,9 @@ JCV copies one packed result from WebAssembly into a JavaScript-owned `ArrayBuff
 
 | Case | JCV 0.10 | d3-delaunay | d3-voronoi | gorhill/voronoi |
 |---|---:|---:|---:|---:|
-| 10k | 7.90 ms | 5.44 ms | 31.02 ms | — |
-| 100k | 100.37 ms | 46.93 ms | 388.69 ms | — |
-| 100k pathological | 33.76 ms | 23.41 ms | 119.44 ms | — |
+| 10k | 8.00 ms | 6.18 ms | 31.31 ms | — |
+| 100k | 100.65 ms | 48.01 ms | 390.36 ms | — |
+| 100k pathological | 33.14 ms | 23.97 ms | 129.53 ms | — |
 
 <img src="images/benchmark/wasm-delauney-edges.svg" alt="Get Delauney Edges" width="350">
 
@@ -103,20 +103,32 @@ JCV copies one packed result from WebAssembly into a JavaScript-owned `ArrayBuff
 
 | Case | JCV 0.10 | d3-delaunay | d3-voronoi | gorhill/voronoi |
 |---|---:|---:|---:|---:|
-| 10k | 9.9 MiB | 5.8 MiB | 31.4 MiB | 39.8 MiB |
-| 100k | 56.0 MiB | 17.9 MiB | 165.1 MiB | 173.0 MiB |
-| 100k pathological | 60.2 MiB | 15.9 MiB | 162.0 MiB | 181.5 MiB |
+| 10k | 9.8 MiB | 5.8 MiB | 32.2 MiB | 39.2 MiB |
+| 100k | 56.0 MiB | 18.0 MiB | 165.0 MiB | 173.0 MiB |
+| 100k pathological | 60.1 MiB | 15.7 MiB | 162.1 MiB | 181.8 MiB |
 
 <img src="images/benchmark/wasm-memory.svg" alt="Retained WebAssembly and JavaScript memory" width="350">
 
 Each memory sample starts a fresh Node.js process, prepares the library-specific input, forces garbage collection, records a baseline, generates and retains one public diagram, forces garbage collection again, and records the resident-memory delta. Values are medians of 3 isolated samples. Input arrays and initialized library runtimes are part of the baseline. Resident memory is runtime- and operating-system-dependent, so compare entries only within the environment reported below.
+
+### Worker-backed JCV peak and retained memory
+
+| Case | Tracked peak | Retained diagram | Observed peak RSS | Observed retained RSS |
+|---|---:|---:|---:|---:|
+| 10k | 17.3 MiB | 1.1 MiB | 27.3 MiB | 22.0 MiB |
+| 100k | 50.9 MiB | 10.7 MiB | 67.2 MiB | 32.8 MiB |
+| 100k pathological | 59.1 MiB | 9.4 MiB | 77.3 MiB | 32.3 MiB |
+
+<img src="images/benchmark/wasm-worker-memory.svg" alt="Worker-backed JCV peak and retained memory" width="350">
+
+The tracked peak is the transferred input, the worker's WebAssembly linear memory, and the packed JavaScript result while all three coexist. Retained diagram memory is the exact packed buffer size after transfer and worker termination. RSS values are median process deltas from 3 isolated samples; allocators may keep released pages resident, so retained RSS can remain above the memory still owned by the API.
 
 <!-- wasm-code-size:start -->
 ### Code size
 
 | Library | Dependencies | Compound module | Brotli | Compound LOC |
 |---|---:|---:|---:|---:|
-| JCV 0.10 | 0 | 27.8 KiB | 10.2 KiB | 2,730 |
+| JCV 0.10 | 0 | 27.8 KiB | 10.2 KiB | 2,830 |
 | d3-delaunay | 2 (delaunator, robust-predicates) | 18.6 KiB | 6.1 KiB | 1,258 |
 | d3-voronoi | 0 | 9.0 KiB | 3.4 KiB | 864 |
 | gorhill/voronoi | 0 | 16.0 KiB | 4.1 KiB | 1,072 |

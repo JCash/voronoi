@@ -34,6 +34,7 @@ export interface PathContext {
 export interface Diagram {
   readonly bounds: readonly [number, number, number, number];
   readonly inputCount: number;
+  readonly byteLength: number;
   readonly numSites: number;
   readonly numVertices: number;
   readonly numEdges: number;
@@ -79,6 +80,21 @@ export interface Voronoi {
   ): Float32Array;
 }
 
+export interface VoronoiWorkerOptions {
+  /** Override the URL of the one-shot module worker. */
+  workerUrl?: string | URL;
+}
+
+export interface VoronoiWorker {
+  /** Generates in a one-shot worker and resolves after its WASM runtime is terminated. */
+  generate(points: PointInput, options: GenerateOptions): Promise<Diagram>;
+  generate(points: PointInput, width: number, height: number): Promise<Diagram>;
+}
+
 export function loadVoronoi(
   moduleOptions?: VoronoiModuleOptions,
 ): Promise<Voronoi>;
+
+export function loadVoronoiWorker(
+  options?: VoronoiWorkerOptions,
+): Promise<VoronoiWorker>;
