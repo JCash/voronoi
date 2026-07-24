@@ -1,0 +1,18 @@
+{
+  "name": "jc-voronoi-browser-benchmark",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/comparisons.js --bundle --format=esm --platform=browser --minify --outfile=../site/benchmark/vendor/comparisons.js",
+    "benchmark": "node --expose-gc run.mjs",
+    "code-size": "node code_size.mjs"
+  },
+  "dependencies": {
+    "d3-delaunay": "6.0.4",
+    "d3-voronoi": "1.1.4",
+    "voronoi": "1.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.1"
+  }
+}

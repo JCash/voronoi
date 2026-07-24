@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Offline jc_voronoi WebAssembly benchmark">
+    <title>jc_voronoi · Wasm benchmark</title>
+    <link rel="stylesheet" href="benchmark.css">
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">jc_voronoi / offline benchmark</p>
+        <h1>Wasm versus JavaScript Voronoi libraries</h1>
+        <p>Inputs and library adapters are prepared before timing. Each sample times one library call that generates the diagram and, where requested, retrieves its output.</p>
+        <div class="actions">
+          <button id="run" type="button" disabled>Run benchmark</button>
+          <span id="status" role="status">Loading libraries…</span>
+        </div>
+      </header>
+      <section id="results" aria-live="polite"></section>
+      <details>
+        <summary>Methodology</summary>
+        <p>Results are medians. The harness runs two untimed warmups, then 10 samples for 10k and five samples for 100k and the pathological case. Point generation, input conversion, Wasm initialization, copying points into Wasm memory, table rendering, and inter-sample yielding are outside the measured region.</p>
+        <p>The 100k pathological case is the issue48 input with 99,998 symmetric diagonal points. “—” means the library has no direct operation for that result.</p>
+      </details>
+      <footer><a href="../">Interactive example</a> · <a href="https://github.com/JCash/voronoi">Source on GitHub</a></footer>
+    </main>
+    <script type="module" src="benchmark.js"></script>
+  </body>
+</html>

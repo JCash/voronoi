@@ -41,17 +41,17 @@ But mostly, I did it for fun :)
 
 # Feature comparisons
 
-| Feature vs Impl        | voronoi++ | boost | fastjet | jcv |
-|-----------------------:|-----------|-------|---------|-----|
-| Language               |    C++    |  C++  |    C    |  C  |
-| Edge clip              |     *     |       |    *    |  *  |
-| Generate Edges         |     *     |   *   |    *    |  *  |
-| Generate Cells         |     *     |   *   |         |  *  |
-| Cell Edges Not Flipped |           |   *   |         |  *  |
-| Cell Edges CCW         |           |   *   |         |  *  |
-| Easy Relaxation        |           |       |         |  *  |
-| Custom Allocator       |           |       |         |  *  |
-| Delauney generation    |           |       |         |  *  |
+| Feature vs Impl        | voronoi++ | boost | fastjet | d3-delaunay | jcv |
+|-----------------------:|-----------|-------|---------|-------------|-----|
+| Language               |    C++    |  C++  |    C    | JavaScript  |  C  |
+| Edge clip              |     *     |       |    *    |      *      |  *  |
+| Generate Edges         |     *     |   *   |    *    |      *      |  *  |
+| Generate Cells         |     *     |   *   |         |      *      |  *  |
+| Cell Edges Not Flipped |           |   *   |         |             |  *  |
+| Cell Edges CCW         |           |   *   |         |             |  *  |
+| Easy Relaxation        |           |       |         |      *      |  *  |
+| Custom Allocator       |           |       |         |             |  *  |
+| Delauney generation    |           |       |         |      *      |  *  |
 
 # Build
 
@@ -114,6 +114,56 @@ and writes a 1024 x 768 `example.svg` in the current directory. Run
 `build\main.exe --help` on Windows to see all options, including image size,
 relaxation, input files, and SVG output.
 
+## WebAssembly
+
+Version tags automatically publish a browser-ready WebAssembly package on the
+[GitHub Releases page](https://github.com/JCash/voronoi/releases). The package
+contains `jc_voronoi.wasm`, Emscripten's ES-module loader, and a small
+`voronoi.js` wrapper for browsers and Node.js. You can also try the
+[interactive WebAssembly demo](https://jcash.github.io/voronoi/), which is
+rebuilt from the `dev` branch.
+
+```js
+import { loadVoronoi } from "./voronoi.js";
+
+const voronoi = await loadVoronoi();
+const edges = voronoi.edges(
+  [{ x: 10, y: 20 }, { x: 80, y: 30 }, { x: 40, y: 90 }],
+  100,
+  100,
+);
+// Float32Array: x0, y0, x1, y1 for each edge
+```
+
+To build the package locally, install the Emscripten SDK and run
+`./scripts/build_wasm.sh`. The output is written to `build/wasm` by default.
+
+To run the interactive example locally:
+
+```sh
+./scripts/build_wasm.sh site/vendor
+npm ci --prefix benchmark
+npm run build --prefix benchmark
+python3 -m http.server 8000 --directory site
+```
+
+Open `http://localhost:8000/` for the example.
+
+To regenerate the offline performance report and its `wasm-*.svg` charts:
+
+```sh
+./scripts/build_wasm.sh
+npm ci --prefix benchmark
+npm run benchmark --prefix benchmark
+```
+
+See [Benchmarks.md](Benchmarks.md) for the generated tables, methodology, and
+charts. The benchmark compares diagram generation, generation plus site
+access, generation plus Voronoi-edge access, and generation plus Delauney-edge access for
+the 10k, 100k, and 100k pathological (issue48) inputs. It also generates module-size, Brotli, and
+source-LOC comparisons. To update only those code-size results, run
+`npm run code-size --prefix benchmark`.
+
 <details>
 <summary>Configuration defines</summary>
 
@@ -159,12 +209,15 @@ The main api contains these functions
 
 ```C
 void jcv_diagram_generate( int num_points, const jcv_point* points, const jcv_rect* rect, const jcv_clipper* clipper, jcv_diagram* diagram );
+void jcv_delauney_generate( int num_points, const jcv_point* points, const jcv_rect* rect, const jcv_clipper* clipper, jcv_diagram* diagram );
 void jcv_diagram_generate_useralloc( int num_points, const jcv_point* points, const jcv_rect* rect, const jcv_clipper* clipper, void* userallocctx, FJCVAllocFn allocfn, FJCVFreeFn freefn, jcv_diagram* diagram );
 void jcv_diagram_free( jcv_diagram* diagram );
 
 const jcv_site* jcv_diagram_get_sites( const jcv_diagram* diagram );
 int jcv_get_num_vertices( const jcv_diagram* diagram );
 void jcv_diagram_get_vertices( const jcv_diagram* diagram, jcv_point* vertices );
+int jcv_diagram_get_edge_count( const jcv_diagram* diagram );
+int jcv_delauney_get_edge_count( const jcv_diagram* diagram );
 void jcv_diagram_get_edges( const jcv_diagram* diagram, jcv_edge_iter* iter );
 void jcv_site_get_edges( const jcv_diagram* diagram, const jcv_site* site, jcv_edge_iter* iter );
 int jcv_edge_next( jcv_edge_iter* iter, jcv_edge* edge );
@@ -251,10 +304,15 @@ the cell.
 <details>
 <summary>Delauney triangulation</summary>
 
-After generating the Voronoi diagram, you can iterate over the Delauney edges like so:
+If only Delauney adjacency is needed, generate it without clipping or building
+Voronoi cell topology:
 (See [main.c](./src/main.c) for a practical example)
 
 ```C
+jcv_diagram diagram = {0};
+jcv_delauney_generate(num_points, points, NULL, NULL, &diagram);
+int edge_count = jcv_delauney_get_edge_count(&diagram);
+
 jcv_delauney_iter iter;
 jcv_delauney_begin( &diagram, &iter );
 jcv_delauney_edge delauney_edge;
@@ -262,7 +320,13 @@ while (jcv_delauney_next( &iter, &delauney_edge ))
 {
     ...
 }
+
+jcv_diagram_free(&diagram);
 ```
+
+Sites and the Delauney iterator are available on a Delauney-only diagram. Only
+the `sites` and `pos` members of each `jcv_delauney_edge` are valid. Voronoi edge
+geometry, per-site edges, and unique vertices are intentionally unavailable.
 
 </details>
 
