@@ -1,0 +1,147 @@
+name: Release Homebrew source package
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  source-package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve package version
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${GITHUB_REF_TYPE}" != "tag" || "${GITHUB_REF_NAME}" != v* ]]; then
+            echo "This workflow must run for a version tag such as v0.11.0." >&2
+            exit 1
+          fi
+
+          version="${GITHUB_REF_NAME#v}"
+          cmake_version="$({
+            sed -n \
+              's/^project(jc_voronoi VERSION \([^ ]*\) LANGUAGES C)$/\1/p' \
+              CMakeLists.txt
+          })"
+
+          if [[ -z "${cmake_version}" ]]; then
+            echo "Could not read the project version from CMakeLists.txt." >&2
+            exit 1
+          fi
+          if [[ "${version}" != "${cmake_version}" ]]; then
+            echo "Tag version ${version} does not match CMake project version ${cmake_version}." >&2
+            exit 1
+          fi
+
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+          echo "archive=jc_voronoi-${version}.tar.gz" >> "${GITHUB_OUTPUT}"
+
+      - name: Create source package and checksum
+        shell: bash
+        env:
+          VERSION: ${{ steps.package.outputs.version }}
+          ARCHIVE: ${{ steps.package.outputs.archive }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p dist
+          git archive \
+            --format=tar \
+            --prefix="jc_voronoi-${VERSION}/" \
+            HEAD \
+            CMakeLists.txt \
+            LICENSE \
+            README.md \
+            cmake \
+            src/jc_voronoi.h \
+            src/jc_voronoi_clip.h \
+            | gzip -n -9 > "dist/${ARCHIVE}"
+
+          (cd dist && sha256sum "${ARCHIVE}" > "${ARCHIVE}.sha256")
+
+      - name: Verify package installation and CMake consumer
+        shell: bash
+        env:
+          VERSION: ${{ steps.package.outputs.version }}
+          ARCHIVE: ${{ steps.package.outputs.archive }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p verify/source verify/consumer
+          tar -xzf "dist/${ARCHIVE}" -C verify/source --strip-components=1
+
+          cmake \
+            -S verify/source \
+            -B verify/package-build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="${PWD}/verify/install"
+          cmake --build verify/package-build --parallel
+          cmake --install verify/package-build
+
+          cat > verify/consumer/CMakeLists.txt <<'EOF'
+          cmake_minimum_required(VERSION 3.15)
+          project(jc_voronoi_consumer LANGUAGES C)
+
+          find_package(jc_voronoi CONFIG REQUIRED)
+          add_executable(consumer main.c)
+          target_link_libraries(consumer PRIVATE jc_voronoi::jc_voronoi)
+          EOF
+
+          cat > verify/consumer/main.c <<'EOF'
+          #define JC_VORONOI_IMPLEMENTATION
+          #include <jc_voronoi.h>
+
+          int main(void) {
+              const jcv_point points[] = {{0.0f, 0.0f}, {1.0f, 1.0f}};
+              jcv_diagram diagram = {0};
+              jcv_diagram_generate(2, points, NULL, NULL, &diagram);
+              const int success = diagram.numsites == 2;
+              jcv_diagram_free(&diagram);
+              return success ? 0 : 1;
+          }
+          EOF
+
+          cmake \
+            -S verify/consumer \
+            -B verify/consumer-build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH="${PWD}/verify/install"
+          cmake --build verify/consumer-build --parallel
+          verify/consumer-build/consumer
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jc_voronoi-homebrew-${{ steps.package.outputs.version }}
+          path: |
+            dist/${{ steps.package.outputs.archive }}
+            dist/${{ steps.package.outputs.archive }}.sha256
+
+      - name: Publish GitHub release assets
+        if: github.ref_type == 'tag'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARCHIVE: ${{ steps.package.outputs.archive }}
+        run: |
+          set -euo pipefail
+
+          if ! gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            gh release create "${GITHUB_REF_NAME}" --verify-tag --generate-notes \
+              || gh release view "${GITHUB_REF_NAME}" >/dev/null
+          fi
+          gh release upload "${GITHUB_REF_NAME}" \
+            "dist/${ARCHIVE}" \
+            "dist/${ARCHIVE}.sha256" \
+            --clobber
