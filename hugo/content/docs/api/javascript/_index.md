@@ -5,6 +5,33 @@ weight: 2
 
 The JavaScript API loads the WebAssembly module and exposes persistent diagram objects with sites, cells, edges, neighbors, and polygon points.
 
+## API overview
+
+### Types
+
+| Type | Purpose |
+|---|---|
+| [`Voronoi`](#voronoi) | Loaded module used to generate diagrams |
+| [`Diagram`](#diagram) | Persistent generated result and entry point for topology |
+| [`Site`](#site) | Retained input point and cell metadata |
+| [`Cell`](#cell) | One site's polygon, edges, and neighbors |
+| [`Edge`](#edge) | Voronoi segment, adjacent sites, and vertex indices |
+| [`Point`](#point) | Two-dimensional coordinate |
+
+### Functions and methods
+
+| Function | Result |
+|---|---|
+| [`loadVoronoi(options?)`](#load-the-module) | Loads and initializes the WebAssembly module |
+| [`voronoi.generate(points, width, height)`](#voronoi) | Generates a persistent `Diagram` |
+| [`voronoi.generate(points, options)`](#voronoi) | Generates a `Diagram` using explicit bounds or dimensions |
+| [`voronoi.edges(points, width, height)`](#compatibility-helpers) | Returns flat Voronoi edge coordinates |
+| [`voronoi.delauneyEdges(points, width, height)`](#compatibility-helpers) | Returns flat Delauney edge coordinates |
+| [`diagram.site(inputIndex)`](#diagram) | Returns the retained `Site`, or `null` when pruned |
+| [`diagram.cell(inputIndex)`](#diagram) | Returns the site's `Cell`, or `null` when pruned |
+| [`diagram.neighbors(inputIndex)`](#diagram) | Returns neighboring `Site` objects |
+| [`diagram.dispose()`](#diagram) | Releases the diagram's WebAssembly allocation |
+
 ## Load the module
 
 ```js
@@ -13,7 +40,7 @@ import { loadVoronoi } from "./voronoi.js";
 const voronoi = await loadVoronoi();
 ```
 
-## `voronoi.generate(points, bounds)`
+## `Voronoi`
 
 Generate a persistent diagram using either a width and height or explicit bounds:
 
@@ -67,6 +94,8 @@ const boundedDiagram = voronoi.generate(points, {
 | `sites` | Two adjacent sites; boundary sides may be `null` |
 | `pos` | Two endpoint `Point` objects |
 | `vertices` | Two unique vertex indices |
+
+## `Point`
 
 `Point` exposes `.x` and `.y` and can also be destructured as `[x, y]`.
 
