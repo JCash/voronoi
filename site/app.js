@@ -1,16 +1,95 @@
+import { readPointFile } from "./point_file.js";
+
 const canvas = document.querySelector("#diagram");
 const context = canvas.getContext("2d");
 const countInput = document.querySelector("#site-count");
 const countOutput = document.querySelector("#site-count-output");
 const status = document.querySelector("#status");
 const delauneyButton = document.querySelector("#delauney");
+const copyButton = document.querySelector("#copy-json");
+const pointForm = document.querySelector("#point-form");
+const pointXInput = document.querySelector("#point-x");
+const pointYInput = document.querySelector("#point-y");
+const playground = document.querySelector(".voronoi-playground");
+const openButton = document.querySelector("#open-file");
+const openInput = document.querySelector("#open-file-input");
 let points = [];
 let voronoi;
 let draggedPoint = -1;
 let showDelauney = false;
+let latestDiagram;
 
-function randomize(count) {
-  points = Array.from({ length: count }, () => ({ x: .035 + Math.random() * .93, y: .055 + Math.random() * .89 }));
+function readBoolean(value) {
+  return ["1", "true", "yes", "on"].includes((value || "").toLowerCase());
+}
+
+function readInteger(value, fallback, minimum, maximum, name) {
+  if (value === null) return fallback;
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < minimum || parsed > maximum) {
+    throw new Error(`${name} must be an integer from ${minimum} to ${maximum}`);
+  }
+  return parsed;
+}
+
+function readPoints(value) {
+  if (!value) return null;
+  const parsed = value.split(";").filter(Boolean).map((pair) => {
+    const coordinates = pair.split(",").map(Number);
+    if (coordinates.length !== 2 || coordinates.some((coordinate) => !Number.isFinite(coordinate) || coordinate < 0 || coordinate > 1)) {
+      throw new Error("points must contain normalized x,y pairs");
+    }
+    return { x: coordinates[0], y: coordinates[1] };
+  });
+  if (parsed.length < 2 || parsed.length > 250) {
+    throw new Error("points must contain between 2 and 250 sites");
+  }
+  return parsed;
+}
+
+async function openFile(file) {
+  if (!file) return;
+  try {
+    points = readPointFile(await file.text());
+    updateCount();
+    draw();
+    status.textContent = `Opened ${points.length} sites from ${file.name}`;
+  } catch (error) {
+    status.textContent = `Open failed: ${error.message}`;
+  }
+}
+
+function readConfiguration() {
+  const parameters = new URLSearchParams(window.location.search);
+  return {
+    points: readPoints(parameters.get("points")),
+    count: readInteger(parameters.get("count"), 42, 2, 250, "count"),
+    seed: readInteger(parameters.get("seed"), null, 0, 4294967295, "seed"),
+    delauney: readBoolean(parameters.get("delauney")),
+  };
+}
+
+function seededRandom(seed) {
+  let state = seed >>> 0;
+  return () => {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    return state / 4294967296;
+  };
+}
+
+function updateCount() {
+  if (countOutput) countOutput.value = String(points.length);
+  if (countInput && points.length >= Number(countInput.min) && points.length <= Number(countInput.max)) {
+    countInput.value = String(points.length);
+  }
+}
+
+function randomize(count, random = Math.random) {
+  points = Array.from({ length: count }, () => ({
+    x: .035 + random() * .93,
+    y: .055 + random() * .89,
+  }));
+  updateCount();
   draw();
 }
 
@@ -20,6 +99,23 @@ function resize() {
   canvas.width = Math.round(bounds.width * ratio);
   canvas.height = Math.round(bounds.height * ratio);
   draw();
+}
+
+function roundCoordinate(value) {
+  return Number(value.toFixed(6));
+}
+
+function normalizeEdges(edges, width, height) {
+  const normalized = [];
+  for (let index = 0; index < edges.length; index += 4) {
+    normalized.push([
+      roundCoordinate(edges[index] / width),
+      roundCoordinate(edges[index + 1] / height),
+      roundCoordinate(edges[index + 2] / width),
+      roundCoordinate(edges[index + 3] / height),
+    ]);
+  }
+  return normalized;
 }
 
 function draw() {
@@ -36,18 +132,18 @@ function draw() {
     context.strokeStyle = "#ff9367aa";
     context.lineWidth = Math.max(1, window.devicePixelRatio || 1);
     context.beginPath();
-    for (let i = 0; i < delauneyEdges.length; i += 4) {
-      context.moveTo(delauneyEdges[i], delauneyEdges[i + 1]);
-      context.lineTo(delauneyEdges[i + 2], delauneyEdges[i + 3]);
+    for (let index = 0; index < delauneyEdges.length; index += 4) {
+      context.moveTo(delauneyEdges[index], delauneyEdges[index + 1]);
+      context.lineTo(delauneyEdges[index + 2], delauneyEdges[index + 3]);
     }
     context.stroke();
   }
   context.strokeStyle = "#72796c";
   context.lineWidth = Math.max(1, window.devicePixelRatio || 1);
   context.beginPath();
-  for (let i = 0; i < edges.length; i += 4) {
-    context.moveTo(edges[i], edges[i + 1]);
-    context.lineTo(edges[i + 2], edges[i + 3]);
+  for (let index = 0; index < edges.length; index += 4) {
+    context.moveTo(edges[index], edges[index + 1]);
+    context.lineTo(edges[index + 2], edges[index + 3]);
   }
   context.stroke();
   const radius = 3.25 * (window.devicePixelRatio || 1);
@@ -59,6 +155,15 @@ function draw() {
   }
   const delauneyStatus = showDelauney ? ` · ${delauneyEdges.length / 4} Delauney` : "";
   status.textContent = `${points.length} sites · ${edges.length / 4} edges${delauneyStatus}`;
+  latestDiagram = {
+    format: "jc_voronoi-diagram",
+    version: 1,
+    coordinateSpace: "normalized",
+    canvas: { width, height },
+    sites: points.map(({ x, y }) => ({ x: roundCoordinate(x), y: roundCoordinate(y) })),
+    edges: normalizeEdges(edges, width, height),
+    delauneyEdges: normalizeEdges(delauneyEdges, width, height),
+  };
 }
 
 function eventPoint(event) {
@@ -71,9 +176,12 @@ function eventPoint(event) {
 
 function nearest(point) {
   let best = -1;
-  let distance = .001;
+  const bounds = canvas.getBoundingClientRect();
+  let distance = 18 ** 2;
   points.forEach((candidate, index) => {
-    const candidateDistance = (candidate.x - point.x) ** 2 + (candidate.y - point.y) ** 2;
+    const deltaX = (candidate.x - point.x) * bounds.width;
+    const deltaY = (candidate.y - point.y) * bounds.height;
+    const candidateDistance = deltaX ** 2 + deltaY ** 2;
     if (candidateDistance < distance) { best = index; distance = candidateDistance; }
   });
   return best;
@@ -82,8 +190,15 @@ function nearest(point) {
 canvas.addEventListener("pointerdown", (event) => {
   const point = eventPoint(event);
   draggedPoint = nearest(point);
-  if (draggedPoint < 0) { points.push(point); draggedPoint = points.length - 1; }
+  if (draggedPoint < 0) {
+    if (points.length >= 250) return;
+    points.push(point);
+    draggedPoint = points.length - 1;
+  } else {
+    points[draggedPoint] = point;
+  }
   canvas.setPointerCapture(event.pointerId);
+  updateCount();
   draw();
 });
 canvas.addEventListener("pointermove", (event) => {
@@ -97,26 +212,106 @@ canvas.addEventListener("dblclick", (event) => {
   const index = nearest(eventPoint(event));
   if (index >= 0) points.splice(index, 1);
   draggedPoint = -1;
+  updateCount();
   draw();
 });
-countInput.addEventListener("input", () => {
-  countOutput.value = countInput.value;
-  randomize(Number(countInput.value));
-});
-document.querySelector("#randomize").addEventListener("click", () => randomize(Number(countInput.value)));
-delauneyButton.addEventListener("click", () => {
+if (countInput) countInput.addEventListener("input", () => randomize(Number(countInput.value)));
+document.querySelector("#randomize")?.addEventListener("click", () => randomize(Number(countInput.value)));
+delauneyButton?.addEventListener("click", () => {
   showDelauney = !showDelauney;
   delauneyButton.setAttribute("aria-pressed", String(showDelauney));
   draw();
 });
-document.querySelector("#clear").addEventListener("click", () => { points = []; draw(); });
+document.querySelector("#clear")?.addEventListener("click", () => {
+  points = [];
+  updateCount();
+  draw();
+});
+if (pointForm) {
+  pointForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const x = Number(pointXInput.value);
+    const y = Number(pointYInput.value);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || x > 1 || y < 0 || y > 1 || points.length >= 250) return;
+    points.push({ x, y });
+    updateCount();
+    draw();
+  });
+}
+if (copyButton) {
+  copyButton.addEventListener("click", async () => {
+    if (!latestDiagram) return;
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(latestDiagram, null, 2));
+      copyButton.textContent = "Copied JSON";
+      window.setTimeout(() => { copyButton.textContent = "Copy JSON"; }, 1600);
+    } catch (error) {
+      copyButton.textContent = "Copy failed";
+      console.error(error);
+    }
+  });
+}
+if (openButton && openInput) {
+  openButton.addEventListener("click", () => openInput.click());
+  openInput.addEventListener("change", async () => {
+    await openFile(openInput.files[0]);
+    openInput.value = "";
+  });
+  let dragDepth = 0;
+  playground.addEventListener("dragenter", (event) => {
+    if (!Array.from(event.dataTransfer?.types || []).includes("Files")) return;
+    event.preventDefault();
+    dragDepth += 1;
+    playground.classList.add("voronoi-drop-target");
+  });
+  playground.addEventListener("dragover", (event) => {
+    if (!Array.from(event.dataTransfer?.types || []).includes("Files")) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  });
+  playground.addEventListener("dragleave", () => {
+    dragDepth -= 1;
+    if (dragDepth <= 0) {
+      dragDepth = 0;
+      playground.classList.remove("voronoi-drop-target");
+    }
+  });
+  playground.addEventListener("drop", async (event) => {
+    event.preventDefault();
+    dragDepth = 0;
+    playground.classList.remove("voronoi-drop-target");
+    await openFile(event.dataTransfer?.files[0]);
+  });
+}
 new ResizeObserver(resize).observe(canvas);
+
+let configuration;
+let configurationError;
+try {
+  configuration = readConfiguration();
+} catch (error) {
+  configuration = { points: null, count: 42, seed: null, delauney: false };
+  configurationError = error;
+}
 
 try {
   const { loadVoronoi } = await import("./vendor/voronoi.js");
   voronoi = await loadVoronoi();
-  randomize(Number(countInput.value));
+  showDelauney = configuration.delauney;
+  delauneyButton?.setAttribute("aria-pressed", String(showDelauney));
+  const embeddedPoints = readPoints(canvas.dataset.points);
+  if (embeddedPoints || configuration.points) {
+    points = embeddedPoints || configuration.points;
+    updateCount();
+    draw();
+  } else {
+    const random = configuration.seed === null ? Math.random : seededRandom(configuration.seed);
+    randomize(configuration.count, random);
+  }
   resize();
+  if (configurationError) {
+    status.textContent = `URL error: ${configurationError.message}`;
+  }
 } catch (error) {
   status.textContent = "Wasm failed to load";
   console.error(error);

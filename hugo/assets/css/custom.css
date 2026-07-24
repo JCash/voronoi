@@ -1,0 +1,320 @@
+:root {
+    --hextra-max-page-width: 90rem;
+    --hextra-max-navbar-width: 90rem;
+    --hextra-max-footer-width: 90rem;
+}
+
+.voronoi-home {
+    width: min(1180px, calc(100% - 32px));
+    margin: 0 auto;
+    padding-bottom: 4rem;
+}
+
+.voronoi-showcase {
+    width: 100%;
+}
+
+.voronoi-app-page-header,
+.voronoi-app-standalone,
+.voronoi-app-api {
+    width: min(1180px, calc(100% - 32px));
+    margin-right: auto;
+    margin-left: auto;
+}
+
+.voronoi-app-page-header {
+    padding: 1.25rem 0 1.5rem;
+}
+
+.voronoi-app-page-header h1 {
+    margin: 0;
+    font-size: clamp(2rem, 5vw, 4rem);
+    letter-spacing: -0.045em;
+}
+
+.voronoi-app-page-header p {
+    max-width: 50rem;
+    margin: 0.75rem 0 0;
+    color: rgb(82 82 82);
+}
+
+.dark .voronoi-app-page-header p {
+    color: rgb(163 163 163);
+}
+
+.voronoi-app-api {
+    width: min(56rem, calc(100% - 32px));
+    padding: 1.5rem 0 4rem;
+}
+
+.voronoi-hero {
+    position: relative;
+    z-index: 1;
+    padding: 1.25rem 0 2.5rem;
+}
+
+.voronoi-hero h1 {
+    margin: 0;
+    font-size: clamp(1.95rem, 6.4vw, 5.25rem);
+    line-height: 0.98;
+    letter-spacing: -0.055em;
+    white-space: nowrap;
+}
+
+.voronoi-intro {
+    margin: 0.75rem 0 0;
+    color: rgb(82 82 82);
+    font-size: 0.8rem;
+    line-height: 1.45;
+}
+
+.dark .voronoi-intro {
+    color: rgb(163 163 163);
+}
+
+.voronoi-actions {
+    display: flex;
+    gap: 1.25rem;
+    align-items: center;
+    margin-top: 1.75rem;
+    font-weight: 650;
+}
+
+.voronoi-actions a {
+    text-decoration: none;
+}
+
+.voronoi-actions .voronoi-primary {
+    border-radius: 999px;
+    padding: 0.7rem 1rem;
+    background: #181a16;
+    color: white;
+}
+
+.dark .voronoi-actions .voronoi-primary {
+    background: #d8ff57;
+    color: #161a0c;
+}
+
+.voronoi-playground {
+    overflow: hidden;
+    border: 1px solid #353a33;
+    border-radius: 18px;
+    background: #1a1c19;
+    color: #f4efe5;
+    box-shadow: 0 28px 80px rgb(0 0 0 / 25%);
+    transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.voronoi-playground.voronoi-drop-target {
+    border-color: #d8ff57;
+    box-shadow: 0 0 0 3px rgb(216 255 87 / 24%), 0 28px 80px rgb(0 0 0 / 25%);
+}
+
+.voronoi-file-input {
+    display: none;
+}
+
+.voronoi-toolbar {
+    min-height: 70px;
+    padding: 14px 18px;
+    border-bottom: 1px solid #353a33;
+    display: flex;
+    gap: 14px;
+    align-items: center;
+}
+
+.voronoi-simple-header {
+    min-height: 50px;
+    padding: 0 16px;
+    border-bottom: 1px solid #353a33;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #a8a49d;
+    font: 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.voronoi-simple-header #status {
+    margin-left: 1rem;
+}
+
+.voronoi-toolbar label {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    color: #a8a49d;
+    font-size: 13px;
+}
+
+.voronoi-toolbar input[type="range"] {
+    width: 130px;
+    accent-color: #d8ff57;
+}
+
+.voronoi-point-form {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.voronoi-point-form label {
+    gap: 0.3rem;
+}
+
+.voronoi-point-form input {
+    width: 4.5rem;
+    border: 1px solid #353a33;
+    border-radius: 0.4rem;
+    padding: 0.4rem 0.45rem;
+    background: #121311;
+    color: #f4efe5;
+    font: 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.voronoi-toolbar output {
+    width: 3ch;
+    color: #f4efe5;
+    font-variant-numeric: tabular-nums;
+}
+
+.voronoi-toolbar button {
+    border: 1px solid #d8ff57;
+    border-radius: 999px;
+    padding: 9px 14px;
+    background: #d8ff57;
+    color: #161a0c;
+    font: 700 12px/1 inherit;
+    cursor: pointer;
+}
+
+.voronoi-toolbar button:hover {
+    filter: brightness(0.9);
+}
+
+.voronoi-toolbar button.quiet {
+    border-color: #353a33;
+    background: transparent;
+    color: #f4efe5;
+}
+
+.voronoi-toolbar button.quiet[aria-pressed="true"] {
+    border-color: #ff9367;
+    background: #ff9367;
+    color: #25130c;
+}
+
+#status {
+    margin-left: auto;
+    color: #d8ff57;
+    font: 12px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+#diagram {
+    display: block;
+    width: 100%;
+    height: min(62vh, 650px);
+    cursor: crosshair;
+    touch-action: none;
+}
+
+.voronoi-example-layout {
+    display: grid;
+    gap: 2rem;
+    align-items: start;
+}
+
+.voronoi-example-copy > :first-child {
+    margin-top: 0;
+}
+
+.voronoi-example-app #diagram {
+    height: min(58vh, 34rem);
+}
+
+.voronoi-example-app .voronoi-playground {
+    box-shadow: 0 18px 50px rgb(0 0 0 / 20%);
+}
+
+@media (min-width: 900px) {
+    .voronoi-example-layout {
+        grid-template-columns: minmax(0, 1.05fr) minmax(19rem, 0.95fr);
+    }
+
+    .voronoi-example-app {
+        position: sticky;
+        top: 5.5rem;
+    }
+}
+
+@media (min-width: 1280px) {
+    .voronoi-example-layout {
+        width: calc(100% + 16rem);
+    }
+}
+
+@media (min-width: 820px) {
+    .voronoi-showcase {
+        display: grid;
+        grid-template-columns: minmax(19rem, 0.8fr) minmax(0, 1.2fr);
+        gap: clamp(1.5rem, 3vw, 4rem);
+        align-items: start;
+    }
+
+    .voronoi-playground {
+        margin-top: 1.25rem;
+    }
+
+    .voronoi-hero h1 {
+        font-size: clamp(1.2rem, 2.45vw, 2.25rem);
+    }
+
+    .voronoi-toolbar {
+        flex-wrap: wrap;
+    }
+}
+
+.voronoi-hint {
+    margin: 0;
+    padding: 11px 18px;
+    border-top: 1px solid #353a33;
+    color: #a8a49d;
+    font: 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+    text-align: right;
+}
+
+.voronoi-feature-list {
+    margin: 1.75rem 0 0;
+    padding-left: 1.4rem;
+    list-style: disc;
+    color: rgb(82 82 82);
+    font-size: 0.95rem;
+    line-height: 1.65;
+}
+
+.voronoi-feature-list > li {
+    padding-left: 0.2rem;
+}
+
+.dark .voronoi-feature-list {
+    color: rgb(163 163 163);
+}
+
+@media (max-width: 720px) {
+    .voronoi-toolbar {
+        flex-wrap: wrap;
+    }
+
+    .voronoi-toolbar label {
+        width: 100%;
+    }
+
+    .voronoi-toolbar input {
+        flex: 1;
+    }
+
+    #diagram {
+        height: 52vh;
+    }
+
+}

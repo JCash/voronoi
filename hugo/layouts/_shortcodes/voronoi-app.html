@@ -1,0 +1,37 @@
+{{- $copy := eq (.Get "copy") "true" -}}
+{{- $simplified := eq (.Get "simplified") "true" -}}
+{{- $points := .Get "points" -}}
+{{- $intro := ne (.Get "intro") "false" -}}
+{{- $label := .Get "label" | default "Voronoi diagram" -}}
+<div class="voronoi-app-column{{ if $copy }} voronoi-app-standalone{{ end }}{{ if $simplified }} voronoi-app-simplified{{ end }}">
+  <section class="voronoi-playground" aria-label="Interactive Voronoi diagram">
+    {{- if $simplified }}
+    <div class="voronoi-simple-header">
+      <span>{{ $label }}</span>
+      <span id="status" role="status">Loading Wasm…</span>
+    </div>
+    {{- else }}
+    <div class="voronoi-toolbar">
+      <label>Sites <input id="site-count" type="range" min="2" max="250" value="42"> <output id="site-count-output">42</output></label>
+      <button id="randomize" type="button">Randomize</button>
+      <button id="delauney" class="quiet" type="button" aria-pressed="false">Delauney</button>
+      <button id="clear" class="quiet" type="button">Clear</button>
+      <button id="open-file" class="quiet" type="button">Open</button>
+      <input id="open-file-input" class="voronoi-file-input" type="file" accept=".json,.txt,application/json,text/plain">
+      {{- if $copy }}<button id="copy-json" class="quiet" type="button">Copy JSON</button>{{ end -}}
+      <form id="point-form" class="voronoi-point-form">
+        <label>X <input id="point-x" type="number" min="0" max="1" step="0.01" value="0.5" required></label>
+        <label>Y <input id="point-y" type="number" min="0" max="1" step="0.01" value="0.5" required></label>
+        <button class="quiet" type="submit">Add point</button>
+      </form>
+      <span id="status" role="status">Loading Wasm…</span>
+    </div>
+    {{- end }}
+    <canvas id="diagram"{{ with $points }} data-points="{{ . }}"{{ end }}></canvas>
+    <p class="voronoi-hint">Click to add · click near or drag a site to move · double-click to remove · drop JSON or point lists to open</p>
+  </section>
+  {{- if and (not $simplified) $intro }}
+  <p class="voronoi-intro">Click to add a site. Drag any site to watch Fortune’s sweep algorithm rebuild the diagram in WebAssembly.</p>
+  {{- end }}
+</div>
+<script type="module" src="{{ "app.js" | relURL }}"></script>
