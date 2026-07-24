@@ -1,4 +1,3 @@
-
 |Branch      | macOS/Linux/Windows |
 |------------|---------------------|
 |master      | [![Build](https://github.com/JCash/voronoi/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/JCash/voronoi/actions/workflows/build.yml) |
@@ -14,6 +13,7 @@ A fast C header only implementation for creating 2D Voronoi diagrams from a poin
 * Disclaimer: This software is supplied "AS IS" without any warranties and support
 * [LICENSE](./LICENSE) ([The MIT license](http://choosealicense.com/licenses/mit/))
 * [Showcases](./SHOWCASES.md)
+* [Documentation](https://jcash.github.io/voronoi)
 
 # Brief
 
@@ -78,6 +78,27 @@ one C or C++ translation unit:
 
 Other translation units should include `jc_voronoi.h` without defining
 `JC_VORONOI_IMPLEMENTATION`.
+
+## CMake
+
+When this repository is added with `add_subdirectory` or `FetchContent`, link
+the header-only target to your application:
+
+```cmake
+target_link_libraries(your_app PRIVATE jc_voronoi::jc_voronoi)
+```
+
+The default CMake build does not produce a library file because `jc_voronoi`
+is header-only. To build the bundled example programs and tests, configure with:
+
+```sh
+cmake -S . -B build -DJC_VORONOI_BUILD_EXAMPLES=ON -DJC_VORONOI_BUILD_TESTS=ON
+cmake --build build
+ctest --test-dir build
+```
+
+The project can also be installed. An installed copy can be consumed with
+`find_package(jc_voronoi CONFIG REQUIRED)` and the same namespaced target.
 
 ## macOS
 

@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">Peak and retained heap memory</title>
+  <desc id="desc">Grouped bar chart comparing heap memory for jc_voronoi 0.9.0, jc_voronoi 0.10.0, and Boost 1.92.0. Each light bar shows peak heap and its darker lower portion shows retained diagram heap.</desc>
+  <style>
+    .stat-bar .stat-tip { opacity: 0; pointer-events: none; }
+    .stat-bar:hover .stat-tip, .stat-bar:focus .stat-tip { opacity: 1; }
+    .stat-hit { fill: transparent; pointer-events: all; }
+    .tip-box { fill: #152238; stroke: #ffffff; stroke-width: 1; }
+    .tip-head { fill: #ffffff; font: 650 12px system-ui, sans-serif; }
+    .tip-value { fill: #dce5f2; font: 12px system-ui, sans-serif; }
+  </style>
+  <rect width="1200" height="720" fill="#f8fafc"/>
+  <text x="70" y="49" font-family="system-ui, sans-serif" font-size="27" font-weight="700" fill="#152238">Peak and retained heap</text>
+  <text x="70" y="76" font-family="system-ui, sans-serif" font-size="15" fill="#536174">MiB per generated diagram · darker portion is retained · lower is better · hover bars for details</text>
+
+  <g stroke="#d8dee8" stroke-width="1">
+    <line x1="120" y1="575" x2="1150" y2="575"/>
+    <line x1="120" y1="497" x2="1150" y2="497"/>
+    <line x1="120" y1="418" x2="1150" y2="418"/>
+    <line x1="120" y1="340" x2="1150" y2="340"/>
+    <line x1="120" y1="262" x2="1150" y2="262"/>
+    <line x1="120" y1="183" x2="1150" y2="183"/>
+    <line x1="120" y1="105" x2="1150" y2="105"/>
+  </g>
+  <g font-family="system-ui, sans-serif" font-size="13" fill="#536174" text-anchor="end">
+    <text x="108" y="580">0</text><text x="108" y="502">10</text><text x="108" y="423">20</text>
+    <text x="108" y="345">30</text><text x="108" y="267">40</text><text x="108" y="188">50</text><text x="108" y="110">60 MiB</text>
+  </g>
+
+  <!-- Peak bars use pale tones; retained memory overlays the same bars in darker tones. -->
+  <g>
+    <rect x="176" y="571" width="52" height="4" rx="2" fill="#aeb8f2"/><rect x="176" y="571" width="52" height="4" rx="2" fill="#5267d9"/>
+    <rect x="234" y="572" width="52" height="3" rx="2" fill="#91d9cd"/><rect x="234" y="573" width="52" height="2" rx="1" fill="#138875"/>
+    <rect x="292" y="572" width="52" height="3" rx="2" fill="#f3c693"/><rect x="292" y="572" width="52" height="3" rx="1" fill="#c66f20"/>
+
+    <rect x="426" y="538" width="52" height="37" rx="3" fill="#aeb8f2"/><rect x="426" y="538" width="52" height="37" rx="3" fill="#5267d9"/>
+    <rect x="484" y="543" width="52" height="32" rx="3" fill="#91d9cd"/><rect x="484" y="554" width="52" height="21" rx="2" fill="#138875"/>
+    <rect x="542" y="541" width="52" height="34" rx="3" fill="#f3c693"/><rect x="542" y="547" width="52" height="28" rx="2" fill="#c66f20"/>
+
+    <rect x="676" y="207" width="52" height="368" rx="4" fill="#aeb8f2"/><rect x="676" y="207" width="52" height="368" rx="4" fill="#5267d9"/>
+    <rect x="734" y="258" width="52" height="317" rx="4" fill="#91d9cd"/><rect x="734" y="371" width="52" height="204" rx="3" fill="#138875"/>
+    <rect x="792" y="253" width="52" height="322" rx="4" fill="#f3c693"/><rect x="792" y="294" width="52" height="281" rx="3" fill="#c66f20"/>
+
+    <rect x="926" y="221" width="52" height="354" rx="4" fill="#aeb8f2"/><rect x="926" y="221" width="52" height="354" rx="4" fill="#5267d9"/>
+    <rect x="984" y="227" width="52" height="348" rx="4" fill="#91d9cd"/><rect x="984" y="305" width="52" height="270" rx="3" fill="#138875"/>
+    <rect x="1042" y="131" width="52" height="444" rx="4" fill="#f3c693"/><rect x="1042" y="294" width="52" height="281" rx="3" fill="#c66f20"/>
+  </g>
+
+  <!-- Peak MiB on the first line; retained MiB on the second. -->
+  <g font-family="system-ui, sans-serif" font-size="10" text-anchor="middle">
+    <text x="202" y="545" fill="#35445a" font-weight="650">0.49</text><text x="202" y="557" fill="#5267d9">0.49</text>
+    <text x="260" y="545" fill="#35445a" font-weight="650">0.44</text><text x="260" y="557" fill="#138875">0.28</text>
+    <text x="318" y="545" fill="#35445a" font-weight="650">0.42</text><text x="318" y="557" fill="#c66f20">0.36</text>
+
+    <text x="452" y="512" fill="#35445a" font-weight="650">4.72</text><text x="452" y="524" fill="#5267d9">4.72</text>
+    <text x="510" y="517" fill="#35445a" font-weight="650">4.08</text><text x="510" y="529" fill="#138875">2.64</text>
+    <text x="568" y="515" fill="#35445a" font-weight="650">4.29</text><text x="568" y="527" fill="#c66f20">3.59</text>
+
+    <text x="702" y="181" fill="#35445a" font-weight="650">46.93</text><text x="702" y="193" fill="#5267d9">46.93</text>
+    <text x="760" y="232" fill="#35445a" font-weight="650">40.46</text><text x="760" y="244" fill="#138875">26.04</text>
+    <text x="818" y="227" fill="#35445a" font-weight="650">41.12</text><text x="818" y="239" fill="#c66f20">35.86</text>
+
+    <text x="952" y="195" fill="#35445a" font-weight="650">45.15</text><text x="952" y="207" fill="#5267d9">45.15</text>
+    <text x="1010" y="201" fill="#35445a" font-weight="650">44.40</text><text x="1010" y="213" fill="#138875">34.46</text>
+    <text x="1068" y="105" fill="#35445a" font-weight="650">56.64</text><text x="1068" y="117" fill="#c66f20">35.86</text>
+  </g>
+
+  <g font-family="system-ui, sans-serif" fill="#26354a" text-anchor="middle">
+    <text x="260" y="612" font-size="15" font-weight="600">1k</text>
+    <text x="510" y="612" font-size="15" font-weight="600">10k</text>
+    <text x="760" y="612" font-size="15" font-weight="600">100k</text>
+    <text x="1010" y="612" font-size="15" font-weight="600">100k pathological</text>
+  </g>
+
+  <g font-family="system-ui, sans-serif" font-size="14" fill="#344258">
+    <rect x="222" y="651" width="16" height="16" rx="3" fill="#5267d9"/><text x="246" y="665">JCV 0.9</text>
+    <rect x="373" y="651" width="16" height="16" rx="3" fill="#138875"/><text x="397" y="665">JCV 0.10</text>
+    <rect x="526" y="651" width="16" height="16" rx="3" fill="#c66f20"/><text x="550" y="665">Boost 1.92.0</text>
+    <rect x="703" y="649" width="32" height="19" rx="3" fill="#aeb8f2"/><rect x="703" y="657" width="32" height="11" rx="2" fill="#5267d9"/><text x="745" y="665">peak / retained</text>
+  </g>
+
+  <g class="stat-bar" tabindex="0">
+    <rect class="stat-hit" x="176" y="560" width="52" height="15"><title>JCV 0.9, 1k: peak 511,364 B; retained 511,364 B; 30 allocations</title></rect>
+    <g class="stat-tip" transform="translate(125 462)"><rect class="tip-box" width="230" height="70" rx="5"/><text class="tip-head" x="10" y="19">JCV 0.9 · 1k</text><text class="tip-value" x="10" y="39">Peak: 511,364 B · retained: 511,364 B</text><text class="tip-value" x="10" y="58">Allocations: 30</text></g>
+  </g>
+  <g class="stat-bar" tabindex="0">
+    <rect class="stat-hit" x="234" y="560" width="52" height="15"><title>JCV 0.10, 1k: peak 459,400 B; retained 288,408 B; 18 allocations</title></rect>
+    <g class="stat-tip" transform="translate(183 462)"><rect class="tip-box" width="230" height="70" rx="5"/><text class="tip-head" x="10" y="19">JCV 0.10 · 1k</text><text class="tip-value" x="10" y="39">Peak: 459,400 B · retained: 288,408 B</text><text class="tip-value" x="10" y="58">Allocations: 18</text></g>
+  </g>
+  <g class="stat-bar" tabindex="0">
+    <rect class="stat-hit" x="292" y="560" width="52" height="15"><title>Boost 1.92.0, 1k: peak 441,872 B; retained 376,000 B; 5,542 allocations</title></rect>
+    <g class="stat-tip" transform="translate(241 462)"><rect class="tip-box" width="230" height="70" rx="5"/><text class="tip-head" x="10" y="19">Boost 1.92.0 · 1k</text><text class="tip-value" x="10" y="39">Peak: 441,872 B · retained: 376,000 B</text><text class="tip-value" x="10" y="58">Allocations: 5,542</text></g>
+  </g>
+
+  <g class="stat-bar" tabindex="0">
+    <rect class="stat-hit" x="426" y="538" width="52" height="37"><title>JCV 0.9, 10k: peak 4,947,748 B; retained 4,947,748 B; 281 allocations</title></rect>
+    <g class="stat-tip" transform="translate(375 440)"><rect class="tip-box" width="244" height="70" rx="5"/><text class="tip-head" x="10" y="19">JCV 0.9 · 10k</text><text class="tip-value" x="10" y="39">Peak: 4,947,748 B · retained: 4,947,748 B</text><text class="tip-value" x="10" y="58">Allocations: 281</text></g>
+  </g>
+  <g class="stat-bar" tabindex="0">
+    <rect class="stat-hit" x="484" y="543" width="52" height="32"><title>JCV 0.10, 10k: peak 4,281,712 B; retained 2,763,352 B; 126 allocations</title></rect>
+    <g class="stat-tip" transform="translate(433 445)"><rect class="tip-box" width="244" height="70" rx="5"/><text class="tip-head" x="10" y="19">JCV 0.10 · 10k</text><text class="tip-value" x="10" y="39">Peak: 4,281,712 B · retained: 2,763,352 B</text><text class="tip-value" x="10" y="58">Allocations: 126</text></g>
+  </g>
+  <g class="stat-bar" tabindex="0">
+    <rect class="stat-hit" x="542" y="541" width="52" height="34"><title>Boost 1.92.0, 10k: peak 4,499,280 B; retained 3,760,000 B; 55,815 allocations</title></rect>
+    <g class="stat-tip" transform="translate(491 443)"><rect class="tip-box" width="244" height="70" rx="5"/><text class="tip-head" x="10" y="19">Boost 1.92.0 · 10k</text><text class="tip-value" x="10" y="39">Peak: 4,499,280 B · retained: 3,760,000 B</text><text class="tip-value" x="10" y="58">Allocations: 55,815</text></g>
+  </g>
+
+  <g class="stat-bar" tabindex="0">
+    <rect class="stat-hit" x="676" y="207" width="52" height="368"><title>JCV 0.9, 100k: peak 49,213,284 B; retained 49,213,284 B; 2,785 allocations</title></rect>
+    <g class="stat-tip" transform="translate(570 120)"><rect class="tip-box" width="276" height="70" rx="5"/><text class="tip-head" x="10" y="19">JCV 0.9 · 100k</text><text class="tip-value" x="10" y="39">Peak: 49,213,284 B · retained: 49,213,284 B</text><text class="tip-value" x="10" y="58">Allocations: 2,785</text></g>
+  </g>
+  <g class="stat-bar" tabindex="0">
+    <rect class="stat-hit" x="734" y="258" width="52" height="317"><title>JCV 0.10, 100k: peak 42,428,620 B; retained 27,305,708 B; 1,187 allocations</title></rect>
+    <g class="stat-tip" transform="translate(635 170)"><rect class="tip-box" width="270" height="70" rx="5"/><text class="tip-head" x="10" y="19">JCV 0.10 · 100k</text><text class="tip-value" x="10" y="39">Peak: 42,428,620 B · retained: 27,305,708 B</text><text class="tip-value" x="10" y="58">Allocations: 1,187</text></g>
+  </g>
+  <g class="stat-bar" tabindex="0">
+    <rect class="stat-hit" x="792" y="253" width="52" height="322"><title>Boost 1.92.0, 100k: peak 43,114,912 B; retained 37,600,000 B; 557,371 allocations</title></rect>
+    <g class="stat-tip" transform="translate(690 165)"><rect class="tip-box" width="276" height="70" rx="5"/><text class="tip-head" x="10" y="19">Boost 1.92.0 · 100k</text><text class="tip-value" x="10" y="39">Peak: 43,114,912 B · retained: 37,600,000 B</text><text class="tip-value" x="10" y="58">Allocations: 557,371</text></g>
+  </g>
+
+  <g class="stat-bar" tabindex="0">
+    <rect class="stat-hit" x="926" y="221" width="52" height="354"><title>JCV 0.9, 100k pathological: peak 47,345,436 B; retained 47,345,436 B; 2,671 allocations</title></rect>
+    <g class="stat-tip" transform="translate(820 135)"><rect class="tip-box" width="276" height="70" rx="5"/><text class="tip-head" x="10" y="19">JCV 0.9 · 100k pathological</text><text class="tip-value" x="10" y="39">Peak: 47,345,436 B · retained: 47,345,436 B</text><text class="tip-value" x="10" y="58">Allocations: 2,671</text></g>
+  </g>
+  <g class="stat-bar" tabindex="0">
+    <rect class="stat-hit" x="984" y="227" width="52" height="348"><title>JCV 0.10, 100k pathological: peak 46,558,092 B; retained 36,137,276 B; 2,041 allocations</title></rect>
+    <g class="stat-tip" transform="translate(850 141)"><rect class="tip-box" width="276" height="70" rx="5"/><text class="tip-head" x="10" y="19">JCV 0.10 · 100k pathological</text><text class="tip-value" x="10" y="39">Peak: 46,558,092 B · retained: 36,137,276 B</text><text class="tip-value" x="10" y="58">Allocations: 2,041</text></g>
+  </g>
+  <g class="stat-bar" tabindex="0">
+    <rect class="stat-hit" x="1042" y="131" width="52" height="444"><title>Boost 1.92.0, 100k pathological: peak 59,390,968 B; retained 37,599,248 B; 400,010 allocations</title></rect>
+    <g class="stat-tip" transform="translate(850 145)"><rect class="tip-box" width="286" height="70" rx="5"/><text class="tip-head" x="10" y="19">Boost 1.92.0 · 100k pathological</text><text class="tip-value" x="10" y="39">Peak: 59,390,968 B · retained: 37,599,248 B</text><text class="tip-value" x="10" y="58">Allocations: 400,010</text></g>
+  </g>
+</svg>

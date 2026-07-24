@@ -1,0 +1,11 @@
+<div class="voronoi-app-column voronoi-app-simplified">
+  <section class="voronoi-playground" aria-label="Interactive Voronoi diagram">
+    <div class="voronoi-simple-header">
+      <span>{{ .label }}</span>
+      <span id="status" role="status">Loading Wasm…</span>
+    </div>
+    <canvas id="diagram"{{ with .points }} data-points="{{ . }}"{{ end }}></canvas>
+    <p class="voronoi-hint">Click to add · click near or drag a site to move · double-click to remove</p>
+  </section>
+</div>
+<script type="module" src="{{ "app.js" | relURL }}"></script>

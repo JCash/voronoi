@@ -1,5 +1,5 @@
 # Simple workflow for deploying static content to GitHub Pages
-name: Deploy static content to Pages
+name: Build and deploy Hugo site
 
 on:
   # Runs on pushes targeting the default branch
@@ -22,15 +22,29 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Single deploy job since we're just deploying
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  build:
     runs-on: ubuntu-latest
+    env:
+      HUGO_VERSION: "0.164.0"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Setup Pages
+        id: pages
+        uses: actions/configure-pages@v6
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.4"
+          cache-dependency-path: hugo/go.sum
+      - name: Install Hugo
+        run: |
+          curl -sfL --output-dir "${{ runner.temp }}" -O "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_linux-amd64.tar.gz"
+          mkdir "${{ runner.temp }}/hugo"
+          tar -C "${{ runner.temp }}/hugo" -xf "${{ runner.temp }}/hugo_${HUGO_VERSION}_linux-amd64.tar.gz"
+          echo "${{ runner.temp }}/hugo" >> "${GITHUB_PATH}"
       - name: Set up Emscripten
         uses: emscripten-core/setup-emsdk@v16
         with:
@@ -43,21 +57,29 @@ jobs:
           WASM_OUTPUT_DIR: ../site/vendor
         run: node test/wasm_smoke.mjs
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
           cache-dependency-path: benchmark/package-lock.json
-      - name: Install benchmark dependencies
-        run: npm ci --prefix benchmark
       - name: Build offline benchmark
-        run: npm run build --prefix benchmark
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
+        run: |
+          npm ci --prefix benchmark
+          npm run build --prefix benchmark
+      - name: Build Hugo site
+        run: hugo --source hugo --gc --minify --baseURL "${{ steps.pages.outputs.base_url }}/"
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
-          path: site
+          path: public
+
+  deploy:
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
