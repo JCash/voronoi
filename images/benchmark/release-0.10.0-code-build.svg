@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">Code Size and Build Time</title>
+  <desc id="desc">Three independent horizontal bar groups compare stripped executable size, implementation lines of code, and clean build time for jc_voronoi 0.9.0, jc_voronoi 0.10.0, and Boost 1.92.0. Each metric has its own scale and no vertical axis labels. Lower is better.</desc>
+  <style>
+    .stat-bar .stat-tip { opacity: 0; pointer-events: none; }
+    .stat-bar:hover .stat-tip, .stat-bar:focus .stat-tip { opacity: 1; }
+    .stat-hit { fill: transparent; pointer-events: all; }
+    .tip-box { fill: #152238; stroke: #ffffff; stroke-width: 1; }
+    .tip-head { fill: #ffffff; font: 650 12px system-ui, sans-serif; }
+    .tip-value { fill: #dce5f2; font: 12px system-ui, sans-serif; }
+  </style>
+  <rect width="1200" height="675" fill="#f8fafc"/>
+  <text x="70" y="50" font-family="system-ui, sans-serif" font-size="27" font-weight="700" fill="#152238">Code Size and Build Time</text>
+  <text x="70" y="77" font-family="system-ui, sans-serif" font-size="15" fill="#536174">clang++ -O3 · independent scale for each metric · lower is better</text>
+
+  <g font-family="system-ui, sans-serif" font-size="14" fill="#344258">
+    <rect x="355" y="93" width="16" height="16" rx="3" fill="#5267d9"/><text x="379" y="107">JCV 0.9</text>
+    <rect x="505" y="93" width="16" height="16" rx="3" fill="#14a38b"/><text x="529" y="107">JCV 0.10</text>
+    <rect x="670" y="93" width="16" height="16" rx="3" fill="#e08b35"/><text x="694" y="107">Boost 1.92.0</text>
+  </g>
+
+  <g font-family="system-ui, sans-serif">
+    <rect x="70" y="130" width="1060" height="150" rx="9" fill="#ffffff" stroke="#e0e6ef"/>
+    <text x="95" y="160" font-size="17" font-weight="700" fill="#26354a">Stripped executable</text>
+    <text x="1085" y="160" font-size="12" fill="#6b7789" text-anchor="end">bytes</text>
+    <rect x="250" y="177" width="158" height="20" rx="4" fill="#5267d9"/><text x="418" y="192" font-size="12" font-weight="650" fill="#35445a">33,912 B</text>
+    <rect x="250" y="207" width="157" height="20" rx="4" fill="#14a38b"/><text x="417" y="222" font-size="12" font-weight="650" fill="#35445a">33,720 B</text>
+    <rect x="250" y="237" width="700" height="20" rx="4" fill="#e08b35"/><text x="960" y="252" font-size="12" font-weight="650" fill="#35445a">150,616 B</text>
+
+    <rect x="70" y="295" width="1060" height="150" rx="9" fill="#ffffff" stroke="#e0e6ef"/>
+    <text x="95" y="325" font-size="17" font-weight="700" fill="#26354a">Implementation code</text>
+    <text x="1085" y="325" font-size="12" fill="#6b7789" text-anchor="end">code-only LOC</text>
+    <rect x="250" y="342" width="97" height="20" rx="4" fill="#5267d9"/><text x="357" y="357" font-size="12" font-weight="650" fill="#35445a">1,254 LOC</text>
+    <rect x="250" y="372" width="152" height="20" rx="4" fill="#14a38b"/><text x="412" y="387" font-size="12" font-weight="650" fill="#35445a">1,961 LOC</text>
+    <rect x="250" y="402" width="700" height="20" rx="4" fill="#e08b35"/><text x="960" y="417" font-size="12" font-weight="650" fill="#35445a">9,047 LOC</text>
+
+    <rect x="70" y="460" width="1060" height="150" rx="9" fill="#ffffff" stroke="#e0e6ef"/>
+    <text x="95" y="490" font-size="17" font-weight="700" fill="#26354a">Clean build time</text>
+    <text x="1085" y="490" font-size="12" fill="#6b7789" text-anchor="end">median of 9 runs</text>
+    <rect x="250" y="507" width="94" height="20" rx="4" fill="#5267d9"/><text x="354" y="522" font-size="12" font-weight="650" fill="#35445a">0.13 s</text>
+    <rect x="250" y="537" width="123" height="20" rx="4" fill="#14a38b"/><text x="383" y="552" font-size="12" font-weight="650" fill="#35445a">0.17 s</text>
+    <rect x="250" y="567" width="700" height="20" rx="4" fill="#e08b35"/><text x="960" y="582" font-size="12" font-weight="650" fill="#35445a">0.97 s</text>
+  </g>
+
+  <g class="stat-bar" tabindex="0">
+    <rect class="stat-hit" x="250" y="177" width="158" height="20"><title>JCV 0.9 stripped executable: 33,912 B</title></rect>
+    <g class="stat-tip" transform="translate(915 170)"><rect class="tip-box" width="190" height="52" rx="5"/><text class="tip-head" x="10" y="20">JCV 0.9</text><text class="tip-value" x="10" y="40">Stripped executable: 33,912 B</text></g>
+  </g>
+  <g class="stat-bar" tabindex="0">
+    <rect class="stat-hit" x="250" y="207" width="157" height="20"><title>JCV 0.10 stripped executable: 33,720 B</title></rect>
+    <g class="stat-tip" transform="translate(915 200)"><rect class="tip-box" width="190" height="52" rx="5"/><text class="tip-head" x="10" y="20">JCV 0.10</text><text class="tip-value" x="10" y="40">Stripped executable: 33,720 B</text></g>
+  </g>
+  <g class="stat-bar" tabindex="0">
+    <rect class="stat-hit" x="250" y="237" width="700" height="20"><title>Boost 1.92.0 stripped executable: 150,616 B</title></rect>
+    <g class="stat-tip" transform="translate(915 225)"><rect class="tip-box" width="190" height="52" rx="5"/><text class="tip-head" x="10" y="20">Boost 1.92.0</text><text class="tip-value" x="10" y="40">Stripped executable: 150,616 B</text></g>
+  </g>
+
+  <g class="stat-bar" tabindex="0">
+    <rect class="stat-hit" x="250" y="342" width="97" height="20"><title>JCV 0.9 implementation code: 1,254 LOC</title></rect>
+    <g class="stat-tip" transform="translate(915 335)"><rect class="tip-box" width="190" height="52" rx="5"/><text class="tip-head" x="10" y="20">JCV 0.9</text><text class="tip-value" x="10" y="40">Implementation code: 1,254 LOC</text></g>
+  </g>
+  <g class="stat-bar" tabindex="0">
+    <rect class="stat-hit" x="250" y="372" width="152" height="20"><title>JCV 0.10 implementation code: 1,961 LOC</title></rect>
+    <g class="stat-tip" transform="translate(915 365)"><rect class="tip-box" width="190" height="52" rx="5"/><text class="tip-head" x="10" y="20">JCV 0.10</text><text class="tip-value" x="10" y="40">Implementation code: 1,961 LOC</text></g>
+  </g>
+  <g class="stat-bar" tabindex="0">
+    <rect class="stat-hit" x="250" y="402" width="700" height="20"><title>Boost 1.92.0 implementation code: 9,047 LOC</title></rect>
+    <g class="stat-tip" transform="translate(915 390)"><rect class="tip-box" width="190" height="52" rx="5"/><text class="tip-head" x="10" y="20">Boost 1.92.0</text><text class="tip-value" x="10" y="40">Implementation code: 9,047 LOC</text></g>
+  </g>
+
+  <g class="stat-bar" tabindex="0">
+    <rect class="stat-hit" x="250" y="507" width="94" height="20"><title>JCV 0.9 clean build time: 0.13 s</title></rect>
+    <g class="stat-tip" transform="translate(915 500)"><rect class="tip-box" width="190" height="52" rx="5"/><text class="tip-head" x="10" y="20">JCV 0.9</text><text class="tip-value" x="10" y="40">Clean build time: 0.13 s</text></g>
+  </g>
+  <g class="stat-bar" tabindex="0">
+    <rect class="stat-hit" x="250" y="537" width="123" height="20"><title>JCV 0.10 clean build time: 0.17 s</title></rect>
+    <g class="stat-tip" transform="translate(915 530)"><rect class="tip-box" width="190" height="52" rx="5"/><text class="tip-head" x="10" y="20">JCV 0.10</text><text class="tip-value" x="10" y="40">Clean build time: 0.17 s</text></g>
+  </g>
+  <g class="stat-bar" tabindex="0">
+    <rect class="stat-hit" x="250" y="567" width="700" height="20"><title>Boost 1.92.0 clean build time: 0.97 s</title></rect>
+    <g class="stat-tip" transform="translate(915 555)"><rect class="tip-box" width="190" height="52" rx="5"/><text class="tip-head" x="10" y="20">Boost 1.92.0</text><text class="tip-value" x="10" y="40">Clean build time: 0.97 s</text></g>
+  </g>
+
+  <text x="600" y="649" font-family="system-ui, sans-serif" font-size="12" fill="#6b7789" text-anchor="middle">Minimal equivalent programs · stripped and dead-code eliminated · system and standard-library headers excluded from LOC</text>
+</svg>

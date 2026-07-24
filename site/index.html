@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Interactive jc_voronoi WebAssembly demo">
+    <title>jc_voronoi · WebAssembly playground</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="eyebrow">jc_voronoi / WebAssembly</p>
+        <p class="intro">Click to add a site. Drag any site to watch Fortune’s sweep algorithm rebuild the diagram in WebAssembly.</p>
+      </header>
+      <section class="playground" aria-label="Interactive Voronoi diagram">
+        <div class="toolbar">
+          <label>Sites <input id="site-count" type="range" min="2" max="250" value="42"> <output id="site-count-output">42</output></label>
+          <button id="randomize" type="button">Randomize</button>
+          <button id="delauney" class="quiet" type="button" aria-pressed="false">Delauney</button>
+          <button id="copy-json" class="quiet" type="button">Copy JSON</button>
+          <button id="clear" class="quiet" type="button">Clear</button>
+          <span id="status" role="status">Loading Wasm…</span>
+        </div>
+        <canvas id="diagram"></canvas>
+        <p class="hint">Click to add · drag to move · double-click a site to remove · copy the full diagram as JSON</p>
+      </section>
+      <footer>
+        <a href="https://github.com/JCash/voronoi">Source on GitHub</a>
+        <span>Header-only C, running here as WebAssembly. <a href="benchmark/">Run the offline benchmark.</a></span>
+      </footer>
+    </main>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

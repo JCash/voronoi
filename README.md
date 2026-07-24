@@ -1,40 +1,21 @@
-
-|Branch      | master | dev        |
-|------------|--------|------------|
-|macOS/Linux/Windows | [![Build](https://github.com/JCash/voronoi/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/JCash/voronoi/actions/workflows/build.yml) | [![Build](https://github.com/JCash/voronoi/actions/workflows/build.yml/badge.svg?branch=dev)](https://github.com/JCash/voronoi/actions/workflows/build.yml) |
+|Branch      | macOS/Linux/Windows |
+|------------|---------------------|
+|master      | [![Build](https://github.com/JCash/voronoi/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/JCash/voronoi/actions/workflows/build.yml) |
+|dev         | [![Build](https://github.com/JCash/voronoi/actions/workflows/build.yml/badge.svg?branch=dev)](https://github.com/JCash/voronoi/actions/workflows/build.yml) |
 
 
 # jc_voronoi
 A fast C header only implementation for creating 2D Voronoi diagrams from a point set
 
-## Feature comparisons
-
-| Feature vs Impl        | voronoi++ | boost | fastjet | jcv |
-|-----------------------:|-----------|-------|---------|-----|
-| Language               |    C++    |  C++  |    C    |  C  |
-| Edge clip              |     *     |       |    *    |  *  |
-| Generate Edges         |     *     |   *   |    *    |  *  |
-| Generate Cells         |     *     |   *   |         |  *  |
-| Cell Edges Not Flipped |           |   *   |         |  *  |
-| Cell Edges CCW         |           |   *   |         |  *  |
-| Easy Relaxation        |           |       |         |  *  |
-| Custom Allocator       |           |       |         |  *  |
-| Delauney generation    |           |       |         |  *  |
-
-<img src="images/example1.svg" alt="Voronoid and Delauney diagrams" width="350"> <img src="images/example2.png" alt="Custom clipping" width="350">
+<img src="images/example1.svg" alt="vanilla" width="350"> <img src="images/example2.png" alt="custom clipping" width="350">
 
 * Uses [Fortune's sweep algorithm.](https://en.wikipedia.org/wiki/Fortune%27s_algorithm)
 * Disclaimer: This software is supplied "AS IS" without any warranties and support
 * [LICENSE](./LICENSE) ([The MIT license](http://choosealicense.com/licenses/mit/))
 * [Showcases](./SHOWCASES.md)
+* [Documentation](https://jcash.github.io/voronoi)
 
-## Benchmarks
-
-* [Benchmarks](./BENCHMARKS.md)
-
-<img src="images/benchmark/release-0.10.0-performance.svg" alt="Performance" width="350">
-
-# About this library
+# Brief
 
 I was realizing that the previous 2D voronoi generator I was using, was taking up too much time in my app,
 and worse, sometimes it also produced errors.
@@ -57,6 +38,20 @@ So this project set out to achieve a combination of the good things the other li
 * A clear license
 
 But mostly, I did it for fun :)
+
+# Feature comparisons
+
+| Feature vs Impl        | voronoi++ | boost | fastjet | d3-delaunay | jcv |
+|-----------------------:|-----------|-------|---------|-------------|-----|
+| Language               |    C++    |  C++  |    C    | JavaScript  |  C  |
+| Edge clip              |     *     |       |    *    |      *      |  *  |
+| Generate Edges         |     *     |   *   |    *    |      *      |  *  |
+| Generate Cells         |     *     |   *   |         |      *      |  *  |
+| Cell Edges Not Flipped |           |   *   |         |             |  *  |
+| Cell Edges CCW         |           |   *   |         |             |  *  |
+| Easy Relaxation        |           |       |         |      *      |  *  |
+| Custom Allocator       |           |       |         |             |  *  |
+| Delauney generation    |           |       |         |      *      |  *  |
 
 # Build
 
@@ -83,6 +78,27 @@ one C or C++ translation unit:
 
 Other translation units should include `jc_voronoi.h` without defining
 `JC_VORONOI_IMPLEMENTATION`.
+
+## CMake
+
+When this repository is added with `add_subdirectory` or `FetchContent`, link
+the header-only target to your application:
+
+```cmake
+target_link_libraries(your_app PRIVATE jc_voronoi::jc_voronoi)
+```
+
+The default CMake build does not produce a library file because `jc_voronoi`
+is header-only. To build the bundled example programs and tests, configure with:
+
+```sh
+cmake -S . -B build -DJC_VORONOI_BUILD_EXAMPLES=ON -DJC_VORONOI_BUILD_TESTS=ON
+cmake --build build
+ctest --test-dir build
+```
+
+The project can also be installed. An installed copy can be consumed with
+`find_package(jc_voronoi CONFIG REQUIRED)` and the same namespaced target.
 
 ## macOS
 
@@ -118,6 +134,107 @@ and writes a 1024 x 768 `example.svg` in the current directory. Run
 `build/main --help` on macOS/Linux or
 `build\main.exe --help` on Windows to see all options, including image size,
 relaxation, input files, and SVG output.
+
+## WebAssembly
+
+Version tags automatically publish a browser-ready WebAssembly package on the
+[GitHub Releases page](https://github.com/JCash/voronoi/releases). The package
+contains `jc_voronoi.wasm`, Emscripten's ES-module loader, the JavaScript API,
+and its optional one-shot worker. You can also try the
+[interactive WebAssembly demo](https://jcash.github.io/voronoi/), which is
+rebuilt from the `dev` branch.
+
+```js
+import { loadVoronoi } from "./voronoi.js";
+
+const voronoi = await loadVoronoi();
+const edges = voronoi.edges(
+  [{ x: 10, y: 20 }, { x: 80, y: 30 }, { x: 40, y: 90 }],
+  100,
+  100,
+);
+// Float32Array: x0, y0, x1, y1 for each edge
+```
+
+For site, cell, and edge information, generate an ergonomic diagram. The result
+is copied once into a compact JavaScript-owned `ArrayBuffer`, and subsequent
+object access reads that buffer without calling into WebAssembly:
+
+```js
+const diagram = voronoi.generate(
+  [{ x: 10, y: 20 }, { x: 80, y: 30 }, { x: 40, y: 90 }],
+  { bounds: [0, 0, 100, 100] },
+);
+
+const cell = diagram.cell(0); // null if the input site was pruned
+if (cell) {
+  console.log(cell.site.index, cell.site.p.x, cell.site.p.y);
+  for (const { x, y } of cell.polygon) console.log(x, y);
+  for (const edge of cell.edges) {
+    console.log(edge.pos[0], edge.pos[1], edge.sites[1]);
+  }
+}
+```
+
+`diagram.sites` contains the retained sites, `diagram.edges` contains all
+Voronoi edges, and `diagram.neighbors(inputIndex)` returns neighboring
+`Site` objects. Cell edges are counter-clockwise. Points support both `.x` /
+`.y` access and `[x, y]` destructuring. Accessing a diagram object after
+`dispose()` throws an error. Disposal is optional because the result buffer is
+owned and garbage-collected by JavaScript; use it only to release memory eagerly.
+
+Large one-off diagrams can be generated in a disposable worker so the
+WebAssembly heap does not remain alongside the result:
+
+```js
+import { loadVoronoiWorker } from "./voronoi.js";
+
+const voronoi = await loadVoronoiWorker();
+const diagram = await voronoi.generate(points, { bounds: [0, 0, 100, 100] });
+```
+
+The worker transfers the packed result and terminates before `generate()`
+resolves. The returned diagram uses the same JavaScript API.
+
+To build the package locally, install the Emscripten SDK and run
+`./scripts/build_wasm.sh`. The output is written to `build/wasm` by default.
+
+To run the interactive example locally:
+
+```sh
+./scripts/build_wasm.sh site/vendor
+npm ci --prefix benchmark
+npm run build --prefix benchmark
+python3 -m http.server 8000 --directory site
+```
+
+Open `http://localhost:8000/` for the example.
+
+To regenerate the offline performance report and its `wasm-*.svg` charts:
+
+```sh
+./scripts/build_wasm.sh
+npm ci --prefix benchmark
+npm run benchmark --prefix benchmark
+```
+
+See [Benchmarks.md](Benchmarks.md) for the generated tables, methodology, and
+charts. The benchmark compares diagram generation, generation plus site
+access, generation plus Voronoi-edge access, and generation plus Delauney-edge access for
+the 10k, 100k, and 100k pathological (issue48) inputs. It also generates module-size, Brotli, and
+source-LOC comparisons. To update only those code-size results, run
+`npm run code-size --prefix benchmark`.
+
+## Releasing
+
+Create and push a version tag such as `v0.11.0`. The release workflow uses the
+tag as the package version and writes it into the packaged copy of
+`CMakeLists.txt`; the tagged source commit is not modified.
+
+Pushing the tag creates the GitHub release and publishes the WebAssembly
+assets. It also publishes a minimal CMake source package, its SHA-256 checksum,
+and a generated `jc-voronoi.rb` Homebrew formula whose URL and checksum refer
+to that exact source package.
 
 <details>
 <summary>Configuration defines</summary>
@@ -164,12 +281,15 @@ The main api contains these functions
 
 ```C
 void jcv_diagram_generate( int num_points, const jcv_point* points, const jcv_rect* rect, const jcv_clipper* clipper, jcv_diagram* diagram );
+void jcv_delauney_generate( int num_points, const jcv_point* points, const jcv_rect* rect, const jcv_clipper* clipper, jcv_diagram* diagram );
 void jcv_diagram_generate_useralloc( int num_points, const jcv_point* points, const jcv_rect* rect, const jcv_clipper* clipper, void* userallocctx, FJCVAllocFn allocfn, FJCVFreeFn freefn, jcv_diagram* diagram );
 void jcv_diagram_free( jcv_diagram* diagram );
 
 const jcv_site* jcv_diagram_get_sites( const jcv_diagram* diagram );
 int jcv_get_num_vertices( const jcv_diagram* diagram );
 void jcv_diagram_get_vertices( const jcv_diagram* diagram, jcv_point* vertices );
+int jcv_diagram_get_edge_count( const jcv_diagram* diagram );
+int jcv_delauney_get_edge_count( const jcv_diagram* diagram );
 void jcv_diagram_get_edges( const jcv_diagram* diagram, jcv_edge_iter* iter );
 void jcv_site_get_edges( const jcv_diagram* diagram, const jcv_site* site, jcv_edge_iter* iter );
 int jcv_edge_next( jcv_edge_iter* iter, jcv_edge* edge );
@@ -256,10 +376,15 @@ the cell.
 <details>
 <summary>Delauney triangulation</summary>
 
-After generating the Voronoi diagram, you can iterate over the Delauney edges like so:
+If only Delauney adjacency is needed, generate it without clipping or building
+Voronoi cell topology:
 (See [main.c](./src/main.c) for a practical example)
 
 ```C
+jcv_diagram diagram = {0};
+jcv_delauney_generate(num_points, points, NULL, NULL, &diagram);
+int edge_count = jcv_delauney_get_edge_count(&diagram);
+
 jcv_delauney_iter iter;
 jcv_delauney_begin( &diagram, &iter );
 jcv_delauney_edge delauney_edge;
@@ -267,7 +392,13 @@ while (jcv_delauney_next( &iter, &delauney_edge ))
 {
     ...
 }
+
+jcv_diagram_free(&diagram);
 ```
+
+Sites and the Delauney iterator are available on a Delauney-only diagram. Only
+the `sites` and `pos` members of each `jcv_delauney_edge` are valid. Voronoi edge
+geometry, per-site edges, and unique vertices are intentionally unavailable.
 
 </details>
 
@@ -459,10 +590,64 @@ void draw_delauney(const jcv_diagram* diagram)
 
 </details>
 
+# Some Numbers
+
+*Tests run on a Intel(R) Core(TM) i7-7567U CPU @ 3.50GHz MBP with 16 GB 2133 MHz LPDDR3 ram. Each test ran 20 times, and the minimum time is presented below*
+
+*I removed the voronoi++ from the results, since it was consistently 10x-15x slower than the rest and consumed way more memory*
+_
+<br/>
+<img src="test/images/timings_voronoi.png" alt="timings" width="350">
+<img src="test/images/memory_voronoi.png" alt="memory" width="350">
+<img src="test/images/num_allocations_voronoi.png" alt="num_allocations" width="350">
+
+[Same stats, as tables](./test/report.md)
+
+
+# General thoughts
+
+## Fastjet
+
+The Fastjet version is built upon Steven Fortune's original C version, which Shane O'Sullivan improved upon.
+Given the robustness and speed improvements of the implementation done by Fastjet,
+that should be the base line to compare other implementations with.
+
+Unfortunately, the code is not very readable, and the license is unclear (GPL?)
+
+Also, if you want access to the actual cells, you have to recreate that yourself using the edges.
+
+
+## Boost
+
+Using boost might be convenient for some, but the sheer amount of code is too great in many cases.
+I had to install 5 modules of boost to compile (config, core, mpl, preprocessor and polygon).
+If you install full boost, that's 650mb of source.
+
+It is ~2x as slow as the fastest algorithms, and takes ~2.5x as much memory.
+
+The boost implementation also puts the burden of clipping the final edges on the client.
+
+The code consists of only templated headers, and it increases compile time a *lot*.
+For simply generating a 2D voronoi diagram using points as input, it is clearly overkill.
+
+
+## Voronoi++
+
+The performance of it is very slow (~20x slower than fastjet) and
+And it uses ~2.5x-3x more memory than the fastest algorithms.
+
+Using the same data sets as the other algorithms, it breaks under some conditions.
+
+
+## O'Sullivan
+
+A C++ version of the original C version from Steven Fortune.
+
+Although fast, it's not completely robust and will produce errors.
+
+
+
 # Gallery
 
 I'd love to see what you're using this software for!
 If possible, please send me images and some brief explanation of your usage of this library!
-
-* [Showcases](./SHOWCASES.md)
-

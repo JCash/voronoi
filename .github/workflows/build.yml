@@ -3,6 +3,41 @@ name: Build
 on: [push, pull_request]
 
 jobs:
+  build-cmake:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure CMake
+        run: cmake -S . -B build-cmake -DJC_VORONOI_BUILD_EXAMPLES=ON -DJC_VORONOI_BUILD_TESTS=ON
+      - name: Build CMake targets
+        run: cmake --build build-cmake --parallel
+      - name: Run CMake tests
+        run: ctest --test-dir build-cmake --output-on-failure
+      - name: Verify CMake install
+        run: cmake --install build-cmake --prefix build-cmake/install
+
+  build-wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: emscripten-core/setup-emsdk@v16
+        with:
+          version: "6.0.3"
+          actions-cache-folder: emsdk-cache
+      - name: Build Wasm library
+        run: ./scripts/build_wasm.sh
+      - name: Run Wasm smoke test
+        run: node test/wasm_smoke.mjs
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: benchmark/package-lock.json
+      - name: Install benchmark dependencies
+        run: npm ci --prefix benchmark
+      - name: Build offline benchmark
+        run: npm run build --prefix benchmark
+
   build-linux:
     strategy:
       matrix:
@@ -12,7 +47,7 @@ jobs:
         cversion: [c99, c11, c2x]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Install
         run: sudo apt-get install -y gcc-multilib g++-multilib
       - name: Build tests
@@ -39,7 +74,7 @@ jobs:
         cversion: [c99, c11, c2x]
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Build tests
         env:
           CC: ${{ matrix.compiler }}
@@ -61,7 +96,7 @@ jobs:
         arch:       [amd64, amd64_x86] #, amd64_arm64]
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: ${{ matrix.arch }}

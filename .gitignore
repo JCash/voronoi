@@ -15,6 +15,7 @@
 
 # Fortran module files
 *.mod
+!hugo/go.mod
 
 # Compiled Static libraries
 *.lai
@@ -28,6 +29,12 @@
 *.app
 
 build/**
+public/
+hugo/resources/
+hugo/.hugo_build.lock
+site/vendor/
+site/benchmark/vendor/
+benchmark/node_modules/
 test/boost/**
 test/fastjet/**
 test/voronoi++/**
