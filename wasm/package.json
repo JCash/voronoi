@@ -1,5 +1,5 @@
 {
-  "name": "jc_voronoi-wasm",
+  "name": "jc-voronoi",
   "private": true,
   "type": "module"
 }

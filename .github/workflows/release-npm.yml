@@ -60,10 +60,12 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         env:
           PACKAGE_VERSION: ${{ github.ref_name }}
-        run: npm pkg set "version=${PACKAGE_VERSION#v}" --prefix dist/jc_voronoi
+        run: |
+          npm pkg set "version=${PACKAGE_VERSION#v}" --prefix dist/jc_voronoi
+          npm pkg delete private --prefix dist/jc_voronoi
 
       - name: Verify npm package
-        run: npm pack --dry-run ./dist/jc_voronoi
+        run: npm publish --dry-run ./dist/jc_voronoi
 
       - name: Create release archive
         run: (cd dist && zip -r jc_voronoi.zip jc_voronoi)
@@ -80,8 +82,9 @@ jobs:
           PACKAGE_VERSION: ${{ github.ref_name }}
         run: |
           PACKAGE_VERSION="${PACKAGE_VERSION#v}"
-          if npm view "jc_voronoi@${PACKAGE_VERSION}" version >/dev/null 2>&1; then
-            echo "jc_voronoi@${PACKAGE_VERSION} is already published"
+          PACKAGE_NAME="$(npm pkg get name --prefix dist/jc_voronoi | tr -d '\"')"
+          if npm view "${PACKAGE_NAME}@${PACKAGE_VERSION}" version >/dev/null 2>&1; then
+            echo "${PACKAGE_NAME}@${PACKAGE_VERSION} is already published"
           else
             npm publish ./dist/jc_voronoi
           fi
