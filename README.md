@@ -1,4 +1,6 @@
 
+[Documentation](https://jcash.github.io/voronoi/docs/)
+
 |Branch      | macOS/Linux/Windows |
 |------------|---------------------|
 |master      | [![Build](https://github.com/JCash/voronoi/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/JCash/voronoi/actions/workflows/build.yml) |
