@@ -1,0 +1,116 @@
+baseURL = "https://jcash.github.io/voronoi/"
+defaultContentLanguage = "en"
+title = "jc_voronoi"
+publishDir = "../public"
+enableGitInfo = true
+enableRobotsTXT = true
+
+[module]
+  [[module.imports]]
+    path = "github.com/imfing/hextra"
+
+  [[module.mounts]]
+    source = "assets"
+    target = "assets"
+  [[module.mounts]]
+    source = "content"
+    target = "content"
+  [[module.mounts]]
+    source = "static"
+    target = "static"
+  [[module.mounts]]
+    source = "../site/app.js"
+    target = "static/app.js"
+  [[module.mounts]]
+    source = "../site/point_file.js"
+    target = "static/point_file.js"
+  [[module.mounts]]
+    source = "../site/benchmark"
+    target = "static/benchmark"
+  [[module.mounts]]
+    source = "../site/vendor"
+    target = "static/vendor"
+  [[module.mounts]]
+    source = "../images"
+    target = "static/images"
+
+  [module.hugoVersion]
+    extended = true
+    min = "0.146.0"
+
+[caches]
+  [caches.images]
+    dir = ":cacheDir/images"
+
+[markup.highlight]
+  noClasses = false
+
+[markup.goldmark.renderer]
+  unsafe = true
+
+[menu]
+  [[menu.main]]
+    name = "App"
+    pageRef = "/app"
+    weight = 1
+  [[menu.main]]
+    name = "Documentation"
+    pageRef = "/docs"
+    weight = 2
+  [[menu.main]]
+    name = "Examples"
+    pageRef = "/examples"
+    weight = 3
+  [[menu.main]]
+    name = "Benchmarks"
+    pageRef = "/benchmarks"
+    weight = 4
+  [[menu.main]]
+    name = "Search"
+    weight = 5
+    [menu.main.params]
+      type = "search"
+  [[menu.main]]
+    name = "GitHub"
+    url = "https://github.com/JCash/voronoi"
+    weight = 6
+    [menu.main.params]
+      icon = "github"
+
+[params]
+  description = "Fast, robust, header-only 2D Voronoi diagrams in C"
+  externalLinkDecoration = true
+  displayUpdatedDate = true
+  dateFormat = "January 2, 2006"
+
+  [params.navbar]
+    displayTitle = true
+    displayLogo = false
+    width = "wide"
+
+  [params.theme]
+    default = "system"
+    displayToggle = true
+
+  [params.footer]
+    enable = true
+    displayCopyright = true
+    displayPoweredBy = true
+    width = "wide"
+
+  [params.search]
+    enable = true
+    type = "flexsearch"
+
+    [params.search.flexsearch]
+      index = "content"
+      tokenize = "forward"
+      js = "js/vendor/flexsearch.bundle.min.js"
+
+  [params.highlight.copy]
+    enable = true
+    display = "hover"
+
+  [params.page]
+    width = "wide"
+    displayPagination = true

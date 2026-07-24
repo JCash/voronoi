@@ -1,0 +1,8 @@
+<div class="voronoi-example-layout">
+  <div class="voronoi-example-copy">
+    {{ .Inner | markdownify }}
+  </div>
+  <div class="voronoi-example-app">
+    {{ partial "example-voronoi-app.html" (dict "points" (.Get "points") "label" (.Get "label" | default "Generated diagram")) }}
+  </div>
+</div>
