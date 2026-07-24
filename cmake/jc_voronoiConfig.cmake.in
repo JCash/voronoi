@@ -1,0 +1,5 @@
+@PACKAGE_INIT@
+
+include("${CMAKE_CURRENT_LIST_DIR}/jc_voronoiTargets.cmake")
+
+check_required_components(jc_voronoi)
