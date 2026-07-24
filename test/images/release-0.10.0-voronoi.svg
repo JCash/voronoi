@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
+  <title id="title">Voronoi Diagram Generation</title>
+  <desc id="desc">Grouped bar chart comparing jc_voronoi 0.9.0, jc_voronoi 0.10.0, and Boost 1.92.0 for one thousand, ten thousand, one hundred thousand random sites using seed 4, and a one hundred thousand pathological case. The linear time axis ends at 150 milliseconds, and the 9.15 second pathological bar for jc_voronoi 0.9.0 has a jagged top to show that it exceeds the scale. Lower is better.</desc>
+  <style>
+    .stat-bar .stat-tip { opacity: 0; pointer-events: none; }
+    .stat-bar:hover .stat-tip, .stat-bar:focus .stat-tip { opacity: 1; }
+    .stat-hit { fill: transparent; pointer-events: all; }
+    .tip-box { fill: #152238; stroke: #ffffff; stroke-width: 1; }
+    .tip-head { fill: #ffffff; font: 650 12px system-ui, sans-serif; }
+    .tip-value { fill: #dce5f2; font: 12px system-ui, sans-serif; }
+  </style>
+  <rect width="1200" height="720" fill="#f8fafc"/>
+  <text x="70" y="49" font-family="system-ui, sans-serif" font-size="27" font-weight="700" fill="#152238">Voronoi Diagram Generation</text>
+  <text x="70" y="76" font-family="system-ui, sans-serif" font-size="15" fill="#536174">Median time · linear scale · lower is better · hover bars for details</text>
+
+  <g stroke="#d8dee8" stroke-width="1">
+    <line x1="120" y1="575" x2="1150" y2="575"/>
+    <line x1="120" y1="497" x2="1150" y2="497"/>
+    <line x1="120" y1="418" x2="1150" y2="418"/>
+    <line x1="120" y1="340" x2="1150" y2="340"/>
+    <line x1="120" y1="262" x2="1150" y2="262"/>
+    <line x1="120" y1="183" x2="1150" y2="183"/>
+    <line x1="120" y1="105" x2="1150" y2="105"/>
+  </g>
+  <g font-family="system-ui, sans-serif" font-size="13" fill="#536174" text-anchor="end">
+    <text x="108" y="580">0</text><text x="108" y="502">25 ms</text>
+    <text x="108" y="423">50 ms</text><text x="108" y="345">75 ms</text>
+    <text x="108" y="267">100 ms</text><text x="108" y="188">125 ms</text><text x="108" y="110">150 ms</text>
+  </g>
+
+  <g>
+    <rect x="176" y="574" width="52" height="1" fill="#5267d9"/>
+    <rect x="234" y="574" width="52" height="1" rx="1" fill="#14a38b"/>
+    <rect x="292" y="573" width="52" height="2" rx="1" fill="#e08b35"/>
+
+    <rect x="426" y="559" width="52" height="16" rx="3" fill="#5267d9"/>
+    <rect x="484" y="560" width="52" height="15" rx="3" fill="#14a38b"/>
+    <rect x="542" y="554" width="52" height="21" rx="3" fill="#e08b35"/>
+
+    <rect x="676" y="415" width="52" height="160" rx="4" fill="#5267d9"/>
+    <rect x="734" y="406" width="52" height="169" rx="4" fill="#14a38b"/>
+    <rect x="792" y="324" width="52" height="251" rx="4" fill="#e08b35"/>
+
+    <path d="M926 575 V117 L932 107 L939 117 L946 107 L953 117 L960 107 L967 117 L978 107 V575 Z" fill="#5267d9"/>
+    <rect x="984" y="517" width="52" height="58" rx="4" fill="#14a38b"/>
+    <rect x="1042" y="452" width="52" height="123" rx="4" fill="#e08b35"/>
+  </g>
+
+  <g font-family="system-ui, sans-serif" font-size="12" font-weight="650">
+    <text x="202" y="568" fill="#35445a" font-size="10" text-anchor="middle">195.83 us</text>
+    <text x="260" y="568" fill="#35445a" font-size="10" text-anchor="middle">178.00 us</text>
+    <text x="318" y="568" fill="#35445a" font-size="10" text-anchor="middle">649.83 us</text>
+
+    <text x="452" y="550" fill="#35445a" font-size="10" text-anchor="middle">5.04 ms</text>
+    <text x="510" y="551" fill="#35445a" font-size="10" text-anchor="middle">4.87 ms</text>
+    <text x="568" y="545" fill="#35445a" font-size="10" text-anchor="middle">6.82 ms</text>
+
+    <text x="702" y="406" fill="#35445a" text-anchor="middle">51.22 ms</text>
+    <text x="760" y="397" fill="#35445a" text-anchor="middle">53.95 ms</text>
+    <text x="818" y="315" fill="#35445a" text-anchor="middle">80.21 ms</text>
+
+    <text x="952" y="96" fill="#3549b2" text-anchor="middle">9.15 s</text>
+    <text x="1010" y="508" fill="#35445a" text-anchor="middle">18.63 ms</text>
+    <text x="1068" y="443" fill="#35445a" text-anchor="middle">39.25 ms</text>
+  </g>
+
+  <g font-family="system-ui, sans-serif" fill="#26354a" text-anchor="middle">
+    <text x="260" y="612" font-size="15" font-weight="600">1k</text>
+    <text x="510" y="612" font-size="15" font-weight="600">10k</text>
+    <text x="760" y="612" font-size="15" font-weight="600">100k</text>
+    <text x="1010" y="612" font-size="15" font-weight="600">100k pathological</text>
+  </g>
+
+  <g font-family="system-ui, sans-serif" font-size="14" fill="#344258">
+    <rect x="309" y="660" width="16" height="16" rx="3" fill="#5267d9"/><text x="333" y="674">JCV 0.9</text>
+    <rect x="469" y="660" width="16" height="16" rx="3" fill="#14a38b"/><text x="493" y="674">JCV 0.10</text>
+    <rect x="644" y="660" width="16" height="16" rx="3" fill="#e08b35"/><text x="668" y="674">Boost 1.92.0</text>
+  </g>
+
+  <g class="stat-bar" tabindex="0">
+    <rect class="stat-hit" x="176" y="560" width="52" height="15"><title>JCV 0.9, 1k: median 195.83 us</title></rect>
+    <g class="stat-tip" transform="translate(135 490)"><rect class="tip-box" width="178" height="52" rx="5"/><text class="tip-head" x="10" y="20">JCV 0.9 · 1k</text><text class="tip-value" x="10" y="40">Median: 195.83 us</text></g>
+  </g>
+  <g class="stat-bar" tabindex="0">
+    <rect class="stat-hit" x="234" y="560" width="52" height="15"><title>JCV 0.10, 1k: median 178.00 us</title></rect>
+    <g class="stat-tip" transform="translate(193 490)"><rect class="tip-box" width="178" height="52" rx="5"/><text class="tip-head" x="10" y="20">JCV 0.10 · 1k</text><text class="tip-value" x="10" y="40">Median: 178.00 us</text></g>
+  </g>
+  <g class="stat-bar" tabindex="0">
+    <rect class="stat-hit" x="292" y="560" width="52" height="15"><title>Boost 1.92.0, 1k: median 649.83 us</title></rect>
+    <g class="stat-tip" transform="translate(251 490)"><rect class="tip-box" width="178" height="52" rx="5"/><text class="tip-head" x="10" y="20">Boost 1.92.0 · 1k</text><text class="tip-value" x="10" y="40">Median: 649.83 us</text></g>
+  </g>
+
+  <g class="stat-bar" tabindex="0">
+    <rect class="stat-hit" x="426" y="554" width="52" height="21"><title>JCV 0.9, 10k: median 5.04 ms</title></rect>
+    <g class="stat-tip" transform="translate(385 480)"><rect class="tip-box" width="178" height="52" rx="5"/><text class="tip-head" x="10" y="20">JCV 0.9 · 10k</text><text class="tip-value" x="10" y="40">Median: 5.04 ms</text></g>
+  </g>
+  <g class="stat-bar" tabindex="0">
+    <rect class="stat-hit" x="484" y="560" width="52" height="15"><title>JCV 0.10, 10k: median 4.87 ms</title></rect>
+    <g class="stat-tip" transform="translate(443 486)"><rect class="tip-box" width="178" height="52" rx="5"/><text class="tip-head" x="10" y="20">JCV 0.10 · 10k</text><text class="tip-value" x="10" y="40">Median: 4.87 ms</text></g>
+  </g>
+  <g class="stat-bar" tabindex="0">
+    <rect class="stat-hit" x="542" y="554" width="52" height="21"><title>Boost 1.92.0, 10k: median 6.82 ms</title></rect>
+    <g class="stat-tip" transform="translate(501 480)"><rect class="tip-box" width="178" height="52" rx="5"/><text class="tip-head" x="10" y="20">Boost 1.92.0 · 10k</text><text class="tip-value" x="10" y="40">Median: 6.82 ms</text></g>
+  </g>
+
+  <g class="stat-bar" tabindex="0">
+    <rect class="stat-hit" x="676" y="415" width="52" height="160"><title>JCV 0.9, 100k: median 51.22 ms</title></rect>
+    <g class="stat-tip" transform="translate(607 340)"><rect class="tip-box" width="190" height="52" rx="5"/><text class="tip-head" x="10" y="20">JCV 0.9 · 100k</text><text class="tip-value" x="10" y="40">Median: 51.22 ms</text></g>
+  </g>
+  <g class="stat-bar" tabindex="0">
+    <rect class="stat-hit" x="734" y="406" width="52" height="169"><title>JCV 0.10, 100k: median 53.95 ms</title></rect>
+    <g class="stat-tip" transform="translate(665 331)"><rect class="tip-box" width="190" height="52" rx="5"/><text class="tip-head" x="10" y="20">JCV 0.10 · 100k</text><text class="tip-value" x="10" y="40">Median: 53.95 ms</text></g>
+  </g>
+  <g class="stat-bar" tabindex="0">
+    <rect class="stat-hit" x="792" y="324" width="52" height="251"><title>Boost 1.92.0, 100k: median 80.21 ms</title></rect>
+    <g class="stat-tip" transform="translate(735 249)"><rect class="tip-box" width="190" height="52" rx="5"/><text class="tip-head" x="10" y="20">Boost 1.92.0 · 100k</text><text class="tip-value" x="10" y="40">Median: 80.21 ms</text></g>
+  </g>
+
+  <g class="stat-bar" tabindex="0">
+    <rect class="stat-hit" x="926" y="105" width="52" height="470"><title>JCV 0.9, 100k pathological: median 9.15 s</title></rect>
+    <g class="stat-tip" transform="translate(842 125)"><rect class="tip-box" width="220" height="52" rx="5"/><text class="tip-head" x="10" y="20">JCV 0.9 · 100k pathological</text><text class="tip-value" x="10" y="40">Median: 9.15 s</text></g>
+  </g>
+  <g class="stat-bar" tabindex="0">
+    <rect class="stat-hit" x="984" y="517" width="52" height="58"><title>JCV 0.10, 100k pathological: median 18.63 ms</title></rect>
+    <g class="stat-tip" transform="translate(875 442)"><rect class="tip-box" width="232" height="52" rx="5"/><text class="tip-head" x="10" y="20">JCV 0.10 · 100k pathological</text><text class="tip-value" x="10" y="40">Median: 18.63 ms</text></g>
+  </g>
+  <g class="stat-bar" tabindex="0">
+    <rect class="stat-hit" x="1042" y="452" width="52" height="123"><title>Boost 1.92.0, 100k pathological: median 39.25 ms</title></rect>
+    <g class="stat-tip" transform="translate(900 377)"><rect class="tip-box" width="234" height="52" rx="5"/><text class="tip-head" x="10" y="20">Boost 1.92.0 · 100k pathological</text><text class="tip-value" x="10" y="40">Median: 39.25 ms</text></g>
+  </g>
+</svg>
