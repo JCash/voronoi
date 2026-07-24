@@ -1,6 +1,8 @@
 ---
-title: Examples - Wasm
+title: Examples - JS
 weight: 2
+aliases:
+  - /examples/wasm/
 ---
 
 Use the WebAssembly package through its ergonomic, zero-copy JavaScript API.

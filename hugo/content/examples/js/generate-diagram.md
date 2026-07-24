@@ -4,6 +4,7 @@ weight: 1
 aliases:
   - /examples/webassembly/
   - /examples/c/webassembly/
+  - /examples/wasm/generate-diagram/
 ---
 
 Tagged releases include `jc_voronoi.wasm`, Emscripten's ES-module loader, and a small browser/Node.js wrapper.

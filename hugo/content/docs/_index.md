@@ -25,4 +25,5 @@ The source supports C99, C11, C17, and C23, and can also be included from C++. C
 - [Build the command-line example](build/)
 - [Review the API](api/)
 - [Start with a complete diagram example](../examples/c/generate-diagram/)
-- [Use the browser and Node.js WebAssembly wrapper](../examples/c/webassembly/)
+- [Review the JavaScript API](api/javascript/)
+- [Use the browser and Node.js wrapper](../examples/js/generate-diagram/)
