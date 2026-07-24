@@ -2,9 +2,13 @@ export interface Point {
   readonly x: number;
   readonly y: number;
   [Symbol.iterator](): Iterator<number>;
+  toJSON(): { x: number; y: number };
 }
 
-export type PointInput = readonly Point[] | Float32Array;
+export type PointInput = readonly {
+  readonly x: number;
+  readonly y: number;
+}[] | Float32Array;
 
 export interface Site {
   readonly p: Point;
