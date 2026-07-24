@@ -15,11 +15,11 @@ cascade:
         <li>Robust and fast</li>
         <li>Small memory footprint</li>
         <li>Single- or double-precision floating point</li>
-        <li>Readable, compact code</li>
         <li>No external dependencies</li>
         <li>Cells expose ordered edge lists for easy relaxation</li>
         <li>Clipped edges</li>
-        <li>Clear MIT license</li>
+        <li>Custom edge clipper</li>
+        <li>MIT license</li>
       </ul>
       <div class="voronoi-actions">
         <a class="voronoi-primary" href="docs/">Get started</a>
