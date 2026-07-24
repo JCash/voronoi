@@ -114,7 +114,9 @@ extern void jcv_diagram_get_vertices( const jcv_diagram* diagram, jcv_point* ver
 // Returns the stored number of edges yielded by jcv_diagram_get_edges (O(1)).
 extern int jcv_diagram_get_edge_count( const jcv_diagram* diagram );
 
-// Creates an iterator over every edge in the diagram.
+// Creates an iterator over every edge in the diagram. Returned edges run from
+// pos[0] to pos[1] counter-clockwise around sites[0]. Use jcv_edge_next to
+// retrieve each edge from the initialized iterator.
 extern void jcv_diagram_get_edges( const jcv_diagram* diagram, jcv_edge_iter* iter );
 
 // Creates an iterator over one site's edges, in counter-clockwise order.

@@ -1,6 +1,3 @@
-
-[Documentation](https://jcash.github.io/voronoi/docs/)
-
 |Branch      | macOS/Linux/Windows |
 |------------|---------------------|
 |master      | [![Build](https://github.com/JCash/voronoi/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/JCash/voronoi/actions/workflows/build.yml) |
@@ -16,6 +13,7 @@ A fast C header only implementation for creating 2D Voronoi diagrams from a poin
 * Disclaimer: This software is supplied "AS IS" without any warranties and support
 * [LICENSE](./LICENSE) ([The MIT license](http://choosealicense.com/licenses/mit/))
 * [Showcases](./SHOWCASES.md)
+* [Documentation](https://jcash.github.io/voronoi)
 
 # Brief
 

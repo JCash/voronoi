@@ -62,18 +62,22 @@ enableRobotsTXT = true
     pageRef = "/examples"
     weight = 3
   [[menu.main]]
-    name = "Benchmarks"
-    pageRef = "/benchmarks"
+    name = "Showcases"
+    pageRef = "/showcases"
     weight = 4
   [[menu.main]]
-    name = "Search"
+    name = "Benchmarks"
+    pageRef = "/benchmarks"
     weight = 5
+  [[menu.main]]
+    name = "Search"
+    weight = 6
     [menu.main.params]
       type = "search"
   [[menu.main]]
     name = "GitHub"
     url = "https://github.com/JCash/voronoi"
-    weight = 6
+    weight = 7
     [menu.main.params]
       icon = "github"
 

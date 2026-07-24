@@ -4,6 +4,36 @@
     --hextra-max-footer-width: 90rem;
 }
 
+.api-summary tbody td:nth-child(even) {
+    background-color: rgb(0 0 0 / 2%);
+}
+
+.api-summary tbody tr:nth-child(even) td:nth-child(odd) {
+    background-color: rgb(0 0 0 / 4%);
+}
+
+.api-summary tbody tr:nth-child(even) td:nth-child(even) {
+    background-color: rgb(0 0 0 / 6%);
+}
+
+.api-summary a code {
+    border-radius: 0;
+    padding: 0;
+    background-color: transparent;
+}
+
+.dark .api-summary tbody td:nth-child(even) {
+    background-color: rgb(255 255 255 / 3%);
+}
+
+.dark .api-summary tbody tr:nth-child(even) td:nth-child(odd) {
+    background-color: rgb(255 255 255 / 5%);
+}
+
+.dark .api-summary tbody tr:nth-child(even) td:nth-child(even) {
+    background-color: rgb(255 255 255 / 8%);
+}
+
 .voronoi-home {
     width: min(1180px, calc(100% - 32px));
     margin: 0 auto;
