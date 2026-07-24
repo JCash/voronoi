@@ -1,3 +1,4 @@
+#include <limits.h>
 #include <stddef.h>
 #include <stdlib.h>
 
@@ -10,57 +11,36 @@
 #define JC_VORONOI_IMPLEMENTATION
 #include "jc_voronoi.h"
 
-/* Compact immutable output for the ergonomic JavaScript API. The construction
- * diagram is released before this snapshot is returned. */
-typedef struct jcv_wasm_edge_
-{
-    jcv_site* sites[2];
-    jcv_point pos[2];
-    int vertices[2];
-} jcv_wasm_edge;
-
-typedef struct jcv_wasm_diagram_
-{
-    int input_count;
-    int site_count;
-    int vertex_count;
-    jcv_site* sites;
-    jcv_site** sites_by_input;
-    int edge_count;
-    jcv_wasm_edge* edges;
-    int* cell_edge_offsets;
-    uint32_t* cell_edge_refs;
-} jcv_wasm_diagram;
-
+/* Relocatable packed output copied into a JavaScript-owned ArrayBuffer. All
+ * references are indices or byte offsets, so JavaScript never needs to call
+ * back into Wasm while traversing the result. */
 enum
 {
-    JCV_WASM_CELL_SITE_FLIP = 1,
-    JCV_WASM_CELL_POSITION_FLIP = 2,
-    JCV_WASM_CELL_EDGE_SHIFT = 2
+    JCV_PACK_MAGIC = 0x4a435631,
+    JCV_PACK_VERSION = 1,
+    JCV_PACK_HEADER_WORDS = 14,
+    JCV_PACK_SITE_WORDS = 4,
+    JCV_PACK_EDGE_WORDS = 4,
+    JCV_PACK_CELL_SITE_FLIP = 1,
+    JCV_PACK_CELL_POSITION_FLIP = 2,
+    JCV_PACK_CELL_EDGE_SHIFT = 2
 };
 
-static void jcv_wasm_diagram_release(jcv_wasm_diagram* handle)
+typedef struct jcv_pack_edge_
 {
-    if (handle == NULL)
-        return;
-    free(handle->cell_edge_refs);
-    free(handle->cell_edge_offsets);
-    free(handle->edges);
-    free(handle->sites_by_input);
-    free(handle->sites);
-    free(handle);
-}
+    int sites[2];
+    int vertices[2];
+} jcv_pack_edge;
 
-static uint32_t jcv_wasm_edge_hash(int vertex0, int vertex1)
+static uint32_t jcv_pack_edge_hash(int vertex0, int vertex1)
 {
     uint32_t a = (uint32_t)(vertex0 < vertex1 ? vertex0 : vertex1);
     uint32_t b = (uint32_t)(vertex0 < vertex1 ? vertex1 : vertex0);
     uint32_t hash = a * UINT32_C(0x9e3779b1) ^ b * UINT32_C(0x85ebca6b);
-    hash ^= hash >> 16;
-    return hash;
+    return hash ^ (hash >> 16);
 }
 
-static size_t jcv_wasm_hash_capacity(int count)
+static size_t jcv_pack_hash_capacity(int count)
 {
     size_t capacity = 1;
     size_t required = count > 0 ? (size_t)count * 2 : 1;
@@ -69,19 +49,19 @@ static size_t jcv_wasm_hash_capacity(int count)
     return capacity;
 }
 
-static int jcv_wasm_find_edge(const jcv_wasm_diagram* handle,
+static int jcv_pack_find_edge(const jcv_pack_edge* edges,
                               const uint32_t* edge_hash,
                               size_t hash_capacity,
                               int vertex0,
                               int vertex1)
 {
-    size_t slot = (size_t)jcv_wasm_edge_hash(vertex0, vertex1) & (hash_capacity - 1);
+    size_t slot = (size_t)jcv_pack_edge_hash(vertex0, vertex1) & (hash_capacity - 1);
     int min_vertex = vertex0 < vertex1 ? vertex0 : vertex1;
     int max_vertex = vertex0 < vertex1 ? vertex1 : vertex0;
     while (edge_hash[slot] != 0)
     {
         int edge_index = (int)edge_hash[slot] - 1;
-        const jcv_wasm_edge* edge = &handle->edges[edge_index];
+        const jcv_pack_edge* edge = &edges[edge_index];
         int edge_min = edge->vertices[0] < edge->vertices[1] ? edge->vertices[0] : edge->vertices[1];
         int edge_max = edge->vertices[0] < edge->vertices[1] ? edge->vertices[1] : edge->vertices[0];
         if (edge_min == min_vertex && edge_max == max_vertex)
@@ -91,22 +71,48 @@ static int jcv_wasm_find_edge(const jcv_wasm_diagram* handle,
     return -1;
 }
 
-EMSCRIPTEN_KEEPALIVE
-jcv_wasm_diagram* jcv_wasm_diagram_create(const float* xy,
-                                          int num_points,
-                                          float min_x,
-                                          float min_y,
-                                          float max_x,
-                                          float max_y)
+static int jcv_pack_add_size(size_t* total, size_t count, size_t stride)
 {
-    jcv_wasm_diagram* handle;
+    if (count > (SIZE_MAX - *total) / stride)
+        return 0;
+    *total += count * stride;
+    return *total <= (size_t)INT_MAX;
+}
+
+EMSCRIPTEN_KEEPALIVE
+void* jcv_wasm_generate_packed(const float* xy,
+                               int num_points,
+                               float min_x,
+                               float min_y,
+                               float max_x,
+                               float max_y)
+{
     jcv_diagram diagram = {0};
     const jcv_site* sites;
     jcv_rect rect;
     jcv_edge_iter iter;
     jcv_edge edge;
+    unsigned char* block = NULL;
+    uint32_t* header;
+    int32_t* input_to_site;
+    uint32_t* site_words;
+    float* site_floats;
+    float* vertices;
+    jcv_pack_edge* edges;
+    uint32_t* cell_offsets;
+    uint32_t* cell_refs;
     uint32_t* edge_hash = NULL;
-    size_t hash_capacity = 0;
+    size_t hash_capacity;
+    size_t total = JCV_PACK_HEADER_WORDS * sizeof(uint32_t);
+    size_t input_offset;
+    size_t sites_offset;
+    size_t vertices_offset;
+    size_t edges_offset;
+    size_t cell_offsets_offset;
+    size_t cell_refs_offset;
+    int site_count;
+    int vertex_count;
+    int edge_count;
     int cell_edge_count = 0;
     int i;
 
@@ -114,279 +120,151 @@ jcv_wasm_diagram* jcv_wasm_diagram_create(const float* xy,
         (num_points > 0 && xy == NULL))
         return NULL;
 
-    handle = (jcv_wasm_diagram*)calloc(1, sizeof(jcv_wasm_diagram));
-    if (handle == NULL)
-        return NULL;
-    handle->input_count = num_points;
-
     rect.min.x = min_x;
     rect.min.y = min_y;
     rect.max.x = max_x;
     rect.max.y = max_y;
     jcv_diagram_generate(num_points, (const jcv_point*)xy, &rect, NULL, &diagram);
-
-    handle->site_count = diagram.numsites;
-    handle->vertex_count = diagram.numvertices;
-    if (handle->site_count > 0)
-    {
-        handle->sites = (jcv_site*)malloc(sizeof(jcv_site) * (size_t)handle->site_count);
-        if (handle->sites == NULL)
-            goto failure;
-        memcpy(handle->sites, jcv_diagram_get_sites(&diagram),
-               sizeof(jcv_site) * (size_t)handle->site_count);
-    }
-
-    if (num_points > 0)
-    {
-        handle->sites_by_input = (jcv_site**)calloc((size_t)num_points, sizeof(jcv_site*));
-        if (handle->sites_by_input == NULL)
-            goto failure;
-    }
     sites = jcv_diagram_get_sites(&diagram);
-    for (i = 0; i < handle->site_count; ++i)
+    site_count = diagram.numsites;
+    vertex_count = diagram.numvertices;
+    edge_count = jcv_diagram_get_edge_count(&diagram);
+
+    for (i = 0; i < site_count; ++i)
     {
+        jcv_site_get_edges(&diagram, &sites[i], &iter);
+        while (jcv_edge_next(&iter, &edge))
+            ++cell_edge_count;
+    }
+
+    input_offset = total;
+    if (!jcv_pack_add_size(&total, (size_t)num_points, sizeof(int32_t)))
+        goto failure;
+    sites_offset = total;
+    if (!jcv_pack_add_size(&total, (size_t)site_count, JCV_PACK_SITE_WORDS * sizeof(uint32_t)))
+        goto failure;
+    vertices_offset = total;
+    if (!jcv_pack_add_size(&total, (size_t)vertex_count, 2 * sizeof(float)))
+        goto failure;
+    edges_offset = total;
+    if (!jcv_pack_add_size(&total, (size_t)edge_count, sizeof(jcv_pack_edge)))
+        goto failure;
+    cell_offsets_offset = total;
+    if (!jcv_pack_add_size(&total, (size_t)num_points + 1, sizeof(uint32_t)))
+        goto failure;
+    cell_refs_offset = total;
+    if (!jcv_pack_add_size(&total, (size_t)cell_edge_count, sizeof(uint32_t)))
+        goto failure;
+
+    block = (unsigned char*)malloc(total);
+    if (block == NULL)
+        goto failure;
+    memset(block, 0, total);
+    header = (uint32_t*)block;
+    input_to_site = (int32_t*)(block + input_offset);
+    site_words = (uint32_t*)(block + sites_offset);
+    site_floats = (float*)(block + sites_offset);
+    vertices = (float*)(block + vertices_offset);
+    edges = (jcv_pack_edge*)(block + edges_offset);
+    cell_offsets = (uint32_t*)(block + cell_offsets_offset);
+    cell_refs = (uint32_t*)(block + cell_refs_offset);
+
+    header[0] = JCV_PACK_MAGIC;
+    header[1] = JCV_PACK_VERSION;
+    header[2] = (uint32_t)total;
+    header[3] = (uint32_t)num_points;
+    header[4] = (uint32_t)site_count;
+    header[5] = (uint32_t)vertex_count;
+    header[6] = (uint32_t)edge_count;
+    header[7] = (uint32_t)cell_edge_count;
+    header[8] = (uint32_t)input_offset;
+    header[9] = (uint32_t)sites_offset;
+    header[10] = (uint32_t)vertices_offset;
+    header[11] = (uint32_t)edges_offset;
+    header[12] = (uint32_t)cell_offsets_offset;
+    header[13] = (uint32_t)cell_refs_offset;
+
+    for (i = 0; i < num_points; ++i)
+        input_to_site[i] = -1;
+    for (i = 0; i < site_count; ++i)
+    {
+        int offset = i * JCV_PACK_SITE_WORDS;
+        site_floats[offset + 0] = sites[i].p.x;
+        site_floats[offset + 1] = sites[i].p.y;
+        site_words[offset + 2] = sites[i].index;
+        site_words[offset + 3] = sites[i].boundary;
         if (sites[i].index < (uint32_t)num_points)
-            handle->sites_by_input[sites[i].index] = &handle->sites[i];
+            input_to_site[sites[i].index] = i;
     }
 
-    handle->edge_count = jcv_diagram_get_edge_count(&diagram);
-    if (handle->edge_count > 0)
+    i = 0;
+    jcv_diagram_get_edges(&diagram, &iter);
+    while (i < edge_count && jcv_edge_next(&iter, &edge))
     {
-        int edge_index = 0;
-        handle->edges = (jcv_wasm_edge*)malloc(sizeof(jcv_wasm_edge) * (size_t)handle->edge_count);
-        if (handle->edges == NULL)
-            goto failure;
-        jcv_diagram_get_edges(&diagram, &iter);
-        while (edge_index < handle->edge_count && jcv_edge_next(&iter, &edge))
-        {
-            jcv_wasm_edge* output = &handle->edges[edge_index++];
-            output->sites[0] = edge.sites[0] != NULL ? handle->sites_by_input[edge.sites[0]->index] : NULL;
-            output->sites[1] = edge.sites[1] != NULL ? handle->sites_by_input[edge.sites[1]->index] : NULL;
-            output->pos[0] = edge.pos[0];
-            output->pos[1] = edge.pos[1];
-            output->vertices[0] = edge.vertices[0];
-            output->vertices[1] = edge.vertices[1];
-        }
-        handle->edge_count = edge_index;
+        edges[i].sites[0] = edge.sites[0] != NULL ? (int)edge.sites[0]->index : -1;
+        edges[i].sites[1] = edge.sites[1] != NULL ? (int)edge.sites[1]->index : -1;
+        edges[i].vertices[0] = edge.vertices[0];
+        edges[i].vertices[1] = edge.vertices[1];
+        vertices[edge.vertices[0] * 2 + 0] = edge.pos[0].x;
+        vertices[edge.vertices[0] * 2 + 1] = edge.pos[0].y;
+        vertices[edge.vertices[1] * 2 + 0] = edge.pos[1].x;
+        vertices[edge.vertices[1] * 2 + 1] = edge.pos[1].y;
+        ++i;
     }
+    edge_count = i;
+    header[6] = (uint32_t)edge_count;
 
-    hash_capacity = jcv_wasm_hash_capacity(handle->edge_count);
+    hash_capacity = jcv_pack_hash_capacity(edge_count);
     edge_hash = (uint32_t*)calloc(hash_capacity, sizeof(uint32_t));
     if (edge_hash == NULL)
         goto failure;
-    for (i = 0; i < handle->edge_count; ++i)
+    for (i = 0; i < edge_count; ++i)
     {
-        size_t slot = (size_t)jcv_wasm_edge_hash(handle->edges[i].vertices[0],
-                                                 handle->edges[i].vertices[1]) & (hash_capacity - 1);
+        size_t slot = (size_t)jcv_pack_edge_hash(edges[i].vertices[0], edges[i].vertices[1]) & (hash_capacity - 1);
         while (edge_hash[slot] != 0)
             slot = (slot + 1) & (hash_capacity - 1);
         edge_hash[slot] = (uint32_t)i + 1;
     }
 
-    handle->cell_edge_offsets = (int*)calloc((size_t)num_points + 1, sizeof(int));
-    if (handle->cell_edge_offsets == NULL)
-        goto failure;
-    for (i = 0; i < num_points; ++i)
     {
-        const jcv_site* site = NULL;
-        if (handle->sites_by_input[i] != NULL)
-            site = &sites[handle->sites_by_input[i] - handle->sites];
-        if (site != NULL)
-        {
-            jcv_site_get_edges(&diagram, site, &iter);
-            while (jcv_edge_next(&iter, &edge))
-                ++cell_edge_count;
-        }
-        handle->cell_edge_offsets[i + 1] = cell_edge_count;
-    }
-
-    if (cell_edge_count > 0)
-    {
-        int cell_edge_index = 0;
-        handle->cell_edge_refs = (uint32_t*)malloc(sizeof(uint32_t) * (size_t)cell_edge_count);
-        if (handle->cell_edge_refs == NULL)
-            goto failure;
+        uint32_t cell_edge_index = 0;
         for (i = 0; i < num_points; ++i)
         {
-            const jcv_site* site = NULL;
-            if (handle->sites_by_input[i] != NULL)
-                site = &sites[handle->sites_by_input[i] - handle->sites];
-            if (site == NULL)
+            int site_index = input_to_site[i];
+            cell_offsets[i] = cell_edge_index;
+            if (site_index < 0)
                 continue;
-            jcv_site_get_edges(&diagram, site, &iter);
+            jcv_site_get_edges(&diagram, &sites[site_index], &iter);
             while (jcv_edge_next(&iter, &edge))
             {
-                int edge_index = jcv_wasm_find_edge(handle, edge_hash, hash_capacity,
+                int edge_index = jcv_pack_find_edge(edges, edge_hash, hash_capacity,
                                                     edge.vertices[0], edge.vertices[1]);
                 uint32_t flags = 0;
-                const jcv_wasm_edge* stored;
-                if (edge_index < 0 || (uint32_t)edge_index > (UINT32_MAX >> JCV_WASM_CELL_EDGE_SHIFT))
+                if (edge_index < 0 || (uint32_t)edge_index > (UINT32_MAX >> JCV_PACK_CELL_EDGE_SHIFT))
                     goto failure;
-                stored = &handle->edges[edge_index];
-                if (edge.sites[0] != NULL && stored->sites[0] != NULL &&
-                    edge.sites[0]->index != stored->sites[0]->index)
-                    flags |= JCV_WASM_CELL_SITE_FLIP;
-                if (edge.vertices[0] != stored->vertices[0])
-                    flags |= JCV_WASM_CELL_POSITION_FLIP;
-                handle->cell_edge_refs[cell_edge_index++] =
-                    ((uint32_t)edge_index << JCV_WASM_CELL_EDGE_SHIFT) | flags;
+                if (edge.sites[0] != NULL && edges[edge_index].sites[0] >= 0 &&
+                    edge.sites[0]->index != (uint32_t)edges[edge_index].sites[0])
+                    flags |= JCV_PACK_CELL_SITE_FLIP;
+                if (edge.vertices[0] != edges[edge_index].vertices[0])
+                    flags |= JCV_PACK_CELL_POSITION_FLIP;
+                cell_refs[cell_edge_index++] =
+                    ((uint32_t)edge_index << JCV_PACK_CELL_EDGE_SHIFT) | flags;
             }
         }
+        cell_offsets[num_points] = cell_edge_index;
+        header[7] = cell_edge_index;
     }
+
     free(edge_hash);
     jcv_diagram_free(&diagram);
-    return handle;
+    return block;
 
 failure:
     free(edge_hash);
+    free(block);
     if (diagram.internal != NULL)
         jcv_diagram_free(&diagram);
-    jcv_wasm_diagram_release(handle);
     return NULL;
-}
-
-EMSCRIPTEN_KEEPALIVE
-void jcv_wasm_diagram_destroy(jcv_wasm_diagram* handle)
-{
-    jcv_wasm_diagram_release(handle);
-}
-
-EMSCRIPTEN_KEEPALIVE
-int jcv_wasm_diagram_input_count(const jcv_wasm_diagram* handle)
-{
-    return handle != NULL ? handle->input_count : 0;
-}
-
-EMSCRIPTEN_KEEPALIVE
-int jcv_wasm_diagram_site_count(const jcv_wasm_diagram* handle)
-{
-    return handle != NULL ? handle->site_count : 0;
-}
-
-EMSCRIPTEN_KEEPALIVE
-int jcv_wasm_diagram_vertex_count(const jcv_wasm_diagram* handle)
-{
-    return handle != NULL ? handle->vertex_count : 0;
-}
-
-EMSCRIPTEN_KEEPALIVE
-const jcv_site* jcv_wasm_diagram_site(const jcv_wasm_diagram* handle, int input_index)
-{
-    if (handle == NULL || input_index < 0 || input_index >= handle->input_count)
-        return NULL;
-    return handle->sites_by_input[input_index];
-}
-
-EMSCRIPTEN_KEEPALIVE
-const jcv_site* jcv_wasm_diagram_site_at(const jcv_wasm_diagram* handle, int site_index)
-{
-    if (handle == NULL || site_index < 0 || site_index >= handle->site_count)
-        return NULL;
-    return &handle->sites[site_index];
-}
-
-EMSCRIPTEN_KEEPALIVE
-int jcv_wasm_diagram_edge_count(const jcv_wasm_diagram* handle)
-{
-    return handle != NULL ? handle->edge_count : 0;
-}
-
-EMSCRIPTEN_KEEPALIVE
-const jcv_wasm_edge* jcv_wasm_diagram_edge(const jcv_wasm_diagram* handle, int edge_index)
-{
-    if (handle == NULL || edge_index < 0 || edge_index >= handle->edge_count)
-        return NULL;
-    return &handle->edges[edge_index];
-}
-
-EMSCRIPTEN_KEEPALIVE
-int jcv_wasm_cell_edge_count(const jcv_wasm_diagram* handle, int input_index)
-{
-    if (handle == NULL || input_index < 0 || input_index >= handle->input_count ||
-        handle->sites_by_input[input_index] == NULL)
-        return 0;
-    return handle->cell_edge_offsets[input_index + 1] - handle->cell_edge_offsets[input_index];
-}
-
-EMSCRIPTEN_KEEPALIVE
-const jcv_wasm_edge* jcv_wasm_cell_edge(const jcv_wasm_diagram* handle, int input_index, int edge_index)
-{
-    int begin;
-    int count;
-    uint32_t reference;
-    if (handle == NULL || input_index < 0 || input_index >= handle->input_count ||
-        handle->sites_by_input[input_index] == NULL)
-        return NULL;
-    begin = handle->cell_edge_offsets[input_index];
-    count = handle->cell_edge_offsets[input_index + 1] - begin;
-    if (edge_index < 0 || edge_index >= count)
-        return NULL;
-    reference = handle->cell_edge_refs[begin + edge_index];
-    return &handle->edges[reference >> JCV_WASM_CELL_EDGE_SHIFT];
-}
-
-EMSCRIPTEN_KEEPALIVE
-int jcv_wasm_cell_edge_flags(const jcv_wasm_diagram* handle, int input_index, int edge_index)
-{
-    int begin;
-    int count;
-    if (handle == NULL || input_index < 0 || input_index >= handle->input_count ||
-        handle->sites_by_input[input_index] == NULL)
-        return 0;
-    begin = handle->cell_edge_offsets[input_index];
-    count = handle->cell_edge_offsets[input_index + 1] - begin;
-    if (edge_index < 0 || edge_index >= count)
-        return 0;
-    return (int)(handle->cell_edge_refs[begin + edge_index] &
-                 ((UINT32_C(1) << JCV_WASM_CELL_EDGE_SHIFT) - 1));
-}
-
-EMSCRIPTEN_KEEPALIVE
-const jcv_point* jcv_wasm_site_point(const jcv_site* site)
-{
-    return site != NULL ? &site->p : NULL;
-}
-
-EMSCRIPTEN_KEEPALIVE
-uint32_t jcv_wasm_site_index(const jcv_site* site)
-{
-    return site != NULL ? site->index : 0;
-}
-
-EMSCRIPTEN_KEEPALIVE
-int jcv_wasm_site_boundary(const jcv_site* site)
-{
-    return site != NULL ? (int)site->boundary : 0;
-}
-
-EMSCRIPTEN_KEEPALIVE
-float jcv_wasm_point_x(const jcv_point* point)
-{
-    return point != NULL ? point->x : 0.0f;
-}
-
-EMSCRIPTEN_KEEPALIVE
-float jcv_wasm_point_y(const jcv_point* point)
-{
-    return point != NULL ? point->y : 0.0f;
-}
-
-EMSCRIPTEN_KEEPALIVE
-const jcv_site* jcv_wasm_edge_site(const jcv_wasm_edge* edge, int index)
-{
-    return edge != NULL && index >= 0 && index < 2 ? edge->sites[index] : NULL;
-}
-
-EMSCRIPTEN_KEEPALIVE
-const jcv_point* jcv_wasm_edge_position(const jcv_wasm_edge* edge, int index)
-{
-    return edge != NULL && index >= 0 && index < 2 ? &edge->pos[index] : NULL;
-}
-
-EMSCRIPTEN_KEEPALIVE
-int jcv_wasm_edge_vertex(const jcv_wasm_edge* edge, int index)
-{
-    return edge != NULL && index >= 0 && index < 2 ? edge->vertices[index] : -1;
 }
 
 /* xy contains x/y pairs; each returned edge is x0, y0, x1, y1. */

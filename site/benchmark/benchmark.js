@@ -5,7 +5,7 @@ const WIDTH = 4096;
 const operations = [
   ["generate", "Generate diagram"],
   ["sites", "Generate + get sites"],
-  ["edges", "Generate + get edges"],
+  ["edges", "Generate + render edges"],
   ["delauney", "Generate + get Delauney"],
 ];
 const libraries = ["JCV 0.10", "d3-delaunay", "d3-voronoi", "gorhill/voronoi"];
@@ -37,6 +37,11 @@ function issue48Points() {
 }
 
 function prepareJcv(points, bounds) {
+  let checksum = 0;
+  const context = {
+    moveTo: (x, y) => { checksum += x + y; },
+    lineTo: (x, y) => { checksum += x + y; },
+  };
   const withDiagram = (read) => {
     const diagram = voronoi.generate(points, { bounds });
     try {
@@ -49,19 +54,11 @@ function prepareJcv(points, bounds) {
     generate: () => withDiagram((diagram) => diagram.numSites),
     sites: () => withDiagram((diagram) => diagram.sites.length),
     edges: () => withDiagram((diagram) => {
-      let checksum = 0;
-      for (const edge of diagram.edges) {
-        checksum += edge.pos[0].x + edge.pos[0].y + edge.pos[1].x + edge.pos[1].y;
-      }
+      checksum = 0;
+      diagram.render(context);
       return checksum;
     }),
-    delauney: () => withDiagram((diagram) => {
-      let count = 0;
-      for (const edge of diagram.edges) {
-        if (edge.sites[0] && edge.sites[1]) ++count;
-      }
-      return count;
-    }),
+    delauney: () => withDiagram((diagram) => diagram.numDelauneyEdges),
   };
 }
 

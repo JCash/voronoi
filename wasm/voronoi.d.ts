@@ -26,16 +26,26 @@ export interface Cell {
   readonly polygon: readonly Point[];
 }
 
+export interface PathContext {
+  moveTo(x: number, y: number): void;
+  lineTo(x: number, y: number): void;
+}
+
 export interface Diagram {
   readonly bounds: readonly [number, number, number, number];
   readonly inputCount: number;
   readonly numSites: number;
   readonly numVertices: number;
+  readonly numEdges: number;
+  readonly numDelauneyEdges: number;
   readonly sites: readonly Site[];
   readonly edges: readonly Edge[];
   site(inputIndex: number): Site | null;
   cell(inputIndex: number): Cell | null;
   neighbors(inputIndex: number): readonly Site[];
+  render(context: PathContext): PathContext;
+  renderDelauney(context: PathContext): PathContext;
+  /** Eagerly releases the JavaScript-owned result buffer. Optional. */
   dispose(): void;
 }
 
@@ -54,7 +64,7 @@ export interface VoronoiModuleOptions {
 }
 
 export interface Voronoi {
-  /** Creates a persistent, zero-copy view of the complete diagram. */
+  /** Creates an ergonomic diagram backed by one JavaScript-owned ArrayBuffer. */
   generate(points: PointInput, options: GenerateOptions): Diagram;
   generate(points: PointInput, width: number, height: number): Diagram;
 

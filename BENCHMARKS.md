@@ -61,41 +61,41 @@ Times are medians and lower is better. The benchmark exercises each library's pu
 
 The random cases use a deterministic seed. `100k pathological` is the issue48 input with 99,998 symmetric diagonal-pair sites. Each measurement has two untimed warmups followed by 10 samples for 10k and five samples for 100k and the pathological case.
 
-JCV uses the zero-copy JavaScript diagram API and disposes every compact native snapshot inside the timed operation. Site access materializes ergonomic `Site` objects; edge access walks every `Edge` and reads both endpoint coordinates; Delauney access walks edges and reads their adjacent sites. Other libraries expose different public output forms: d3-voronoi and voronoi eagerly provide arrays, while d3-delaunay renders its Voronoi mesh. These rows therefore compare public access workflows, not identical post-processing algorithms.
+JCV copies one packed result from WebAssembly into a JavaScript-owned `ArrayBuffer` and disposes each result inside the timed operation. Site access materializes ergonomic `Site` objects; edge rendering reads packed vertex arrays without creating edge objects; Delauney access reads the packed adjacency count. Other libraries expose different public output forms: d3-voronoi and voronoi eagerly provide arrays, while d3-delaunay renders its Voronoi mesh. These rows therefore compare public access workflows, not identical post-processing algorithms.
 
 ### Voronoi Diagram Generation
 
 | Case | JCV 0.10 | d3-delaunay | d3-voronoi | gorhill/voronoi |
 |---|---:|---:|---:|---:|
-| 10k | 7.98 ms | 3.22 ms | 28.74 ms | 30.44 ms |
-| 100k | 119.73 ms | 31.65 ms | 296.61 ms | 333.71 ms |
-| 100k pathological | 32.78 ms | 9.21 ms | 124.02 ms | 3.25 s |
+| 10k | 7.43 ms | 3.09 ms | 28.75 ms | 30.97 ms |
+| 100k | 98.90 ms | 30.46 ms | 339.07 ms | 330.20 ms |
+| 100k pathological | 31.88 ms | 9.12 ms | 129.05 ms | 3.17 s |
 
 ### Generate + Get Sites
 
 | Case | JCV 0.10 | d3-delaunay | d3-voronoi | gorhill/voronoi |
 |---|---:|---:|---:|---:|
-| 10k | 8.64 ms | 6.88 ms | 27.85 ms | 34.29 ms |
-| 100k | 122.67 ms | 49.65 ms | 291.09 ms | 328.56 ms |
-| 100k pathological | 40.48 ms | 27.53 ms | 112.05 ms | 2.55 s |
+| 10k | 7.90 ms | 6.78 ms | 28.17 ms | 34.86 ms |
+| 100k | 101.83 ms | 48.16 ms | 317.60 ms | 324.23 ms |
+| 100k pathological | 34.86 ms | 27.35 ms | 113.89 ms | 2.53 s |
 
-### Generate + Get Edges
+### Generate + Render Edges
 
 | Case | JCV 0.10 | d3-delaunay | d3-voronoi | gorhill/voronoi |
 |---|---:|---:|---:|---:|
-| 10k | 11.95 ms | 11.68 ms | 27.53 ms | 35.57 ms |
-| 100k | 156.76 ms | 108.97 ms | 290.97 ms | 379.92 ms |
-| 100k pathological | 72.19 ms | 47.63 ms | 111.12 ms | 2.67 s |
+| 10k | 8.43 ms | 11.19 ms | 28.14 ms | 31.56 ms |
+| 100k | 102.08 ms | 107.60 ms | 317.79 ms | 380.50 ms |
+| 100k pathological | 36.70 ms | 47.42 ms | 115.17 ms | 2.69 s |
 
-<img src="images/benchmark/wasm-voronoi-edges.svg" alt="Get Voronoi Edges" width="350">
+<img src="images/benchmark/wasm-voronoi-edges.svg" alt="Render Voronoi Edges" width="350">
 
 ### Generate + Get Delauney
 
 | Case | JCV 0.10 | d3-delaunay | d3-voronoi | gorhill/voronoi |
 |---|---:|---:|---:|---:|
-| 10k | 11.65 ms | 5.51 ms | 30.70 ms | — |
-| 100k | 152.64 ms | 47.45 ms | 305.90 ms | — |
-| 100k pathological | 77.59 ms | 25.74 ms | 117.89 ms | — |
+| 10k | 7.90 ms | 5.44 ms | 31.02 ms | — |
+| 100k | 100.37 ms | 46.93 ms | 388.69 ms | — |
+| 100k pathological | 33.76 ms | 23.41 ms | 119.44 ms | — |
 
 <img src="images/benchmark/wasm-delauney-edges.svg" alt="Get Delauney Edges" width="350">
 
@@ -103,9 +103,9 @@ JCV uses the zero-copy JavaScript diagram API and disposes every compact native 
 
 | Case | JCV 0.10 | d3-delaunay | d3-voronoi | gorhill/voronoi |
 |---|---:|---:|---:|---:|
-| 10k | 9.6 MiB | 5.5 MiB | 31.3 MiB | 39.3 MiB |
-| 100k | 43.1 MiB | 17.8 MiB | 165.1 MiB | 177.8 MiB |
-| 100k pathological | 49.0 MiB | 15.6 MiB | 163.0 MiB | 181.8 MiB |
+| 10k | 9.9 MiB | 5.8 MiB | 31.4 MiB | 39.8 MiB |
+| 100k | 56.0 MiB | 17.9 MiB | 165.1 MiB | 173.0 MiB |
+| 100k pathological | 60.2 MiB | 15.9 MiB | 162.0 MiB | 181.5 MiB |
 
 <img src="images/benchmark/wasm-memory.svg" alt="Retained WebAssembly and JavaScript memory" width="350">
 
@@ -116,7 +116,7 @@ Each memory sample starts a fresh Node.js process, prepares the library-specific
 
 | Library | Dependencies | Compound module | Brotli | Compound LOC |
 |---|---:|---:|---:|---:|
-| JCV 0.10 | 0 | 28.1 KiB | 10.1 KiB | 2,738 |
+| JCV 0.10 | 0 | 27.8 KiB | 10.2 KiB | 2,730 |
 | d3-delaunay | 2 (delaunator, robust-predicates) | 18.6 KiB | 6.1 KiB | 1,258 |
 | d3-voronoi | 0 | 9.0 KiB | 3.4 KiB | 864 |
 | gorhill/voronoi | 0 | 16.0 KiB | 4.1 KiB | 1,072 |

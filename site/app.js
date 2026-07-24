@@ -114,20 +114,13 @@ function draw() {
     context.strokeStyle = "#ff9367aa";
     context.lineWidth = Math.max(1, window.devicePixelRatio || 1);
     context.beginPath();
-    for (const edge of diagram.edges) {
-      if (!edge.sites[0] || !edge.sites[1]) continue;
-      context.moveTo(edge.sites[0].p.x, edge.sites[0].p.y);
-      context.lineTo(edge.sites[1].p.x, edge.sites[1].p.y);
-    }
+    diagram.renderDelauney(context);
     context.stroke();
   }
   context.strokeStyle = "#72796c";
   context.lineWidth = Math.max(1, window.devicePixelRatio || 1);
   context.beginPath();
-  for (const edge of diagram.edges) {
-    context.moveTo(edge.pos[0].x, edge.pos[0].y);
-    context.lineTo(edge.pos[1].x, edge.pos[1].y);
-  }
+  diagram.render(context);
   context.stroke();
   const radius = 3.25 * (window.devicePixelRatio || 1);
   context.fillStyle = "#d8ff57";
@@ -136,11 +129,9 @@ function draw() {
     context.arc(point.x, point.y, radius, 0, Math.PI * 2);
     context.fill();
   }
-  const delauneyCount = showDelauney
-    ? diagram.edges.filter((edge) => edge.sites[0] && edge.sites[1]).length
-    : 0;
+  const delauneyCount = showDelauney ? diagram.numDelauneyEdges : 0;
   const delauneyStatus = showDelauney ? ` · ${delauneyCount} Delauney` : "";
-  status.textContent = `${diagram.numSites} sites · ${diagram.edges.length} edges${delauneyStatus}`;
+  status.textContent = `${diagram.numSites} sites · ${diagram.numEdges} edges${delauneyStatus}`;
 }
 
 async function copyJSON() {

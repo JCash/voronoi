@@ -23,7 +23,7 @@ const CASES = [
 const OPERATIONS = [
   [null, "Voronoi Diagram Generation", "generate", null],
   [null, "Generate + Get Sites", "sites", null],
-  ["voronoi-edges", "Generate + Get Edges", "edges", "Get Voronoi Edges"],
+  ["voronoi-edges", "Generate + Render Edges", "edges", "Render Voronoi Edges"],
   ["delauney-edges", "Generate + Get Delauney", "delauney", "Get Delauney Edges"],
 ];
 const LIBRARIES = [
@@ -57,6 +57,11 @@ function issue48Points() {
 }
 
 function prepareJcv(voronoi, points, bounds) {
+  let checksum = 0;
+  const context = {
+    moveTo: (x, y) => { checksum += x + y; },
+    lineTo: (x, y) => { checksum += x + y; },
+  };
   const withDiagram = (read) => {
     const diagram = voronoi.generate(points, { bounds });
     try {
@@ -69,19 +74,11 @@ function prepareJcv(voronoi, points, bounds) {
     generate: () => withDiagram((diagram) => diagram.numSites),
     sites: () => withDiagram((diagram) => diagram.sites.length),
     edges: () => withDiagram((diagram) => {
-      let checksum = 0;
-      for (const edge of diagram.edges) {
-        checksum += edge.pos[0].x + edge.pos[0].y + edge.pos[1].x + edge.pos[1].y;
-      }
+      checksum = 0;
+      diagram.render(context);
       return checksum;
     }),
-    delauney: () => withDiagram((diagram) => {
-      let count = 0;
-      for (const edge of diagram.edges) {
-        if (edge.sites[0] && edge.sites[1]) ++count;
-      }
-      return count;
-    }),
+    delauney: () => withDiagram((diagram) => diagram.numDelauneyEdges),
   };
 }
 
@@ -313,7 +310,7 @@ function markdown(results, memoryResults, codeSizes) {
     "",
     "The random cases use a deterministic seed. `100k pathological` is the issue48 input with 99,998 symmetric diagonal-pair sites. Each measurement has two untimed warmups followed by 10 samples for 10k and five samples for 100k and the pathological case.",
     "",
-    "JCV uses the zero-copy JavaScript diagram API and disposes every compact native snapshot inside the timed operation. Site access materializes ergonomic `Site` objects; edge access walks every `Edge` and reads both endpoint coordinates; Delauney access walks edges and reads their adjacent sites. Other libraries expose different public output forms: d3-voronoi and voronoi eagerly provide arrays, while d3-delaunay renders its Voronoi mesh. These rows therefore compare public access workflows, not identical post-processing algorithms.",
+    "JCV copies one packed result from WebAssembly into a JavaScript-owned `ArrayBuffer` and disposes each result inside the timed operation. Site access materializes ergonomic `Site` objects; edge rendering reads packed vertex arrays without creating edge objects; Delauney access reads the packed adjacency count. Other libraries expose different public output forms: d3-voronoi and voronoi eagerly provide arrays, while d3-delaunay renders its Voronoi mesh. These rows therefore compare public access workflows, not identical post-processing algorithms.",
     "",
   ];
 

@@ -1,5 +1,29 @@
 import createVoronoiModule from "./jc_voronoi.js";
 
+const PACK_MAGIC = 0x4a435631;
+const PACK_VERSION = 1;
+const HEADER = Object.freeze({
+  magic: 0,
+  version: 1,
+  byteLength: 2,
+  inputCount: 3,
+  siteCount: 4,
+  vertexCount: 5,
+  edgeCount: 6,
+  cellEdgeCount: 7,
+  inputMapOffset: 8,
+  sitesOffset: 9,
+  verticesOffset: 10,
+  edgesOffset: 11,
+  cellOffsetsOffset: 12,
+  cellRefsOffset: 13,
+});
+const SITE_WORDS = 4;
+const EDGE_WORDS = 4;
+const CELL_SITE_FLIP = 1;
+const CELL_POSITION_FLIP = 2;
+const CELL_EDGE_SHIFT = 2;
+
 function flattenPoints(points) {
   if (!Array.isArray(points) && !(points instanceof Float32Array)) {
     throw new TypeError("points must be an array or Float32Array");
@@ -41,24 +65,26 @@ function parseBounds(boundsOrWidth, height) {
 
 export async function loadVoronoi(moduleOptions = {}) {
   const module = await createVoronoiModule(moduleOptions);
-  const finalizer = typeof FinalizationRegistry === "function"
-    ? new FinalizationRegistry((pointer) => module._jcv_wasm_diagram_destroy(pointer))
-    : null;
 
   class Point {
-    constructor(diagram, pointer) {
+    constructor(diagram, kind, index) {
       this._diagram = diagram;
-      this._pointer = pointer;
+      this._kind = kind;
+      this._index = index;
     }
 
     get x() {
       this._diagram._assertAlive();
-      return module._jcv_wasm_point_x(this._pointer);
+      return this._kind === "site"
+        ? this._diagram._siteFloats[this._index * SITE_WORDS]
+        : this._diagram._vertices[this._index * 2];
     }
 
     get y() {
       this._diagram._assertAlive();
-      return module._jcv_wasm_point_y(this._pointer);
+      return this._kind === "site"
+        ? this._diagram._siteFloats[this._index * SITE_WORDS + 1]
+        : this._diagram._vertices[this._index * 2 + 1];
     }
 
     *[Symbol.iterator]() {
@@ -72,28 +98,26 @@ export async function loadVoronoi(moduleOptions = {}) {
   }
 
   class Site {
-    constructor(diagram, pointer) {
+    constructor(diagram, recordIndex) {
       this._diagram = diagram;
-      this._pointer = pointer;
+      this._recordIndex = recordIndex;
       this._point = null;
     }
 
     get p() {
       this._diagram._assertAlive();
-      if (!this._point) {
-        this._point = new Point(this._diagram, module._jcv_wasm_site_point(this._pointer));
-      }
+      if (!this._point) this._point = new Point(this._diagram, "site", this._recordIndex);
       return this._point;
     }
 
     get index() {
       this._diagram._assertAlive();
-      return module._jcv_wasm_site_index(this._pointer);
+      return this._diagram._siteWords[this._recordIndex * SITE_WORDS + 2];
     }
 
     get boundary() {
       this._diagram._assertAlive();
-      return Boolean(module._jcv_wasm_site_boundary(this._pointer));
+      return Boolean(this._diagram._siteWords[this._recordIndex * SITE_WORDS + 3]);
     }
 
     get cell() {
@@ -102,22 +126,23 @@ export async function loadVoronoi(moduleOptions = {}) {
   }
 
   class Edge {
-    constructor(diagram, pointer, flags = 0) {
+    constructor(diagram, edgeIndex, flags = 0) {
       this._diagram = diagram;
-      this._pointer = pointer;
-      this._siteFlip = flags & 1;
-      this._positionFlip = (flags >> 1) & 1;
+      this._edgeIndex = edgeIndex;
+      this._siteFlip = flags & CELL_SITE_FLIP;
+      this._positionFlip = (flags & CELL_POSITION_FLIP) >> 1;
       this._sites = null;
       this._positions = null;
-      this._vertices = null;
+      this._vertexIndices = null;
     }
 
     get sites() {
       this._diagram._assertAlive();
       if (!this._sites) {
-        this._sites = Object.freeze([0, 1].map((index) => {
-          const pointer = module._jcv_wasm_edge_site(this._pointer, index ^ this._siteFlip);
-          return pointer ? this._diagram._site(pointer) : null;
+        const offset = this._edgeIndex * EDGE_WORDS;
+        this._sites = Object.freeze([0, 1].map((endpoint) => {
+          const inputIndex = this._diagram._edgeWords[offset + (endpoint ^ this._siteFlip)];
+          return inputIndex < 0 ? null : this._diagram._siteForInput(inputIndex);
         }));
       }
       return this._sites;
@@ -126,9 +151,11 @@ export async function loadVoronoi(moduleOptions = {}) {
     get pos() {
       this._diagram._assertAlive();
       if (!this._positions) {
-        this._positions = Object.freeze([0, 1].map((index) => new Point(
+        const offset = this._edgeIndex * EDGE_WORDS + 2;
+        this._positions = Object.freeze([0, 1].map((endpoint) => new Point(
           this._diagram,
-          module._jcv_wasm_edge_position(this._pointer, index ^ this._positionFlip),
+          "vertex",
+          this._diagram._edgeWords[offset + (endpoint ^ this._positionFlip)],
         )));
       }
       return this._positions;
@@ -136,13 +163,14 @@ export async function loadVoronoi(moduleOptions = {}) {
 
     get vertices() {
       this._diagram._assertAlive();
-      if (!this._vertices) {
-        this._vertices = Object.freeze([
-          module._jcv_wasm_edge_vertex(this._pointer, this._positionFlip),
-          module._jcv_wasm_edge_vertex(this._pointer, 1 ^ this._positionFlip),
+      if (!this._vertexIndices) {
+        const offset = this._edgeIndex * EDGE_WORDS + 2;
+        this._vertexIndices = Object.freeze([
+          this._diagram._edgeWords[offset + this._positionFlip],
+          this._diagram._edgeWords[offset + (1 ^ this._positionFlip)],
         ]);
       }
-      return this._vertices;
+      return this._vertexIndices;
     }
   }
 
@@ -159,15 +187,16 @@ export async function loadVoronoi(moduleOptions = {}) {
     get edges() {
       this._diagram._assertAlive();
       if (!this._edges) {
-        const count = module._jcv_wasm_cell_edge_count(
-          this._diagram._pointer,
-          this._inputIndex,
-        );
-        this._edges = Object.freeze(Array.from({ length: count }, (_, index) => new Edge(
-          this._diagram,
-          module._jcv_wasm_cell_edge(this._diagram._pointer, this._inputIndex, index),
-          module._jcv_wasm_cell_edge_flags(this._diagram._pointer, this._inputIndex, index),
-        )));
+        const begin = this._diagram._cellOffsets[this._inputIndex];
+        const end = this._diagram._cellOffsets[this._inputIndex + 1];
+        this._edges = Object.freeze(Array.from({ length: end - begin }, (_, index) => {
+          const reference = this._diagram._cellRefs[begin + index];
+          return new Edge(
+            this._diagram,
+            reference >>> CELL_EDGE_SHIFT,
+            reference & ((1 << CELL_EDGE_SHIFT) - 1),
+          );
+        }));
       }
       return this._edges;
     }
@@ -179,8 +208,8 @@ export async function loadVoronoi(moduleOptions = {}) {
         const neighbors = [];
         for (const edge of this.edges) {
           const neighbor = edge.sites[1];
-          if (neighbor && !seen.has(neighbor._pointer)) {
-            seen.add(neighbor._pointer);
+          if (neighbor && !seen.has(neighbor._recordIndex)) {
+            seen.add(neighbor._recordIndex);
             neighbors.push(neighbor);
           }
         }
@@ -201,28 +230,48 @@ export async function loadVoronoi(moduleOptions = {}) {
   }
 
   class Diagram {
-    constructor(pointer, inputCount, bounds) {
-      this._pointer = pointer;
-      this._inputCount = inputCount;
+    constructor(buffer, bounds) {
+      const header = new Uint32Array(buffer, 0, HEADER.cellRefsOffset + 1);
+      if (header[HEADER.magic] !== PACK_MAGIC || header[HEADER.version] !== PACK_VERSION ||
+          header[HEADER.byteLength] !== buffer.byteLength) {
+        throw new Error("invalid packed Voronoi diagram");
+      }
+      this._buffer = buffer;
       this._bounds = Object.freeze([...bounds]);
-      this._siteCache = new Map();
+      this._inputCount = header[HEADER.inputCount];
+      this._siteCount = header[HEADER.siteCount];
+      this._vertexCount = header[HEADER.vertexCount];
+      this._edgeCount = header[HEADER.edgeCount];
+      this._delauneyEdgeCount = null;
+      this._inputToSite = new Int32Array(buffer, header[HEADER.inputMapOffset], this._inputCount);
+      this._siteWords = new Uint32Array(buffer, header[HEADER.sitesOffset], this._siteCount * SITE_WORDS);
+      this._siteFloats = new Float32Array(buffer, header[HEADER.sitesOffset], this._siteCount * SITE_WORDS);
+      this._vertices = new Float32Array(buffer, header[HEADER.verticesOffset], this._vertexCount * 2);
+      this._edgeWords = new Int32Array(buffer, header[HEADER.edgesOffset], this._edgeCount * EDGE_WORDS);
+      this._cellOffsets = new Uint32Array(buffer, header[HEADER.cellOffsetsOffset], this._inputCount + 1);
+      this._cellRefs = new Uint32Array(buffer, header[HEADER.cellRefsOffset], header[HEADER.cellEdgeCount]);
+      this._siteCache = Array(this._siteCount);
       this._cellCache = new Map();
       this._sites = null;
       this._edges = null;
-      finalizer?.register(this, pointer, this);
     }
 
     _assertAlive() {
-      if (!this._pointer) throw new Error("Voronoi diagram has been disposed");
+      if (!this._buffer) throw new Error("Voronoi diagram has been disposed");
     }
 
-    _site(pointer) {
-      let site = this._siteCache.get(pointer);
+    _site(recordIndex) {
+      let site = this._siteCache[recordIndex];
       if (!site) {
-        site = new Site(this, pointer);
-        this._siteCache.set(pointer, site);
+        site = new Site(this, recordIndex);
+        this._siteCache[recordIndex] = site;
       }
       return site;
+    }
+
+    _siteForInput(inputIndex) {
+      const recordIndex = this._inputToSite[inputIndex];
+      return recordIndex < 0 ? null : this._site(recordIndex);
     }
 
     get bounds() {
@@ -235,20 +284,36 @@ export async function loadVoronoi(moduleOptions = {}) {
 
     get numSites() {
       this._assertAlive();
-      return module._jcv_wasm_diagram_site_count(this._pointer);
+      return this._siteCount;
     }
 
     get numVertices() {
       this._assertAlive();
-      return module._jcv_wasm_diagram_vertex_count(this._pointer);
+      return this._vertexCount;
+    }
+
+    get numEdges() {
+      this._assertAlive();
+      return this._edgeCount;
+    }
+
+    get numDelauneyEdges() {
+      this._assertAlive();
+      if (this._delauneyEdgeCount === null) {
+        let count = 0;
+        for (let index = 0; index < this._edgeCount; ++index) {
+          const offset = index * EDGE_WORDS;
+          if (this._edgeWords[offset] >= 0 && this._edgeWords[offset + 1] >= 0) ++count;
+        }
+        this._delauneyEdgeCount = count;
+      }
+      return this._delauneyEdgeCount;
     }
 
     get sites() {
       this._assertAlive();
       if (!this._sites) {
-        this._sites = Object.freeze(Array.from({ length: this.numSites }, (_, index) => this._site(
-          module._jcv_wasm_diagram_site_at(this._pointer, index),
-        )));
+        this._sites = Object.freeze(Array.from({ length: this._siteCount }, (_, index) => this._site(index)));
       }
       return this._sites;
     }
@@ -256,15 +321,14 @@ export async function loadVoronoi(moduleOptions = {}) {
     site(inputIndex) {
       this._assertInputIndex(inputIndex);
       this._assertAlive();
-      const pointer = module._jcv_wasm_diagram_site(this._pointer, inputIndex);
-      return pointer ? this._site(pointer) : null;
+      return this._siteForInput(inputIndex);
     }
 
     cell(inputIndex) {
       this._assertInputIndex(inputIndex);
       this._assertAlive();
       if (this._cellCache.has(inputIndex)) return this._cellCache.get(inputIndex);
-      const site = this.site(inputIndex);
+      const site = this._siteForInput(inputIndex);
       const cell = site ? new Cell(this, inputIndex, site) : null;
       this._cellCache.set(inputIndex, cell);
       return cell;
@@ -278,13 +342,36 @@ export async function loadVoronoi(moduleOptions = {}) {
     get edges() {
       this._assertAlive();
       if (!this._edges) {
-        const count = module._jcv_wasm_diagram_edge_count(this._pointer);
-        this._edges = Object.freeze(Array.from({ length: count }, (_, index) => new Edge(
-          this,
-          module._jcv_wasm_diagram_edge(this._pointer, index),
-        )));
+        this._edges = Object.freeze(Array.from({ length: this._edgeCount }, (_, index) => new Edge(this, index)));
       }
       return this._edges;
+    }
+
+    render(context) {
+      this._assertAlive();
+      for (let index = 0; index < this._edgeCount; ++index) {
+        const offset = index * EDGE_WORDS + 2;
+        const vertex0 = this._edgeWords[offset] * 2;
+        const vertex1 = this._edgeWords[offset + 1] * 2;
+        context.moveTo(this._vertices[vertex0], this._vertices[vertex0 + 1]);
+        context.lineTo(this._vertices[vertex1], this._vertices[vertex1 + 1]);
+      }
+      return context;
+    }
+
+    renderDelauney(context) {
+      this._assertAlive();
+      for (let index = 0; index < this._edgeCount; ++index) {
+        const offset = index * EDGE_WORDS;
+        const input0 = this._edgeWords[offset];
+        const input1 = this._edgeWords[offset + 1];
+        if (input0 < 0 || input1 < 0) continue;
+        const site0 = this._inputToSite[input0] * SITE_WORDS;
+        const site1 = this._inputToSite[input1] * SITE_WORDS;
+        context.moveTo(this._siteFloats[site0], this._siteFloats[site0 + 1]);
+        context.lineTo(this._siteFloats[site1], this._siteFloats[site1 + 1]);
+      }
+      return context;
     }
 
     _assertInputIndex(inputIndex) {
@@ -294,10 +381,19 @@ export async function loadVoronoi(moduleOptions = {}) {
     }
 
     dispose() {
-      if (!this._pointer) return;
-      finalizer?.unregister(this);
-      module._jcv_wasm_diagram_destroy(this._pointer);
-      this._pointer = 0;
+      if (!this._buffer) return;
+      this._buffer = null;
+      this._inputToSite = null;
+      this._siteWords = null;
+      this._siteFloats = null;
+      this._vertices = null;
+      this._edgeWords = null;
+      this._cellOffsets = null;
+      this._cellRefs = null;
+      this._siteCache = null;
+      this._cellCache = null;
+      this._sites = null;
+      this._edges = null;
     }
   }
 
@@ -319,23 +415,30 @@ export async function loadVoronoi(moduleOptions = {}) {
   function generate(points, boundsOrWidth, height) {
     const bounds = parseBounds(boundsOrWidth, height);
     return withPoints(points, (flat, pointsPointer) => {
-      const pointer = module._jcv_wasm_diagram_create(
-        pointsPointer,
-        flat.length / 2,
-        ...bounds,
-      );
-      if (!pointer) throw new Error("Voronoi diagram allocation failed");
-      return new Diagram(pointer, flat.length / 2, bounds);
+      let pointer = 0;
+      try {
+        pointer = module._jcv_wasm_generate_packed(
+          pointsPointer,
+          flat.length / 2,
+          ...bounds,
+        );
+        if (!pointer) throw new Error("Voronoi diagram allocation failed");
+        const byteLength = module.HEAP32[(pointer >> 2) + HEADER.byteLength];
+        const buffer = module.HEAPU8.slice(pointer, pointer + byteLength).buffer;
+        return new Diagram(buffer, bounds);
+      } finally {
+        if (pointer) module._free(pointer);
+      }
     });
   }
 
-  function generateEdges(points, width, height, generate) {
+  function generateEdges(points, width, height, generateEdgesNative) {
     return withPoints(points, (flat, pointsPointer) => {
       let countPointer = 0;
       let edgesPointer = 0;
       try {
         countPointer = module._malloc(Int32Array.BYTES_PER_ELEMENT);
-        edgesPointer = generate(
+        edgesPointer = generateEdgesNative(
           pointsPointer, flat.length / 2, width, height, countPointer,
         );
         const edgeCount = module.HEAP32[countPointer / Int32Array.BYTES_PER_ELEMENT];

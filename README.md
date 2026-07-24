@@ -156,9 +156,9 @@ const edges = voronoi.edges(
 // Float32Array: x0, y0, x1, y1 for each edge
 ```
 
-For site, cell, and edge information, create a persistent zero-copy diagram.
-The JavaScript objects read directly from a compact native snapshot in
-WebAssembly memory, so dispose the diagram when it is no longer needed:
+For site, cell, and edge information, generate an ergonomic diagram. The result
+is copied once into a compact JavaScript-owned `ArrayBuffer`, and subsequent
+object access reads that buffer without calling into WebAssembly:
 
 ```js
 const diagram = voronoi.generate(
@@ -166,25 +166,22 @@ const diagram = voronoi.generate(
   { bounds: [0, 0, 100, 100] },
 );
 
-try {
-  const cell = diagram.cell(0); // null if the input site was pruned
-  if (cell) {
-    console.log(cell.site.index, cell.site.p.x, cell.site.p.y);
-    for (const { x, y } of cell.polygon) console.log(x, y);
-    for (const edge of cell.edges) {
-      console.log(edge.pos[0], edge.pos[1], edge.sites[1]);
-    }
+const cell = diagram.cell(0); // null if the input site was pruned
+if (cell) {
+  console.log(cell.site.index, cell.site.p.x, cell.site.p.y);
+  for (const { x, y } of cell.polygon) console.log(x, y);
+  for (const edge of cell.edges) {
+    console.log(edge.pos[0], edge.pos[1], edge.sites[1]);
   }
-} finally {
-  diagram.dispose();
 }
 ```
 
-`diagram.sites` contains the retained native sites, `diagram.edges` contains
-all native edges, and `diagram.neighbors(inputIndex)` returns neighboring
+`diagram.sites` contains the retained sites, `diagram.edges` contains all
+Voronoi edges, and `diagram.neighbors(inputIndex)` returns neighboring
 `Site` objects. Cell edges are counter-clockwise. Points support both `.x` /
 `.y` access and `[x, y]` destructuring. Accessing a diagram object after
-`dispose()` throws an error.
+`dispose()` throws an error. Disposal is optional because the result buffer is
+owned and garbage-collected by JavaScript; use it only to release memory eagerly.
 
 To build the package locally, install the Emscripten SDK and run
 `./scripts/build_wasm.sh`. The output is written to `build/wasm` by default.

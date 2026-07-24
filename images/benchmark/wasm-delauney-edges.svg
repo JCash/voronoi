@@ -8,45 +8,45 @@
   <line x1="120" y1="575" x2="1150" y2="575" stroke="#d8dee8"/>
   <text x="108" y="580" font-family="system-ui, sans-serif" font-size="13" fill="#536174" text-anchor="end">0</text>
   <line x1="120" y1="482" x2="1150" y2="482" stroke="#d8dee8"/>
-  <text x="108" y="487" font-family="system-ui, sans-serif" font-size="13" fill="#536174" text-anchor="end">80.00 ms</text>
+  <text x="108" y="487" font-family="system-ui, sans-serif" font-size="13" fill="#536174" text-anchor="end">100.00 ms</text>
   <line x1="120" y1="389" x2="1150" y2="389" stroke="#d8dee8"/>
-  <text x="108" y="394" font-family="system-ui, sans-serif" font-size="13" fill="#536174" text-anchor="end">160.00 ms</text>
+  <text x="108" y="394" font-family="system-ui, sans-serif" font-size="13" fill="#536174" text-anchor="end">200.00 ms</text>
   <line x1="120" y1="296" x2="1150" y2="296" stroke="#d8dee8"/>
-  <text x="108" y="301" font-family="system-ui, sans-serif" font-size="13" fill="#536174" text-anchor="end">240.00 ms</text>
+  <text x="108" y="301" font-family="system-ui, sans-serif" font-size="13" fill="#536174" text-anchor="end">300.00 ms</text>
   <line x1="120" y1="203" x2="1150" y2="203" stroke="#d8dee8"/>
-  <text x="108" y="208" font-family="system-ui, sans-serif" font-size="13" fill="#536174" text-anchor="end">320.00 ms</text>
+  <text x="108" y="208" font-family="system-ui, sans-serif" font-size="13" fill="#536174" text-anchor="end">400.00 ms</text>
   <line x1="120" y1="110" x2="1150" y2="110" stroke="#d8dee8"/>
-  <text x="108" y="115" font-family="system-ui, sans-serif" font-size="13" fill="#536174" text-anchor="end">400.00 ms</text>
+  <text x="108" y="115" font-family="system-ui, sans-serif" font-size="13" fill="#536174" text-anchor="end">500.00 ms</text>
   <text x="291.66666666666663" y="612" font-family="system-ui, sans-serif" font-size="15" font-weight="600" fill="#26354a" text-anchor="middle">10k</text>
-  <rect x="211.66666666666663" y="561.46" width="48" height="13.54" rx="4" fill="#5267d9"/>
-  <text x="235.66666666666663" y="553.46" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">11.65 ms</text>
-  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="211.66666666666663" y="560.00" width="48" height="15.00"><title>JCV 0.10, 10k: median 11.65 ms</title></rect></g>
-  <rect x="267.66666666666663" y="568.59" width="48" height="6.41" rx="4" fill="#14a38b"/>
-  <text x="291.66666666666663" y="546.59" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">5.51 ms</text>
-  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="267.66666666666663" y="560.00" width="48" height="15.00"><title>d3-delaunay, 10k: median 5.51 ms</title></rect></g>
-  <rect x="323.66666666666663" y="539.31" width="48" height="35.69" rx="4" fill="#e08b35"/>
-  <text x="347.66666666666663" y="531.31" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">30.70 ms</text>
-  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="323.66666666666663" y="539.31" width="48" height="35.69"><title>d3-voronoi, 10k: median 30.70 ms</title></rect></g>
+  <rect x="211.66666666666663" y="567.65" width="48" height="7.35" rx="4" fill="#5267d9"/>
+  <text x="235.66666666666663" y="559.65" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">7.90 ms</text>
+  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="211.66666666666663" y="560.00" width="48" height="15.00"><title>JCV 0.10, 10k: median 7.90 ms</title></rect></g>
+  <rect x="267.66666666666663" y="569.94" width="48" height="5.06" rx="4" fill="#14a38b"/>
+  <text x="291.66666666666663" y="547.94" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">5.44 ms</text>
+  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="267.66666666666663" y="560.00" width="48" height="15.00"><title>d3-delaunay, 10k: median 5.44 ms</title></rect></g>
+  <rect x="323.66666666666663" y="546.15" width="48" height="28.85" rx="4" fill="#e08b35"/>
+  <text x="347.66666666666663" y="538.15" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">31.02 ms</text>
+  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="323.66666666666663" y="546.15" width="48" height="28.85"><title>d3-voronoi, 10k: median 31.02 ms</title></rect></g>
   <text x="635" y="612" font-family="system-ui, sans-serif" font-size="15" font-weight="600" fill="#26354a" text-anchor="middle">100k</text>
-  <rect x="555" y="397.56" width="48" height="177.44" rx="4" fill="#5267d9"/>
-  <text x="579" y="389.56" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">152.64 ms</text>
-  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="555" y="397.56" width="48" height="177.44"><title>JCV 0.10, 100k: median 152.64 ms</title></rect></g>
-  <rect x="611" y="519.83" width="48" height="55.17" rx="4" fill="#14a38b"/>
-  <text x="635" y="497.83" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">47.45 ms</text>
-  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="611" y="519.83" width="48" height="55.17"><title>d3-delaunay, 100k: median 47.45 ms</title></rect></g>
-  <rect x="667" y="219.40" width="48" height="355.60" rx="4" fill="#e08b35"/>
-  <text x="691" y="211.40" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">305.90 ms</text>
-  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="667" y="219.40" width="48" height="355.60"><title>d3-voronoi, 100k: median 305.90 ms</title></rect></g>
+  <rect x="555" y="481.66" width="48" height="93.34" rx="4" fill="#5267d9"/>
+  <text x="579" y="473.66" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">100.37 ms</text>
+  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="555" y="481.66" width="48" height="93.34"><title>JCV 0.10, 100k: median 100.37 ms</title></rect></g>
+  <rect x="611" y="531.35" width="48" height="43.65" rx="4" fill="#14a38b"/>
+  <text x="635" y="509.35" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">46.93 ms</text>
+  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="611" y="531.35" width="48" height="43.65"><title>d3-delaunay, 100k: median 46.93 ms</title></rect></g>
+  <rect x="667" y="213.52" width="48" height="361.48" rx="4" fill="#e08b35"/>
+  <text x="691" y="205.52" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">388.69 ms</text>
+  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="667" y="213.52" width="48" height="361.48"><title>d3-voronoi, 100k: median 388.69 ms</title></rect></g>
   <text x="978.3333333333333" y="612" font-family="system-ui, sans-serif" font-size="15" font-weight="600" fill="#26354a" text-anchor="middle">100k pathological</text>
-  <rect x="898.3333333333333" y="484.80" width="48" height="90.20" rx="4" fill="#5267d9"/>
-  <text x="922.3333333333333" y="476.80" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">77.59 ms</text>
-  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="898.3333333333333" y="484.80" width="48" height="90.20"><title>JCV 0.10, 100k pathological: median 77.59 ms</title></rect></g>
-  <rect x="954.3333333333333" y="545.07" width="48" height="29.93" rx="4" fill="#14a38b"/>
-  <text x="978.3333333333333" y="523.07" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">25.74 ms</text>
-  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="954.3333333333333" y="545.07" width="48" height="29.93"><title>d3-delaunay, 100k pathological: median 25.74 ms</title></rect></g>
-  <rect x="1010.3333333333333" y="437.95" width="48" height="137.05" rx="4" fill="#e08b35"/>
-  <text x="1034.3333333333333" y="429.95" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">117.89 ms</text>
-  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="1010.3333333333333" y="437.95" width="48" height="137.05"><title>d3-voronoi, 100k pathological: median 117.89 ms</title></rect></g>
+  <rect x="898.3333333333333" y="543.60" width="48" height="31.40" rx="4" fill="#5267d9"/>
+  <text x="922.3333333333333" y="535.60" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">33.76 ms</text>
+  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="898.3333333333333" y="543.60" width="48" height="31.40"><title>JCV 0.10, 100k pathological: median 33.76 ms</title></rect></g>
+  <rect x="954.3333333333333" y="553.23" width="48" height="21.77" rx="4" fill="#14a38b"/>
+  <text x="978.3333333333333" y="531.23" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">23.41 ms</text>
+  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="954.3333333333333" y="553.23" width="48" height="21.77"><title>d3-delaunay, 100k pathological: median 23.41 ms</title></rect></g>
+  <rect x="1010.3333333333333" y="463.92" width="48" height="111.08" rx="4" fill="#e08b35"/>
+  <text x="1034.3333333333333" y="455.92" font-family="system-ui, sans-serif" font-size="10" font-weight="650" fill="#35445a" text-anchor="middle">119.44 ms</text>
+  <g class="stat-bar" tabindex="0"><rect class="stat-hit" x="1010.3333333333333" y="463.92" width="48" height="111.08"><title>d3-voronoi, 100k pathological: median 119.44 ms</title></rect></g>
   <rect x="285" y="660" width="16" height="16" rx="3" fill="#5267d9"/><text x="309" y="674" font-family="system-ui, sans-serif" font-size="14" fill="#344258">JCV 0.10</text>
   <rect x="495" y="660" width="16" height="16" rx="3" fill="#14a38b"/><text x="519" y="674" font-family="system-ui, sans-serif" font-size="14" fill="#344258">d3-delaunay</text>
   <rect x="705" y="660" width="16" height="16" rx="3" fill="#e08b35"/><text x="729" y="674" font-family="system-ui, sans-serif" font-size="14" fill="#344258">d3-voronoi</text>

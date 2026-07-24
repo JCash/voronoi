@@ -29,9 +29,29 @@ const diagram = voronoi.generate(points, { bounds: [0, 0, 100, 100] });
 assert.equal(diagram.inputCount, 3);
 assert.equal(diagram.numSites, 3);
 assert.ok(diagram.numVertices > 0);
+assert.equal(diagram.numEdges, diagram.edges.length);
+assert.equal(
+  diagram.numDelauneyEdges,
+  diagram.edges.filter((edge) => edge.sites[0] && edge.sites[1]).length,
+);
 assert.deepEqual(diagram.bounds, [0, 0, 100, 100]);
 assert.equal(diagram.sites.length, 3);
 assert.ok(diagram.edges.length > 0);
+
+const voronoiPath = [];
+const pathContext = {
+  moveTo: (x, y) => voronoiPath.push(["M", x, y]),
+  lineTo: (x, y) => voronoiPath.push(["L", x, y]),
+};
+assert.equal(diagram.render(pathContext), pathContext);
+assert.equal(voronoiPath.length, diagram.numEdges * 2);
+const delauneyPath = [];
+const delauneyContext = {
+  moveTo: (x, y) => delauneyPath.push(["M", x, y]),
+  lineTo: (x, y) => delauneyPath.push(["L", x, y]),
+};
+assert.equal(diagram.renderDelauney(delauneyContext), delauneyContext);
+assert.equal(delauneyPath.length, diagram.numDelauneyEdges * 2);
 
 const cell = diagram.cell(0);
 assert.ok(cell);

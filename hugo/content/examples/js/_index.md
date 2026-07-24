@@ -5,7 +5,7 @@ aliases:
   - /examples/wasm/
 ---
 
-Use the WebAssembly package through its ergonomic, zero-copy JavaScript API.
+Use the WebAssembly package through its ergonomic JavaScript API.
 
 ## Start here
 

@@ -28,10 +28,11 @@ if (cell) {
   console.log(cell.site, cell.polygon, cell.edges, cell.neighbors);
 }
 
-diagram.dispose();
 ```
 
-The diagram and its sites, edges, cells, neighbors, and polygon points are zero-copy views over one compact WebAssembly allocation. A cell is `null` when its input point was pruned.
+The result is copied once into a compact JavaScript-owned `ArrayBuffer`. Sites, edges, cells, neighbors, and polygon points read that buffer directly without further WebAssembly calls. A cell is `null` when its input point was pruned.
+
+The buffer is garbage-collected normally. Call `diagram.dispose()` only when you want to release it eagerly and invalidate the diagram immediately.
 
 Build the package locally with an installed Emscripten SDK:
 
