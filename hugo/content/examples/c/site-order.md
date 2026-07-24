@@ -1,6 +1,8 @@
 ---
 title: Sites in input order
 weight: 2
+aliases:
+  - /examples/site-order/
 ---
 
 Sites are sorted for the sweep algorithm. Each site's `index` points back to its original input point, so create a reverse lookup when input order matters.

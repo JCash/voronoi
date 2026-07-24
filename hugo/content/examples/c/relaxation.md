@@ -1,6 +1,8 @@
 ---
 title: Relax points
 weight: 5
+aliases:
+  - /examples/relaxation/
 ---
 
 Move each site toward the average of its cell vertices for a simple relaxation pass.

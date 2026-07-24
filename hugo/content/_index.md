@@ -23,7 +23,7 @@ cascade:
       </ul>
       <div class="voronoi-actions">
         <a class="voronoi-primary" href="docs/">Get started</a>
-        <a href="examples/">Browse C examples</a>
+        <a href="examples/">Browse Examples</a>
       </div>
     </header>
     {{< voronoi-app intro="false" >}}

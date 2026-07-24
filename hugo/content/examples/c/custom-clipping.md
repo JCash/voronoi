@@ -1,6 +1,8 @@
 ---
 title: Custom clipping
 weight: 6
+aliases:
+  - /examples/custom-clipping/
 ---
 
 The optional `jc_voronoi_clip.h` header clips edges against a convex polygon.

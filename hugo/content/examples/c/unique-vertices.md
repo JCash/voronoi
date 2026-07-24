@@ -1,6 +1,8 @@
 ---
 title: Unique vertices
 weight: 3
+aliases:
+  - /examples/unique-vertices/
 ---
 
 Each edge endpoint has a contiguous vertex index, so clients can create an indexed list without comparing floating-point coordinates.

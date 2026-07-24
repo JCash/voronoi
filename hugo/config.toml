@@ -58,7 +58,7 @@ enableRobotsTXT = true
     pageRef = "/docs"
     weight = 2
   [[menu.main]]
-    name = "Examples - C"
+    name = "Examples"
     pageRef = "/examples"
     weight = 3
   [[menu.main]]

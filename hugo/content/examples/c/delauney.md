@@ -1,6 +1,8 @@
 ---
 title: Delauney adjacency
 weight: 4
+aliases:
+  - /examples/delauney/
 ---
 
 When only adjacency is needed, skip clipping and Voronoi cell topology.

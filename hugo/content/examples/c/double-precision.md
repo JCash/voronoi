@@ -1,6 +1,8 @@
 ---
 title: Double precision
 weight: 7
+aliases:
+  - /examples/double-precision/
 ---
 
 Override the scalar type and matching math operations before emitting the implementation. Use the same configuration in every translation unit that includes the header.

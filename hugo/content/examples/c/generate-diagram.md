@@ -2,6 +2,8 @@
 title: Generate a diagram
 weight: 1
 toc: false
+aliases:
+  - /examples/generate-diagram/
 ---
 
 {{< example-diagram points="0.08,0.1;0.92,0.1;0.5,0.9" >}}

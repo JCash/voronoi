@@ -1,6 +1,8 @@
 ---
 title: WebAssembly
 weight: 8
+aliases:
+  - /examples/webassembly/
 ---
 
 Tagged releases include `jc_voronoi.wasm`, Emscripten's ES-module loader, and a small browser/Node.js wrapper.

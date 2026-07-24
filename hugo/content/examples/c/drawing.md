@@ -1,6 +1,8 @@
 ---
 title: Draw edges and cells
 weight: 9
+aliases:
+  - /examples/drawing/
 ---
 
 Diagram iteration returns every Voronoi edge once. Site iteration returns each site's edges counter-clockwise, with endpoints oriented around the cell.

@@ -28,4 +28,4 @@ Pass `NULL` for the bounding rectangle to calculate one automatically. Pass `NUL
 
 Input points are pruned when they are duplicates, outside the bounding box, or rejected by the clipper's test function.
 
-See the [examples](../../examples/) for complete generation and traversal patterns. The header remains the authoritative reference for structures and configuration macros.
+See the [C examples](../../examples/c/) for complete generation and traversal patterns. The header remains the authoritative reference for structures and configuration macros.
