@@ -9,30 +9,30 @@ The JavaScript API loads the WebAssembly module and exposes persistent diagram o
 
 ### Types
 
-| Type | Purpose |
-|---|---|
-| [`Voronoi`](#voronoi) | Loaded module used to generate diagrams |
-| [`Diagram`](#diagram) | Persistent generated result and entry point for topology |
-| [`Site`](#site) | Retained input point and cell metadata |
-| [`Cell`](#cell) | One site's polygon, edges, and neighbors |
-| [`Edge`](#edge) | Voronoi segment, adjacent sites, and vertex indices |
-| [`Point`](#point) | Two-dimensional coordinate |
+<table class="api-summary"><tbody>
+<tr><td><a href="#voronoi"><code>Voronoi</code></a></td><td>Loaded module used to generate diagrams.</td></tr>
+<tr><td><a href="#diagram"><code>Diagram</code></a></td><td>Persistent generated result and entry point for topology.</td></tr>
+<tr><td><a href="#site"><code>Site</code></a></td><td>Retained input point and cell metadata.</td></tr>
+<tr><td><a href="#cell"><code>Cell</code></a></td><td>One site's polygon, edges, and neighbors.</td></tr>
+<tr><td><a href="#edge"><code>Edge</code></a></td><td>Voronoi segment, adjacent sites, and vertex indices.</td></tr>
+<tr><td><a href="#point"><code>Point</code></a></td><td>Two-dimensional coordinate.</td></tr>
+</tbody></table>
 
 ### Functions and methods
 
-| Function | Result |
-|---|---|
-| [`loadVoronoi(options?)`](#load-the-module) | Loads and initializes the WebAssembly module |
-| [`voronoi.generate(points, width, height)`](#voronoi) | Generates a persistent `Diagram` |
-| [`voronoi.generate(points, options)`](#voronoi) | Generates a `Diagram` using explicit bounds or dimensions |
-| [`voronoi.edges(points, width, height)`](#compatibility-helpers) | Returns flat Voronoi edge coordinates |
-| [`voronoi.delauneyEdges(points, width, height)`](#compatibility-helpers) | Returns flat Delauney edge coordinates |
-| [`diagram.site(inputIndex)`](#diagram) | Returns the retained `Site`, or `null` when pruned |
-| [`diagram.cell(inputIndex)`](#diagram) | Returns the site's `Cell`, or `null` when pruned |
-| [`diagram.neighbors(inputIndex)`](#diagram) | Returns neighboring `Site` objects |
-| [`diagram.render(context)`](#diagram) | Adds all Voronoi segments to a path context without creating edge objects |
-| [`diagram.renderDelauney(context)`](#diagram) | Adds all Delauney segments to a path context without creating edge objects |
-| [`diagram.dispose()`](#diagram) | Eagerly releases the JavaScript-owned result buffer |
+<table class="api-summary"><tbody>
+<tr><td><a href="#load-the-module"><code>loadVoronoi(options?)</code></a></td><td>Load and initialize the WebAssembly module.</td></tr>
+<tr><td><a href="#voronoi"><code>voronoi.generate(points, width, height)</code></a></td><td>Generate a persistent <code>Diagram</code>.</td></tr>
+<tr><td><a href="#voronoi"><code>voronoi.generate(points, options)</code></a></td><td>Generate a <code>Diagram</code> using explicit bounds or dimensions.</td></tr>
+<tr><td><a href="#compatibility-helpers"><code>voronoi.edges(points, width, height)</code></a></td><td>Return flat Voronoi edge coordinates.</td></tr>
+<tr><td><a href="#compatibility-helpers"><code>voronoi.delauneyEdges(points, width, height)</code></a></td><td>Return flat Delauney edge coordinates.</td></tr>
+<tr><td><a href="#diagram"><code>diagram.site(inputIndex)</code></a></td><td>Return the retained <code>Site</code>, or <code>null</code> when pruned.</td></tr>
+<tr><td><a href="#diagram"><code>diagram.cell(inputIndex)</code></a></td><td>Return the site's <code>Cell</code>, or <code>null</code> when pruned.</td></tr>
+<tr><td><a href="#diagram"><code>diagram.neighbors(inputIndex)</code></a></td><td>Return neighboring <code>Site</code> objects.</td></tr>
+<tr><td><a href="#diagram"><code>diagram.render(context)</code></a></td><td>Add all Voronoi segments to a path context without creating edge objects.</td></tr>
+<tr><td><a href="#diagram"><code>diagram.renderDelauney(context)</code></a></td><td>Add all Delauney segments to a path context without creating edge objects.</td></tr>
+<tr><td><a href="#diagram"><code>diagram.dispose()</code></a></td><td>Eagerly release the JavaScript-owned result buffer.</td></tr>
+</tbody></table>
 
 ## Load the module
 
