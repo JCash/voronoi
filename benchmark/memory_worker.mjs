@@ -75,8 +75,14 @@ if (library === "JCV 0.10") {
 
 await collectGarbage();
 const baseline = process.memoryUsage().rss;
+const baselineMaximum = process.resourceUsage().maxRSS * 1024;
 globalThis.retainedDiagram = generate();
+const generatedMaximum = process.resourceUsage().maxRSS * 1024;
 await collectGarbage();
 const retained = process.memoryUsage().rss;
+const retainedBytes = Math.max(0, retained - baseline);
 
-process.stdout.write(JSON.stringify({ bytes: Math.max(0, retained - baseline) }));
+process.stdout.write(JSON.stringify({
+  peakBytes: Math.max(retainedBytes, generatedMaximum - baselineMaximum),
+  retainedBytes,
+}));

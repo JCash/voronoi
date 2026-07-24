@@ -99,25 +99,25 @@ JCV copies one packed result from WebAssembly into a JavaScript-owned `ArrayBuff
 
 <img src="images/benchmark/wasm-delauney-edges.svg" alt="Get Delauney Edges" width="350">
 
-### Retained runtime memory
+### Peak and retained runtime memory
 
 | Case | JCV 0.10 | d3-delaunay | d3-voronoi | gorhill/voronoi |
 |---|---:|---:|---:|---:|
-| 10k | 9.8 MiB | 5.8 MiB | 32.2 MiB | 39.2 MiB |
-| 100k | 56.0 MiB | 18.0 MiB | 165.0 MiB | 173.0 MiB |
-| 100k pathological | 60.1 MiB | 15.7 MiB | 162.1 MiB | 181.8 MiB |
+| 10k | 27.5 MiB / 22.2 MiB | 5.4 MiB / 5.4 MiB | 31.0 MiB / 31.0 MiB | 39.5 MiB / 39.5 MiB |
+| 100k | 64.4 MiB / 32.8 MiB | 18.0 MiB / 18.0 MiB | 169.0 MiB / 164.5 MiB | 180.1 MiB / 174.0 MiB |
+| 100k pathological | 72.4 MiB / 32.2 MiB | 16.0 MiB / 15.9 MiB | 166.3 MiB / 162.5 MiB | 186.8 MiB / 181.9 MiB |
 
-Each memory sample starts a fresh Node.js process, prepares the library-specific input, forces garbage collection, records a baseline, generates and retains one public diagram, forces garbage collection again, and records the resident-memory delta. Values are medians of 3 isolated samples. Input arrays and initialized library runtimes are part of the baseline. Resident memory is runtime- and operating-system-dependent, so compare entries only within the environment reported below.
+<img src="images/benchmark/wasm-memory.svg" alt="Peak and retained WebAssembly and JavaScript memory" width="350">
+
+Each entry is peak / retained RSS delta. Each sample starts a fresh Node.js process, prepares the library-specific input, forces garbage collection, records a baseline, generates and retains one public diagram, then forces garbage collection again. JCV uses the one-shot worker API; its worker terminates before the retained measurement. JCV peak RSS is sampled while the worker runs; comparison-library peak RSS uses the process high-water mark. Values are medians of 3 isolated samples. Input arrays and initialized runtimes are part of the baseline. RSS is runtime- and operating-system-dependent, so compare entries only within the environment reported below.
 
 ### Worker-backed JCV peak and retained memory
 
 | Case | Tracked peak | Retained diagram | Observed peak RSS | Observed retained RSS |
 |---|---:|---:|---:|---:|
-| 10k | 17.3 MiB | 1.1 MiB | 27.3 MiB | 22.0 MiB |
-| 100k | 50.9 MiB | 10.7 MiB | 67.2 MiB | 32.8 MiB |
-| 100k pathological | 59.1 MiB | 9.4 MiB | 77.3 MiB | 32.3 MiB |
-
-<img src="images/benchmark/wasm-memory.svg" alt="Worker-backed JCV peak and retained memory" width="350">
+| 10k | 17.3 MiB | 1.1 MiB | 27.5 MiB | 22.2 MiB |
+| 100k | 50.9 MiB | 10.7 MiB | 64.4 MiB | 32.8 MiB |
+| 100k pathological | 59.1 MiB | 9.4 MiB | 72.4 MiB | 32.2 MiB |
 
 The tracked peak is the transferred input, the worker's WebAssembly linear memory, and the packed JavaScript result while all three coexist. Retained diagram memory is the exact packed buffer size after transfer and worker termination. RSS values are median process deltas from 3 isolated samples; allocators may keep released pages resident, so retained RSS can remain above the memory still owned by the API.
 
