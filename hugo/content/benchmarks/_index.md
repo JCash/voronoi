@@ -5,7 +5,7 @@ weight: 3
 
 The benchmark suite compares native diagram generation, peak and retained memory, allocation count, build time, and WebAssembly output workflows.
 
-## Native runtime
+## C Runtime
 
 ![Voronoi diagram generation](../images/benchmark/release-0.10.0-voronoi.svg)
 
