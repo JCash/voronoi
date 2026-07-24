@@ -1,6 +1,8 @@
 ---
 title: jc_voronoi.h
 weight: 1
+aliases:
+  - /docs/api/jc-voronoi/
 ---
 
 `jc_voronoi.h` contains the complete core API for generating Voronoi cells and
@@ -71,7 +73,7 @@ every translation unit.
 | `JCV_FLT_MAX` | Largest supported coordinate magnitude | `3.402823466e+38F` |
 | `JCV_EDGE_INTERSECT_THRESHOLD` | Near-parallel edge intersection threshold | `1.0e-10F` |
 
-See the [double-precision example](../../../examples/c/double-precision/) for the
+See the [double-precision example](../../../../examples/c/double-precision/) for the
 complete set of overrides required when `JCV_REAL_TYPE` is `double`.
 
 ## Data types

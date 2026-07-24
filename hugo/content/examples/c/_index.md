@@ -9,7 +9,6 @@ The focused C examples below are adapted from the README snippets and grouped by
 
 - [Generate a diagram](generate-diagram/)
 - [Draw edges and cells](drawing/)
-- [Use the WebAssembly wrapper](webassembly/)
 
 ## Work with topology
 

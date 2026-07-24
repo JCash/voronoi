@@ -15,9 +15,11 @@ emcc wasm/voronoi_wasm.c \
   -sENVIRONMENT=web,worker,node \
   -sFILESYSTEM=0 \
   -sALLOW_MEMORY_GROWTH=1 \
-  -sEXPORTED_FUNCTIONS='["_jcv_voronoi_edges","_jcv_delauney_edges","_jcv_benchmark_generate","_jcv_benchmark_generate_sites","_jcv_benchmark_generate_edges","_jcv_benchmark_generate_delauney","_malloc","_free"]' \
-  -sEXPORTED_RUNTIME_METHODS='["HEAP32","HEAPF32"]' \
+  -sEXPORTED_FUNCTIONS='["_jcv_wasm_generate_packed","_jcv_voronoi_edges","_jcv_delauney_edges","_malloc","_free"]' \
+  -sEXPORTED_RUNTIME_METHODS='["HEAPU8","HEAP32","HEAPF32"]' \
   -o "${OUTPUT_DIR}/jc_voronoi.js"
 
 cp wasm/voronoi.js "${OUTPUT_DIR}/voronoi.js"
+cp wasm/voronoi.worker.js "${OUTPUT_DIR}/voronoi.worker.js"
+cp wasm/voronoi.d.ts "${OUTPUT_DIR}/voronoi.d.ts"
 cp wasm/package.json "${OUTPUT_DIR}/package.json"

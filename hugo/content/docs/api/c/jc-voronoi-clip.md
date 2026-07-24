@@ -1,6 +1,8 @@
 ---
 title: jc_voronoi_clip.h
 weight: 2
+aliases:
+  - /docs/api/jc-voronoi-clip/
 ---
 
 `jc_voronoi_clip.h` provides `jcv_clipper` callbacks that clip Voronoi cells to a
@@ -119,5 +121,5 @@ do not need to initialize those members. Passing an explicit `jcv_rect` still
 prunes input points outside that rectangle before producing the polygon-clipped
 result.
 
-See the [custom clipping example](../../../examples/c/custom-clipping/) for the
+See the [custom clipping example](../../../../examples/c/custom-clipping/) for the
 same setup in context.

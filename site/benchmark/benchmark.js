@@ -1,18 +1,18 @@
-import createVoronoiModule from "../vendor/jc_voronoi.js";
+import { loadVoronoi } from "../vendor/voronoi.js";
 import { prepareComparisons } from "./vendor/comparisons.js";
 
 const WIDTH = 4096;
 const operations = [
   ["generate", "Generate diagram"],
   ["sites", "Generate + get sites"],
-  ["edges", "Generate + get edges"],
+  ["edges", "Generate + render edges"],
   ["delauney", "Generate + get Delauney"],
 ];
 const libraries = ["JCV 0.10", "d3-delaunay", "d3-voronoi", "gorhill/voronoi"];
 const runButton = document.querySelector("#run");
 const status = document.querySelector("#status");
 const resultsElement = document.querySelector("#results");
-let wasm;
+let voronoi;
 let sink;
 
 function randomPoints(count) {
@@ -36,18 +36,29 @@ function issue48Points() {
   return { points, bounds: [-50000, -50000, 50000, 0] };
 }
 
-function prepareWasm(points, bounds) {
-  const pointer = wasm._malloc(points.byteLength);
-  wasm.HEAPF32.set(points, pointer / Float32Array.BYTES_PER_ELEMENT);
-  const args = [pointer, points.length / 2, ...bounds];
+function prepareJcv(points, bounds) {
+  let checksum = 0;
+  const context = {
+    moveTo: (x, y) => { checksum += x + y; },
+    lineTo: (x, y) => { checksum += x + y; },
+  };
+  const withDiagram = (read) => {
+    const diagram = voronoi.generate(points, { bounds });
+    try {
+      return read(diagram);
+    } finally {
+      diagram.dispose();
+    }
+  };
   return {
-    operations: {
-      generate: () => wasm._jcv_benchmark_generate(...args),
-      sites: () => wasm._jcv_benchmark_generate_sites(...args),
-      edges: () => wasm._jcv_benchmark_generate_edges(...args),
-      delauney: () => wasm._jcv_benchmark_generate_delauney(...args),
-    },
-    dispose: () => wasm._free(pointer),
+    generate: () => withDiagram((diagram) => diagram.numSites),
+    sites: () => withDiagram((diagram) => diagram.sites.length),
+    edges: () => withDiagram((diagram) => {
+      checksum = 0;
+      diagram.render(context);
+      return checksum;
+    }),
+    delauney: () => voronoi.delauneyEdges(points, { bounds }).length / 4,
   };
 }
 
@@ -116,28 +127,23 @@ async function run() {
   try {
     for (const [caseName, input] of Object.entries(cases)) {
       status.textContent = `Preparing ${caseName}…`;
-      const wasmBenchmark = prepareWasm(input.points, input.bounds);
       const comparisons = prepareComparisons(input.points, input.bounds);
       const prepared = {
-        "JCV 0.10": wasmBenchmark.operations,
+        "JCV 0.10": prepareJcv(input.points, input.bounds),
         ...comparisons,
       };
       output[caseName] = Object.fromEntries(operations.map(([key]) => [key, {}]));
       const samples = caseName === "10k" ? 10 : 5;
-      try {
-        for (const [operationKey, operationLabel] of operations) {
-          for (const library of libraries) {
-            status.textContent = `${caseName} · ${operationLabel} · ${library}`;
-            try {
-              output[caseName][operationKey][library] = await measure(prepared[library][operationKey], samples);
-            } catch (error) {
-              output[caseName][operationKey][library] = "error";
-              console.error(`${caseName} / ${operationLabel} / ${library}`, error);
-            }
+      for (const [operationKey, operationLabel] of operations) {
+        for (const library of libraries) {
+          status.textContent = `${caseName} · ${operationLabel} · ${library}`;
+          try {
+            output[caseName][operationKey][library] = await measure(prepared[library][operationKey], samples);
+          } catch (error) {
+            output[caseName][operationKey][library] = "error";
+            console.error(`${caseName} / ${operationLabel} / ${library}`, error);
           }
         }
-      } finally {
-        wasmBenchmark.dispose();
       }
       renderTables(output);
     }
@@ -151,7 +157,7 @@ async function run() {
 }
 
 try {
-  wasm = await createVoronoiModule();
+  voronoi = await loadVoronoi();
   status.textContent = "Ready";
   runButton.disabled = false;
   runButton.addEventListener("click", run);

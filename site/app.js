@@ -1,3 +1,4 @@
+import { diagramToJSON } from "./diagram_json.js";
 import { readPointFile } from "./point_file.js";
 
 const canvas = document.querySelector("#diagram");
@@ -15,9 +16,9 @@ const openButton = document.querySelector("#open-file");
 const openInput = document.querySelector("#open-file-input");
 let points = [];
 let voronoi;
+let diagram;
 let draggedPoint = -1;
 let showDelauney = false;
-let latestDiagram;
 
 function readBoolean(value) {
   return ["1", "true", "yes", "on"].includes((value || "").toLowerCase());
@@ -101,50 +102,25 @@ function resize() {
   draw();
 }
 
-function roundCoordinate(value) {
-  return Number(value.toFixed(6));
-}
-
-function normalizeEdges(edges, width, height) {
-  const normalized = [];
-  for (let index = 0; index < edges.length; index += 4) {
-    normalized.push([
-      roundCoordinate(edges[index] / width),
-      roundCoordinate(edges[index + 1] / height),
-      roundCoordinate(edges[index + 2] / width),
-      roundCoordinate(edges[index + 3] / height),
-    ]);
-  }
-  return normalized;
-}
-
 function draw() {
   if (!canvas.width || !voronoi) return;
   const { width, height } = canvas;
   const scaled = points.map(({ x, y }) => ({ x: x * width, y: y * height }));
-  const edges = voronoi.edges(scaled, width, height);
-  const delauneyEdges = showDelauney
-    ? voronoi.delauneyEdges(scaled, width, height)
-    : new Float32Array();
+  diagram?.dispose();
+  diagram = voronoi.generate(scaled, width, height);
   context.fillStyle = "#1a1c19";
   context.fillRect(0, 0, width, height);
   if (showDelauney) {
     context.strokeStyle = "#ff9367aa";
     context.lineWidth = Math.max(1, window.devicePixelRatio || 1);
     context.beginPath();
-    for (let index = 0; index < delauneyEdges.length; index += 4) {
-      context.moveTo(delauneyEdges[index], delauneyEdges[index + 1]);
-      context.lineTo(delauneyEdges[index + 2], delauneyEdges[index + 3]);
-    }
+    diagram.renderDelauney(context);
     context.stroke();
   }
   context.strokeStyle = "#72796c";
   context.lineWidth = Math.max(1, window.devicePixelRatio || 1);
   context.beginPath();
-  for (let index = 0; index < edges.length; index += 4) {
-    context.moveTo(edges[index], edges[index + 1]);
-    context.lineTo(edges[index + 2], edges[index + 3]);
-  }
+  diagram.render(context);
   context.stroke();
   const radius = 3.25 * (window.devicePixelRatio || 1);
   context.fillStyle = "#d8ff57";
@@ -153,17 +129,27 @@ function draw() {
     context.arc(point.x, point.y, radius, 0, Math.PI * 2);
     context.fill();
   }
-  const delauneyStatus = showDelauney ? ` · ${delauneyEdges.length / 4} Delauney` : "";
-  status.textContent = `${points.length} sites · ${edges.length / 4} edges${delauneyStatus}`;
-  latestDiagram = {
-    format: "jc_voronoi-diagram",
-    version: 1,
-    coordinateSpace: "normalized",
-    canvas: { width, height },
-    sites: points.map(({ x, y }) => ({ x: roundCoordinate(x), y: roundCoordinate(y) })),
-    edges: normalizeEdges(edges, width, height),
-    delauneyEdges: normalizeEdges(delauneyEdges, width, height),
-  };
+  const delauneyCount = showDelauney ? diagram.numDelauneyEdges : 0;
+  const delauneyStatus = showDelauney ? ` · ${delauneyCount} Delauney` : "";
+  status.textContent = `${diagram.numSites} sites · ${diagram.numEdges} edges${delauneyStatus}`;
+}
+
+async function copyJSON() {
+  if (!diagram) return;
+  const json = JSON.stringify(diagramToJSON(diagram), null, 2);
+  try {
+    await navigator.clipboard.writeText(json);
+  } catch {
+    const textarea = document.createElement("textarea");
+    textarea.value = json;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.append(textarea);
+    textarea.select();
+    document.execCommand("copy");
+    textarea.remove();
+  }
+  status.textContent = "Full diagram JSON copied";
 }
 
 function eventPoint(event) {
@@ -240,9 +226,8 @@ if (pointForm) {
 }
 if (copyButton) {
   copyButton.addEventListener("click", async () => {
-    if (!latestDiagram) return;
     try {
-      await navigator.clipboard.writeText(JSON.stringify(latestDiagram, null, 2));
+      await copyJSON();
       copyButton.textContent = "Copied JSON";
       window.setTimeout(() => { copyButton.textContent = "Copy JSON"; }, 1600);
     } catch (error) {
@@ -284,6 +269,7 @@ if (openButton && openInput) {
   });
 }
 new ResizeObserver(resize).observe(canvas);
+window.addEventListener("pagehide", () => diagram?.dispose());
 
 let configuration;
 let configurationError;

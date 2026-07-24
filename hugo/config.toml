@@ -22,6 +22,9 @@ enableRobotsTXT = true
     source = "../site/app.js"
     target = "static/app.js"
   [[module.mounts]]
+    source = "../site/diagram_json.js"
+    target = "static/diagram_json.js"
+  [[module.mounts]]
     source = "../site/point_file.js"
     target = "static/point_file.js"
   [[module.mounts]]

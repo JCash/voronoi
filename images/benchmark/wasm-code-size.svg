@@ -12,34 +12,34 @@
   <text x="95" y="155" font-family="system-ui, sans-serif" font-size="17" font-weight="700" fill="#26354a">Compound module</text>
   <text x="1085" y="155" font-family="system-ui, sans-serif" font-size="12" fill="#6b7789" text-anchor="end">production payload</text>
   <rect x="280" y="168" width="700.00" height="18" rx="4" fill="#5267d9"/>
-  <text x="990.00" y="182" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a">26.6 KiB</text>
-  <rect x="280" y="193" width="490.33" height="18" rx="4" fill="#14a38b"/>
-  <text x="780.33" y="207" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a">18.6 KiB</text>
-  <rect x="280" y="218" width="236.46" height="18" rx="4" fill="#e08b35"/>
-  <text x="526.46" y="232" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a">9.0 KiB</text>
-  <rect x="280" y="243" width="420.88" height="18" rx="4" fill="#b85bb4"/>
-  <text x="710.88" y="257" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a">16.0 KiB</text>
+  <text x="990.00" y="182" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a">27.8 KiB</text>
+  <rect x="280" y="193" width="468.76" height="18" rx="4" fill="#14a38b"/>
+  <text x="758.76" y="207" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a">18.6 KiB</text>
+  <rect x="280" y="218" width="226.06" height="18" rx="4" fill="#e08b35"/>
+  <text x="516.06" y="232" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a">9.0 KiB</text>
+  <rect x="280" y="243" width="402.37" height="18" rx="4" fill="#b85bb4"/>
+  <text x="692.37" y="257" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a">16.0 KiB</text>
   <rect x="70" y="295" width="1060" height="155" rx="9" fill="#ffffff" stroke="#e0e6ef"/>
   <text x="95" y="325" font-family="system-ui, sans-serif" font-size="17" font-weight="700" fill="#26354a">Brotli</text>
   <text x="1085" y="325" font-family="system-ui, sans-serif" font-size="12" fill="#6b7789" text-anchor="end">Brotli quality 11</text>
   <rect x="280" y="338" width="700.00" height="18" rx="4" fill="#5267d9"/>
-  <text x="990.00" y="352" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a">9.4 KiB</text>
-  <rect x="280" y="363" width="455.29" height="18" rx="4" fill="#14a38b"/>
-  <text x="745.29" y="377" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a">6.1 KiB</text>
-  <rect x="280" y="388" width="253.14" height="18" rx="4" fill="#e08b35"/>
-  <text x="543.14" y="402" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a">3.4 KiB</text>
-  <rect x="280" y="413" width="307.62" height="18" rx="4" fill="#b85bb4"/>
-  <text x="597.62" y="427" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a">4.1 KiB</text>
+  <text x="990.00" y="352" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a">10.2 KiB</text>
+  <rect x="280" y="363" width="421.68" height="18" rx="4" fill="#14a38b"/>
+  <text x="711.68" y="377" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a">6.1 KiB</text>
+  <rect x="280" y="388" width="234.45" height="18" rx="4" fill="#e08b35"/>
+  <text x="524.45" y="402" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a">3.4 KiB</text>
+  <rect x="280" y="413" width="284.91" height="18" rx="4" fill="#b85bb4"/>
+  <text x="574.91" y="427" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a">4.1 KiB</text>
   <rect x="70" y="465" width="1060" height="155" rx="9" fill="#ffffff" stroke="#e0e6ef"/>
   <text x="95" y="495" font-family="system-ui, sans-serif" font-size="17" font-weight="700" fill="#26354a">Compound source LOC</text>
   <text x="1085" y="495" font-family="system-ui, sans-serif" font-size="12" fill="#6b7789" text-anchor="end">nonblank, non-comment LOC</text>
   <rect x="280" y="508" width="700.00" height="18" rx="4" fill="#5267d9"/>
-  <text x="990.00" y="522" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a">2,213</text>
-  <rect x="280" y="533" width="397.92" height="18" rx="4" fill="#14a38b"/>
-  <text x="687.92" y="547" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a">1,258</text>
-  <rect x="280" y="558" width="273.29" height="18" rx="4" fill="#e08b35"/>
-  <text x="563.29" y="572" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a">864</text>
-  <rect x="280" y="583" width="339.09" height="18" rx="4" fill="#b85bb4"/>
-  <text x="629.09" y="597" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a">1,072</text>
+  <text x="990.00" y="522" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a">2,832</text>
+  <rect x="280" y="533" width="310.95" height="18" rx="4" fill="#14a38b"/>
+  <text x="600.95" y="547" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a">1,258</text>
+  <rect x="280" y="558" width="213.56" height="18" rx="4" fill="#e08b35"/>
+  <text x="503.56" y="572" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a">864</text>
+  <rect x="280" y="583" width="264.97" height="18" rx="4" fill="#b85bb4"/>
+  <text x="554.97" y="597" font-family="system-ui, sans-serif" font-size="11" font-weight="650" fill="#35445a">1,072</text>
   <text x="600" y="685" font-family="system-ui, sans-serif" font-size="12" fill="#6b7789" text-anchor="middle">d3-delaunay: 2 dependencies · all others: 0 · JCV Wasm payload excludes generated JavaScript glue</text>
 </svg>

@@ -139,8 +139,8 @@ relaxation, input files, and SVG output.
 
 Version tags automatically publish a browser-ready WebAssembly package on the
 [GitHub Releases page](https://github.com/JCash/voronoi/releases). The package
-contains `jc_voronoi.wasm`, Emscripten's ES-module loader, and a small
-`voronoi.js` wrapper for browsers and Node.js. You can also try the
+contains `jc_voronoi.wasm`, Emscripten's ES-module loader, the JavaScript API,
+and its optional one-shot worker. You can also try the
 [interactive WebAssembly demo](https://jcash.github.io/voronoi/), which is
 rebuilt from the `dev` branch.
 
@@ -155,6 +155,46 @@ const edges = voronoi.edges(
 );
 // Float32Array: x0, y0, x1, y1 for each edge
 ```
+
+For site, cell, and edge information, generate an ergonomic diagram. The result
+is copied once into a compact JavaScript-owned `ArrayBuffer`, and subsequent
+object access reads that buffer without calling into WebAssembly:
+
+```js
+const diagram = voronoi.generate(
+  [{ x: 10, y: 20 }, { x: 80, y: 30 }, { x: 40, y: 90 }],
+  { bounds: [0, 0, 100, 100] },
+);
+
+const cell = diagram.cell(0); // null if the input site was pruned
+if (cell) {
+  console.log(cell.site.index, cell.site.p.x, cell.site.p.y);
+  for (const { x, y } of cell.polygon) console.log(x, y);
+  for (const edge of cell.edges) {
+    console.log(edge.pos[0], edge.pos[1], edge.sites[1]);
+  }
+}
+```
+
+`diagram.sites` contains the retained sites, `diagram.edges` contains all
+Voronoi edges, and `diagram.neighbors(inputIndex)` returns neighboring
+`Site` objects. Cell edges are counter-clockwise. Points support both `.x` /
+`.y` access and `[x, y]` destructuring. Accessing a diagram object after
+`dispose()` throws an error. Disposal is optional because the result buffer is
+owned and garbage-collected by JavaScript; use it only to release memory eagerly.
+
+Large one-off diagrams can be generated in a disposable worker so the
+WebAssembly heap does not remain alongside the result:
+
+```js
+import { loadVoronoiWorker } from "./voronoi.js";
+
+const voronoi = await loadVoronoiWorker();
+const diagram = await voronoi.generate(points, { bounds: [0, 0, 100, 100] });
+```
+
+The worker transfers the packed result and terminates before `generate()`
+resolves. The returned diagram uses the same JavaScript API.
 
 To build the package locally, install the Emscripten SDK and run
 `./scripts/build_wasm.sh`. The output is written to `build/wasm` by default.

@@ -21,7 +21,7 @@
       <section id="results" aria-live="polite"></section>
       <details>
         <summary>Methodology</summary>
-        <p>Results are medians. The harness runs two untimed warmups, then 10 samples for 10k and five samples for 100k and the pathological case. Point generation, input conversion, Wasm initialization, copying points into Wasm memory, table rendering, and inter-sample yielding are outside the measured region.</p>
+        <p>Results are medians. The harness runs two untimed warmups, then 10 samples for 10k and five samples for 100k and the pathological case. Point generation, comparison-library input conversion, Wasm initialization, table rendering, and inter-sample yielding are outside the measured region. JCV input copying and diagram disposal are included.</p>
         <p>The 100k pathological case is the issue48 input with 99,998 symmetric diagonal points. “—” means the library has no direct operation for that result.</p>
       </details>
       <footer><a href="../">Interactive example</a> · <a href="https://github.com/JCash/voronoi">Source on GitHub</a></footer>

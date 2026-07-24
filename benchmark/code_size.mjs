@@ -60,7 +60,12 @@ export async function collectCodeSizes(wasmDirectory = path.join(repository, "bu
   const definitions = {
     "JCV 0.10": {
       module: path.join(wasmDirectory, "jc_voronoi.wasm"),
-      sources: [path.join(repository, "src", "jc_voronoi.h"), path.join(repository, "wasm", "voronoi_wasm.c"), path.join(repository, "wasm", "voronoi.js")],
+      sources: [
+        path.join(repository, "src", "jc_voronoi.h"),
+        path.join(repository, "wasm", "voronoi_wasm.c"),
+        path.join(repository, "wasm", "voronoi.js"),
+        path.join(repository, "wasm", "voronoi.worker.js"),
+      ],
       dependencies: [],
     },
     "d3-delaunay": {

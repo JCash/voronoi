@@ -3,8 +3,8 @@ export function importPointList(rawPoints, normalized = false) {
     throw new Error("files must contain between 1 and 250 points");
   }
   const imported = rawPoints.map((point) => {
-    const x = Number(Array.isArray(point) ? point[0] : point?.x);
-    const y = Number(Array.isArray(point) ? point[1] : point?.y);
+    const x = Number(Array.isArray(point) ? point[0] : point?.x ?? point?.p?.x);
+    const y = Number(Array.isArray(point) ? point[1] : point?.y ?? point?.p?.y);
     if (!Number.isFinite(x) || !Number.isFinite(y)) throw new Error("each point must contain numeric x and y values");
     return { x, y };
   });

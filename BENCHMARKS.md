@@ -57,54 +57,76 @@ Each entry is peak heap KB / retained heap KB / allocation count.
 <!-- wasm-benchmarks:start -->
 ## WebAssembly and JavaScript Voronoi performance
 
-Times are medians and lower is better. The benchmark compares only calls into each library. Point generation, input conversion, WebAssembly initialization, copying points into WebAssembly memory, garbage collection, and report generation are outside the timed regions.
+Times are medians and lower is better. The benchmark exercises each library's public API. Point generation, comparison-library input conversion, WebAssembly initialization, garbage collection, and report generation are outside the timed regions. JCV's public `generate` call copies the prepared `Float32Array` into WebAssembly memory, and that copy is included.
 
 The random cases use a deterministic seed. `100k pathological` is the issue48 input with 99,998 symmetric diagonal-pair sites. Each measurement has two untimed warmups followed by 10 samples for 10k and five samples for 100k and the pathological case.
 
-For JCV, site access calls `jcv_diagram_get_sites`, an O(1) pointer lookup. Edge and Delauney access consume their complete public iterators. Other libraries expose different public output forms: d3-voronoi and voronoi eagerly provide arrays, while d3-delaunay renders its Voronoi mesh. These rows therefore compare public access workflows, not identical post-processing algorithms.
+JCV copies one packed result from WebAssembly into a JavaScript-owned `ArrayBuffer` and disposes each result inside the timed operation. Site access materializes ergonomic `Site` objects; edge rendering reads packed vertex arrays without creating edge objects. The Delauney row instead uses JCV's adjacency-only generator and returns every edge as flat coordinates, without constructing a Voronoi diagram. Other libraries expose different public output forms: d3-voronoi and voronoi eagerly provide arrays, while d3-delaunay renders its Voronoi mesh. These rows therefore compare public access workflows, not identical post-processing algorithms.
 
 ### Voronoi Diagram Generation
 
 | Case | JCV 0.10 | d3-delaunay | d3-voronoi | gorhill/voronoi |
 |---|---:|---:|---:|---:|
-| 10k | 5.68 ms | 3.02 ms | 26.87 ms | 33.06 ms |
-| 100k | 61.22 ms | 30.71 ms | 275.85 ms | 316.78 ms |
-| 100k pathological | 21.69 ms | 9.26 ms | 125.73 ms | 3.13 s |
+| 10k | 7.76 ms | 3.12 ms | 29.06 ms | 34.58 ms |
+| 100k | 98.21 ms | 31.54 ms | 342.88 ms | 335.06 ms |
+| 100k pathological | 32.25 ms | 9.23 ms | 131.46 ms | 3.12 s |
 
 ### Generate + Get Sites
 
 | Case | JCV 0.10 | d3-delaunay | d3-voronoi | gorhill/voronoi |
 |---|---:|---:|---:|---:|
-| 10k | 5.84 ms | 6.94 ms | 28.04 ms | 35.54 ms |
-| 100k | 61.84 ms | 52.64 ms | 275.01 ms | 324.03 ms |
-| 100k pathological | 21.94 ms | 29.55 ms | 109.45 ms | 2.43 s |
+| 10k | 7.97 ms | 7.15 ms | 29.12 ms | 35.52 ms |
+| 100k | 100.84 ms | 49.63 ms | 316.67 ms | 367.06 ms |
+| 100k pathological | 35.00 ms | 27.16 ms | 114.78 ms | 2.54 s |
 
-### Generate + Get Edges
+### Generate + Render Edges
 
 | Case | JCV 0.10 | d3-delaunay | d3-voronoi | gorhill/voronoi |
 |---|---:|---:|---:|---:|
-| 10k | 5.90 ms | 11.72 ms | 27.12 ms | 32.55 ms |
-| 100k | 62.90 ms | 108.06 ms | 265.17 ms | 380.60 ms |
-| 100k pathological | 23.10 ms | 47.91 ms | 114.38 ms | 2.59 s |
+| 10k | 8.52 ms | 11.47 ms | 29.06 ms | 33.92 ms |
+| 100k | 112.98 ms | 126.28 ms | 326.02 ms | 367.44 ms |
+| 100k pathological | 35.45 ms | 48.29 ms | 114.38 ms | 2.72 s |
 
-<img src="images/benchmark/wasm-voronoi-edges.svg" alt="Get Voronoi Edges" width="350">
+<img src="images/benchmark/wasm-voronoi-edges.svg" alt="Voronoi diagram" width="350">
 
 ### Generate + Get Delauney
 
 | Case | JCV 0.10 | d3-delaunay | d3-voronoi | gorhill/voronoi |
 |---|---:|---:|---:|---:|
-| 10k | 4.02 ms | 6.35 ms | 28.81 ms | — |
-| 100k | 44.48 ms | 47.46 ms | 303.88 ms | — |
-| 100k pathological | 16.27 ms | 26.35 ms | 116.93 ms | — |
+| 10k | 4.19 ms | 6.04 ms | 30.83 ms | — |
+| 100k | 45.66 ms | 47.74 ms | 380.67 ms | — |
+| 100k pathological | 16.60 ms | 23.82 ms | 111.00 ms | — |
 
-<img src="images/benchmark/wasm-delauney-edges.svg" alt="Get Delauney Edges" width="350">
+<img src="images/benchmark/wasm-delauney-edges.svg" alt="Delauney diagram" width="350">
+
+### Peak and retained runtime memory
+
+| Case | JCV 0.10 | d3-delaunay | d3-voronoi | gorhill/voronoi |
+|---|---:|---:|---:|---:|
+| 10k | 27.5 MiB / 22.2 MiB | 5.4 MiB / 5.4 MiB | 31.0 MiB / 31.0 MiB | 39.5 MiB / 39.5 MiB |
+| 100k | 64.4 MiB / 32.8 MiB | 18.0 MiB / 18.0 MiB | 169.0 MiB / 164.5 MiB | 180.1 MiB / 174.0 MiB |
+| 100k pathological | 72.4 MiB / 32.2 MiB | 16.0 MiB / 15.9 MiB | 166.3 MiB / 162.5 MiB | 186.8 MiB / 181.9 MiB |
+
+<img src="images/benchmark/wasm-memory.svg" alt="Peak and retained WebAssembly and JavaScript memory" width="350">
+
+Each entry is peak / retained RSS delta. Each sample starts a fresh Node.js process, prepares the library-specific input, forces garbage collection, records a baseline, generates and retains one public diagram, then forces garbage collection again. JCV uses the one-shot worker API; its worker terminates before the retained measurement. JCV peak RSS is sampled while the worker runs; comparison-library peak RSS uses the process high-water mark. Values are medians of 3 isolated samples. Input arrays and initialized runtimes are part of the baseline. RSS is runtime- and operating-system-dependent, so compare entries only within the environment reported below.
+
+### Worker-backed JCV peak and retained memory
+
+| Case | Tracked peak | Retained diagram | Observed peak RSS | Observed retained RSS |
+|---|---:|---:|---:|---:|
+| 10k | 17.3 MiB | 1.1 MiB | 27.5 MiB | 22.2 MiB |
+| 100k | 50.9 MiB | 10.7 MiB | 64.4 MiB | 32.8 MiB |
+| 100k pathological | 59.1 MiB | 9.4 MiB | 72.4 MiB | 32.2 MiB |
+
+The tracked peak is the transferred input, the worker's WebAssembly linear memory, and the packed JavaScript result while all three coexist. Retained diagram memory is the exact packed buffer size after transfer and worker termination. RSS values are median process deltas from 3 isolated samples; allocators may keep released pages resident, so retained RSS can remain above the memory still owned by the API.
 
 <!-- wasm-code-size:start -->
 ### Code size
 
 | Library | Dependencies | Compound module | Brotli | Compound LOC |
 |---|---:|---:|---:|---:|
-| JCV 0.10 | 0 | 26.6 KiB | 9.4 KiB | 2,213 |
+| JCV 0.10 | 0 | 27.8 KiB | 10.2 KiB | 2,832 |
 | d3-delaunay | 2 (delaunator, robust-predicates) | 18.6 KiB | 6.1 KiB | 1,258 |
 | d3-voronoi | 0 | 9.0 KiB | 3.4 KiB | 864 |
 | gorhill/voronoi | 0 | 16.0 KiB | 4.1 KiB | 1,072 |

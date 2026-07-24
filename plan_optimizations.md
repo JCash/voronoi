@@ -72,7 +72,7 @@ micro-optimizing the queue, allocator, or clipping code.
 
 The benchmark should retain generation-only and generation-plus-access tables,
 but the performance charts should focus on complete public output workflows:
-**Get Voronoi Edges** and **Get Delauney Edges**.
+**Voronoi diagram** and **Delauney diagram**.
 
 ## 1. Add output-generation flags
 

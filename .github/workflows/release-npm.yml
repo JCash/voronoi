@@ -96,4 +96,5 @@ jobs:
             dist/jc_voronoi/jc_voronoi.wasm \
             dist/jc_voronoi/jc_voronoi.js \
             dist/jc_voronoi/voronoi.js \
+            dist/jc_voronoi/voronoi.worker.js \
             --clobber
