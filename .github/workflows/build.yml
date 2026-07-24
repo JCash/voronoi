@@ -3,6 +3,19 @@ name: Build
 on: [push, pull_request]
 
 jobs:
+  build-cmake:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure CMake
+        run: cmake -S . -B build-cmake -DJC_VORONOI_BUILD_EXAMPLES=ON -DJC_VORONOI_BUILD_TESTS=ON
+      - name: Build CMake targets
+        run: cmake --build build-cmake --parallel
+      - name: Run CMake tests
+        run: ctest --test-dir build-cmake --output-on-failure
+      - name: Verify CMake install
+        run: cmake --install build-cmake --prefix build-cmake/install
+
   build-wasm:
     runs-on: ubuntu-latest
     steps:
