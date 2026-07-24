@@ -1,6 +1,10 @@
 ---
 title: "jc_voronoi"
 layout: hextra-home
+description: "Fast, robust, header-only 2D Voronoi diagrams in C"
+images:
+  - images/social/voronoi-card-landscape.png
+twitter_image: images/social/voronoi-card.png
 cascade:
   type: docs
 ---
