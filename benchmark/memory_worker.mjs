@@ -42,7 +42,7 @@ async function collectGarbage() {
 const { points, bounds } = inputForCase(caseName);
 let generate;
 
-if (library === "JCV 0.10") {
+if (library === "JCV 0.11") {
   const { loadVoronoi } = await import(pathToFileURL(path.join(wasmDirectory, "voronoi.js")));
   const voronoi = await loadVoronoi();
   generate = () => voronoi.generate(points, { bounds });

@@ -41,7 +41,7 @@ export function diagramToJSON(diagram) {
         polygon: cell.polygon.map(pointToJSON),
       } : null;
     }),
-    delauneyEdges: diagram.edges
+    delaunayEdges: diagram.edges
       .filter((edge) => edge.sites[0] && edge.sites[1])
       .map((edge) => edge.sites.map((site) => site.index)),
   };

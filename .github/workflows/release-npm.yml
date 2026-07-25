@@ -1,24 +1,42 @@
-name: Release npm package
+name: Release packages
 
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to publish; leave empty for a dry run
+        required: false
+        type: string
 
 permissions:
   contents: write
   id-token: write
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.tag || github.ref }}
   cancel-in-progress: false
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Validate release tag
+        if: startsWith(env.RELEASE_TAG, 'v')
+        run: |
+          if [[ ! "${RELEASE_TAG}" =~ ^v[0-9]+(\.[0-9]+){1,3}$ ]]; then
+            echo "Invalid release tag: ${RELEASE_TAG}" >&2
+            exit 1
+          fi
+          git rev-parse --verify "refs/tags/${RELEASE_TAG}^{commit}"
 
       - name: Set up Emscripten
         uses: emscripten-core/setup-emsdk@v16
@@ -41,12 +59,12 @@ jobs:
           node test/wasm_smoke.mjs
 
       - name: Create GitHub release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(env.RELEASE_TAG, 'v')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if ! gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
-            gh release create "${GITHUB_REF_NAME}" --verify-tag --generate-notes
+          if ! gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            gh release create "${RELEASE_TAG}" --verify-tag --generate-notes
           fi
 
       - name: Generate changelog
@@ -56,14 +74,31 @@ jobs:
           ./scripts/generate_changelog.sh
           cp CHANGELOG.md dist/jc_voronoi/CHANGELOG.md
 
-      - name: Set package version from tag
-        if: startsWith(github.ref, 'refs/tags/v')
-        env:
-          PACKAGE_VERSION: ${{ github.ref_name }}
-        run: npm pkg set "version=${PACKAGE_VERSION#v}" --prefix dist/jc_voronoi
+      - name: Prepare package metadata
+        run: |
+          package_version="0.0.0-dev"
+          if [[ "${RELEASE_TAG}" == v* ]]; then
+            package_version="${RELEASE_TAG#v}"
+          fi
+
+          npm pkg set \
+            "name=jc-voronoi" \
+            "version=${package_version}" \
+            "license=MIT" \
+            "repository.type=git" \
+            "repository.url=git+https://github.com/JCash/voronoi.git" \
+            --prefix dist/jc_voronoi
+          npm pkg delete private --prefix dist/jc_voronoi
 
       - name: Verify npm package
-        run: npm pack --dry-run ./dist/jc_voronoi
+        run: |
+          node -e '
+            const pkg = require("./dist/jc_voronoi/package.json");
+            if (pkg.private) throw new Error("generated package is private");
+            if (pkg.name !== "jc-voronoi") throw new Error("unexpected package name: " + pkg.name);
+            if (pkg.homepage !== "https://jcash.github.io/voronoi/") throw new Error("unexpected homepage: " + pkg.homepage);
+          '
+          npm pack --dry-run ./dist/jc_voronoi
 
       - name: Create release archive
         run: (cd dist && zip -r jc_voronoi.zip jc_voronoi)
@@ -75,26 +110,40 @@ jobs:
           path: dist/jc_voronoi/
 
       - name: Publish npm package
-        if: startsWith(github.ref, 'refs/tags/v')
-        env:
-          PACKAGE_VERSION: ${{ github.ref_name }}
+        if: startsWith(env.RELEASE_TAG, 'v')
         run: |
-          PACKAGE_VERSION="${PACKAGE_VERSION#v}"
-          if npm view "jc_voronoi@${PACKAGE_VERSION}" version >/dev/null 2>&1; then
-            echo "jc_voronoi@${PACKAGE_VERSION} is already published"
+          PACKAGE_VERSION="${RELEASE_TAG#v}"
+          PACKAGE_NAME="$(npm pkg get name --prefix dist/jc_voronoi | tr -d '\"')"
+          if npm view "${PACKAGE_NAME}@${PACKAGE_VERSION}" version >/dev/null 2>&1; then
+            echo "${PACKAGE_NAME}@${PACKAGE_VERSION} is already published"
           else
             npm publish ./dist/jc_voronoi
           fi
 
       - name: Upload GitHub release assets
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: startsWith(env.RELEASE_TAG, 'v')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release upload "${GITHUB_REF_NAME}" \
+          gh release upload "${RELEASE_TAG}" \
             dist/jc_voronoi.zip \
             dist/jc_voronoi/jc_voronoi.wasm \
             dist/jc_voronoi/jc_voronoi.js \
             dist/jc_voronoi/voronoi.js \
             dist/jc_voronoi/voronoi.worker.js \
             --clobber
+
+      - name: Update Homebrew tap
+        if: startsWith(env.RELEASE_TAG, 'v')
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_DISPATCH_TOKEN }}
+        run: |
+          if [[ -z "${GH_TOKEN}" ]]; then
+            echo "HOMEBREW_TAP_DISPATCH_TOKEN is not configured" >&2
+            exit 1
+          fi
+
+          gh workflow run publish-jc-voronoi.yml \
+            --repo JCash/homebrew-tap \
+            --ref main \
+            --field tag="${RELEASE_TAG}"

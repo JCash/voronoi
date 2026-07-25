@@ -16,7 +16,7 @@ function d3Delaunay(points, bounds) {
       const diagram = generate();
       return diagram.render().length;
     },
-    delauney() {
+    delaunay() {
       const delaunay = generateDelaunay();
       return delaunay.triangles.length / 3;
     },
@@ -35,7 +35,7 @@ function d3Voronoi(points, [minX, minY, maxX, maxY]) {
     edges() {
       return generate().edges.length;
     },
-    delauney() {
+    delaunay() {
       return generate().triangles().length;
     },
   };
@@ -53,7 +53,7 @@ function raymondHill(points, [minX, minY, maxX, maxY]) {
     edges() {
       return generate().edges.length;
     },
-    delauney: null,
+    delaunay: null,
   };
 }
 

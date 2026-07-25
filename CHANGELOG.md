@@ -29,7 +29,7 @@ Modified jcv_delauney_begin api
 
 ## [0.8.0](https://github.com/JCash/voronoi/releases/tag/v0.8.0) - 2022-12-25
 
-- Added iterator for Delauney triangles
+- Added iterator for Delaunay triangles
 - Fix for missing border edges
 - Fix for inserting duplicate edges
 

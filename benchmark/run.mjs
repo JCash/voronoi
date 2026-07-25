@@ -24,16 +24,16 @@ const OPERATIONS = [
   [null, "Voronoi Diagram Generation", "generate", null],
   [null, "Generate + Get Sites", "sites", null],
   ["voronoi-edges", "Generate + Render Edges", "edges", "Voronoi diagram"],
-  ["delauney-edges", "Generate + Get Delauney", "delauney", "Delauney diagram"],
+  ["delaunay-edges", "Generate + Get Delaunay", "delaunay", "Delaunay diagram"],
 ];
 const LIBRARIES = [
-  ["JCV 0.10", "#5267d9"],
+  ["JCV 0.11", "#5267d9"],
   ["d3-delaunay", "#14a38b"],
   ["d3-voronoi", "#e08b35"],
   ["gorhill/voronoi", "#b85bb4"],
 ];
 const MEMORY_COLORS = {
-  "JCV 0.10": ["#aeb8f2", "#5267d9"],
+  "JCV 0.11": ["#aeb8f2", "#5267d9"],
   "d3-delaunay": ["#91d9cd", "#138875"],
   "d3-voronoi": ["#f3c693", "#c66f20"],
   "gorhill/voronoi": ["#e1b0dc", "#9e439b"],
@@ -84,7 +84,7 @@ function prepareJcv(voronoi, points, bounds) {
       diagram.render(context);
       return checksum;
     }),
-    delauney: () => voronoi.delauneyEdges(points, { bounds }).length / 4,
+    delaunay: () => voronoi.delaunayEdges(points, { bounds }).length / 4,
   };
 }
 
@@ -141,7 +141,7 @@ function niceMaximum(value) {
 }
 
 function chart(operationTitle, operationKey, results) {
-  const chartLibraries = operationKey === "delauney"
+  const chartLibraries = operationKey === "delaunay"
     ? LIBRARIES.filter(([library]) => library !== "gorhill/voronoi")
     : LIBRARIES;
   const width = 1200;
@@ -154,7 +154,7 @@ function chart(operationTitle, operationKey, results) {
   const measuredMaximum = Math.max(...Object.values(results).flatMap((result) =>
     chartLibraries.map(([library]) => result[operationKey][library]).filter(Number.isFinite),
   ));
-  const maximum = operationKey === "delauney"
+  const maximum = operationKey === "delaunay"
     ? niceMaximum(measuredMaximum * 1.1)
     : 500;
   const caseWidth = (width - left - right) / CASES.length;
@@ -162,7 +162,7 @@ function chart(operationTitle, operationKey, results) {
   const barGap = 8;
   const groupWidth = chartLibraries.length * barWidth + (chartLibraries.length - 1) * barGap;
   const lines = [];
-  const subtitle = operationKey === "edges" || operationKey === "delauney"
+  const subtitle = operationKey === "edges" || operationKey === "delaunay"
     ? "Diagram generation + complete edge retrieval · median time · lower is better"
     : "Median time · linear scale · lower is better";
 
@@ -303,7 +303,7 @@ function collectMemoryResults(workerMemoryResults) {
     results[caseName] = {};
     for (const [library] of LIBRARIES) {
       process.stdout.write(`  Peak/retained memory: ${caseName}: ${library}\n`);
-      if (library === "JCV 0.10") {
+      if (library === "JCV 0.11") {
         results[caseName][library] = {
           peakBytes: workerMemoryResults[caseName].peakRssBytes,
           retainedBytes: workerMemoryResults[caseName].retainedRssBytes,
@@ -362,7 +362,7 @@ function markdown(results, memoryResults, workerMemoryResults, codeSizes) {
     "",
     "The random cases use a deterministic seed. `100k pathological` is the issue48 input with 99,998 symmetric diagonal-pair sites. Each measurement has two untimed warmups followed by 10 samples for 10k and five samples for 100k and the pathological case.",
     "",
-    "JCV copies one packed result from WebAssembly into a JavaScript-owned `ArrayBuffer` and disposes each result inside the timed operation. Site access materializes ergonomic `Site` objects; edge rendering reads packed vertex arrays without creating edge objects. The Delauney row instead uses JCV's adjacency-only generator and returns every edge as flat coordinates, without constructing a Voronoi diagram. Other libraries expose different public output forms: d3-voronoi and voronoi eagerly provide arrays, while d3-delaunay renders its Voronoi mesh. These rows therefore compare public access workflows, not identical post-processing algorithms.",
+    "JCV copies one packed result from WebAssembly into a JavaScript-owned `ArrayBuffer` and disposes each result inside the timed operation. Site access materializes ergonomic `Site` objects; edge rendering reads packed vertex arrays without creating edge objects. The Delaunay row instead uses JCV's adjacency-only generator and returns every edge as flat coordinates, without constructing a Voronoi diagram. Other libraries expose different public output forms: d3-voronoi and voronoi eagerly provide arrays, while d3-delaunay renders its Voronoi mesh. These rows therefore compare public access workflows, not identical post-processing algorithms.",
     "",
   ];
 
@@ -425,7 +425,7 @@ function markdown(results, memoryResults, workerMemoryResults, codeSizes) {
     "- Wasm compiled with Emscripten `-O3 -flto`",
     "- d3-delaunay 6.0.4, d3-voronoi 1.1.4, gorhill/voronoi 1.0.0",
     "",
-    "The `gorhill/voronoi` package has no direct Delauney retrieval operation, so that entry is not applicable.",
+    "The `gorhill/voronoi` package has no direct Delaunay retrieval operation, so that entry is not applicable.",
     "",
     "<!-- wasm-benchmarks:end -->",
   );
@@ -438,7 +438,7 @@ for (const [caseName, createInput, samples] of CASES) {
   process.stdout.write(`Benchmarking ${caseName}\n`);
   const { points, bounds } = createInput();
   const prepared = {
-    "JCV 0.10": prepareJcv(voronoi, points, bounds),
+    "JCV 0.11": prepareJcv(voronoi, points, bounds),
     ...prepareComparisons(points, bounds),
   };
   results[caseName] = Object.fromEntries(OPERATIONS.map(([, , key]) => [key, {}]));

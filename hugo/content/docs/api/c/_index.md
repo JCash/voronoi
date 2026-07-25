@@ -5,7 +5,7 @@ weight: 1
 
 The public C API is split across two single-header files:
 
-- [`jc_voronoi.h`](jc-voronoi/) generates and traverses Voronoi diagrams and Delauney adjacency.
+- [`jc_voronoi.h`](jc-voronoi/) generates and traverses Voronoi diagrams and Delaunay adjacency.
 - [`jc_voronoi_clip.h`](jc-voronoi-clip/) adds a ready-made clipper for convex polygons.
 
 Both headers are C99-compatible and can be included from C++. They allocate no
@@ -16,7 +16,7 @@ the generated diagram owns its internal storage until `jcv_diagram_free` is call
 
 1. Zero-initialize a `jcv_diagram`.
 2. Generate a full Voronoi diagram with `jcv_diagram_generate`, or adjacency only
-   with `jcv_delauney_generate`.
+   with `jcv_delaunay_generate`.
 3. Read sites, vertices, and edges through the accessors and iterators.
 4. Call `jcv_diagram_free` exactly once when finished.
 

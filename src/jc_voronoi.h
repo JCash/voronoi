@@ -53,8 +53,8 @@ typedef struct jcv_rect_            jcv_rect;
 typedef struct jcv_site_            jcv_site;
 typedef struct jcv_edge_            jcv_edge;
 typedef struct jcv_edge_iter_       jcv_edge_iter;
-typedef struct jcv_delauney_edge_   jcv_delauney_edge;
-typedef struct jcv_delauney_iter_   jcv_delauney_iter;
+typedef struct jcv_delaunay_edge_   jcv_delaunay_edge;
+typedef struct jcv_delaunay_iter_   jcv_delaunay_iter;
 typedef struct jcv_diagram_         jcv_diagram;
 typedef struct jcv_clipper_         jcv_clipper;
 typedef struct jcv_context_internal_ jcv_context_internal;
@@ -62,7 +62,7 @@ typedef struct jcv_context_internal_ jcv_context_internal;
 typedef enum jcv_diagram_option_
 {
     JCV_OPTION_NONE = 0,
-    JCV_OPTION_DELAUNEY_ONLY = 1 << 0
+    JCV_OPTION_DELAUNAY_ONLY = 1 << 0
 } jcv_diagram_option;
 
 /// Tests if a point is inside the final shape
@@ -87,11 +87,11 @@ typedef void (*jcv_clip_fillgap_fn)(const jcv_clipper* clipper, jcv_context_inte
  */
 extern void jcv_diagram_generate( int num_points, const jcv_point* points, const jcv_rect* rect, const jcv_clipper* clipper, jcv_diagram* diagram );
 
-/** Generates only the Delauney adjacency required by jcv_delauney_begin/next.
- * Only jcv_delauney_edge.sites and pos are valid iterator output. Voronoi edge
+/** Generates only the Delaunay adjacency required by jcv_delaunay_begin/next.
+ * Only jcv_delaunay_edge.sites and pos are valid iterator output. Voronoi edge
  * geometry, per-site edges, and unique vertices are not available.
  */
-extern void jcv_delauney_generate( int num_points, const jcv_point* points, const jcv_rect* rect, const jcv_clipper* clipper, jcv_diagram* diagram );
+extern void jcv_delaunay_generate( int num_points, const jcv_point* points, const jcv_rect* rect, const jcv_clipper* clipper, jcv_diagram* diagram );
 
 typedef void* (*FJCVAllocFn)(void* userctx, size_t size);
 typedef void (*FJCVFreeFn)(void* userctx, void* p);
@@ -127,15 +127,15 @@ extern void jcv_site_get_edges( const jcv_diagram* diagram, const jcv_site* site
 // Writes the next edge to client-owned storage. Returns 0 at the end.
 extern int jcv_edge_next( jcv_edge_iter* iter, jcv_edge* edge );
 
-// Creates an iterator over the delauney edges of a voronoi diagram
-void jcv_delauney_begin( const jcv_diagram* diagram, jcv_delauney_iter* iter );
+// Creates an iterator over the delaunay edges of a voronoi diagram
+void jcv_delaunay_begin( const jcv_diagram* diagram, jcv_delaunay_iter* iter );
 
-// Returns the stored number of edges yielded by the Delauney iterator (O(1)).
-int jcv_delauney_get_edge_count( const jcv_diagram* diagram );
+// Returns the stored number of edges yielded by the Delaunay iterator (O(1)).
+int jcv_delaunay_get_edge_count( const jcv_diagram* diagram );
 
 // Steps the iterator and returns the next edge
 // Returns 0 when there are no more edges
-int jcv_delauney_next( jcv_delauney_iter* iter, jcv_delauney_edge* next );
+int jcv_delaunay_next( jcv_delaunay_iter* iter, jcv_delaunay_edge* next );
 
 // For the default clipper
 extern int jcv_boxshape_test(const jcv_clipper* clipper, const jcv_point p);
@@ -174,15 +174,15 @@ struct jcv_edge_iter_
     const jcv_site*     site;
 };
 
-struct jcv_delauney_iter_
+struct jcv_delaunay_iter_
 {
     jcv_edge_iter       edges;
-    int                 delauney_only;
+    int                 delaunay_only;
 };
 
-struct jcv_delauney_edge_
+struct jcv_delaunay_edge_
 {
-    jcv_edge        edge;       // Unavailable after jcv_delauney_generate
+    jcv_edge        edge;       // Unavailable after jcv_delaunay_generate
     const jcv_site* sites[2];
     jcv_point       pos[2];     // the positions of the two sites
 };
@@ -603,7 +603,7 @@ struct jcv_context_internal_
     int                 currentsite;
     int                 numvertices;
     int                 numedges;
-    int                 numdelauneyedges;
+    int                 numdelaunayedges;
     unsigned int        options;
 
     jcv_memoryblock*    memblocks;
@@ -671,12 +671,12 @@ static void jcv_edge_copy(const jcv_edge_internal* source, jcv_edge* target)
 
 int jcv_diagram_get_edge_count( const jcv_diagram* diagram )
 {
-    return (diagram->internal->options & JCV_OPTION_DELAUNEY_ONLY) ? 0 : diagram->internal->numedges;
+    return (diagram->internal->options & JCV_OPTION_DELAUNAY_ONLY) ? 0 : diagram->internal->numedges;
 }
 
 void jcv_diagram_get_edges( const jcv_diagram* diagram, jcv_edge_iter* iter )
 {
-    iter->current = (diagram->internal->options & JCV_OPTION_DELAUNEY_ONLY) ? 0 : diagram->internal->edges;
+    iter->current = (diagram->internal->options & JCV_OPTION_DELAUNAY_ONLY) ? 0 : diagram->internal->edges;
     iter->end = 0;
     iter->site = 0;
 }
@@ -736,10 +736,10 @@ int jcv_edge_next( jcv_edge_iter* iter, jcv_edge* edge )
     return 1;
 }
 
-void jcv_delauney_begin( const jcv_diagram* diagram, jcv_delauney_iter* iter )
+void jcv_delaunay_begin( const jcv_diagram* diagram, jcv_delaunay_iter* iter )
 {
-    iter->delauney_only = (diagram->internal->options & JCV_OPTION_DELAUNEY_ONLY) != 0;
-    if( iter->delauney_only )
+    iter->delaunay_only = (diagram->internal->options & JCV_OPTION_DELAUNAY_ONLY) != 0;
+    if( iter->delaunay_only )
     {
         iter->edges.current = diagram->internal->edges;
         iter->edges.end = 0;
@@ -751,14 +751,14 @@ void jcv_delauney_begin( const jcv_diagram* diagram, jcv_delauney_iter* iter )
     }
 }
 
-int jcv_delauney_get_edge_count( const jcv_diagram* diagram )
+int jcv_delaunay_get_edge_count( const jcv_diagram* diagram )
 {
-    return diagram->internal->numdelauneyedges;
+    return diagram->internal->numdelaunayedges;
 }
 
-int jcv_delauney_next( jcv_delauney_iter* iter, jcv_delauney_edge* next )
+int jcv_delaunay_next( jcv_delaunay_iter* iter, jcv_delaunay_edge* next )
 {
-    if( iter->delauney_only )
+    if( iter->delaunay_only )
     {
         const jcv_edge_internal* source = (const jcv_edge_internal*)iter->edges.current;
         while( source && (source->sites[0] == 0 || source->sites[1] == 0) )
@@ -1651,7 +1651,7 @@ static void jcv_site_event(jcv_context_internal* internal, jcv_site* site)
     edge->next = internal->edges;
     internal->edges = edge;
     ++internal->numedges;
-    ++internal->numdelauneyedges;
+    ++internal->numdelaunayedges;
 
     jcv_halfedge* edge1 = jcv_halfedge_new(internal, edge, JCV_DIRECTION_LEFT);
     jcv_halfedge* edge2 = jcv_halfedge_new(internal, edge, JCV_DIRECTION_RIGHT);
@@ -1808,7 +1808,7 @@ static void jcv_build_graph_edges(jcv_context_internal* internal)
             e->pos[1] = e->pos[0];
             e->a = JCV_INVALID_VALUE;
             --internal->numedges;
-            --internal->numdelauneyedges;
+            --internal->numdelaunayedges;
             continue;
         }
         if( internal->clipper.fill_fn == jcv_boxshape_fillgaps &&
@@ -2044,7 +2044,7 @@ static void jcv_circle_event(jcv_context_internal* internal)
 
     jcv_point vertex = left->vertex;
     int vertex_index = JCV_INVALID_VERTEX;
-    if( !(internal->options & JCV_OPTION_DELAUNEY_ONLY) )
+    if( !(internal->options & JCV_OPTION_DELAUNAY_ONLY) )
     {
         jcv_edge_internal* incident_edges[2] = {left->edge, right->edge};
         // Four or more cocircular sites can report the same vertex in consecutive
@@ -2090,11 +2090,11 @@ static void jcv_circle_event(jcv_context_internal* internal)
     edge->next = internal->edges;
     internal->edges = edge;
     ++internal->numedges;
-    ++internal->numdelauneyedges;
+    ++internal->numdelaunayedges;
 
     jcv_halfedge* he = jcv_halfedge_new(internal, edge, direction);
     jcv_beachline_insert_after(internal, leftleft, he);
-    if( !(internal->options & JCV_OPTION_DELAUNEY_ONLY) )
+    if( !(internal->options & JCV_OPTION_DELAUNAY_ONLY) )
         jcv_endpos(edge, &vertex, JCV_DIRECTION_RIGHT - direction, vertex_index);
 
     jcv_point p;
@@ -2123,9 +2123,9 @@ void jcv_diagram_generate( int num_points, const jcv_point* points, const jcv_re
     jcv_diagram_generate_internal(num_points, points, rect, clipper, 0, jcv_alloc_fn, jcv_free_fn, JCV_OPTION_NONE, d);
 }
 
-void jcv_delauney_generate( int num_points, const jcv_point* points, const jcv_rect* rect, const jcv_clipper* clipper, jcv_diagram* d )
+void jcv_delaunay_generate( int num_points, const jcv_point* points, const jcv_rect* rect, const jcv_clipper* clipper, jcv_diagram* d )
 {
-    jcv_diagram_generate_internal(num_points, points, rect, clipper, 0, jcv_alloc_fn, jcv_free_fn, JCV_OPTION_DELAUNEY_ONLY, d);
+    jcv_diagram_generate_internal(num_points, points, rect, clipper, 0, jcv_alloc_fn, jcv_free_fn, JCV_OPTION_DELAUNAY_ONLY, d);
 }
 
 void jcv_diagram_generate_useralloc( int num_points, const jcv_point* points, const jcv_rect* rect, const jcv_clipper* clipper, void* userallocctx, FJCVAllocFn allocfn, FJCVFreeFn freefn, jcv_diagram* d )
@@ -2352,7 +2352,7 @@ static void jcv_diagram_generate_internal(int num_points, const jcv_point* point
 
     internal->bottomsite = jcv_nextsite(internal);
 
-    if( !(options & JCV_OPTION_DELAUNEY_ONLY) )
+    if( !(options & JCV_OPTION_DELAUNAY_ONLY) )
     {
         internal->build_site_edges = (jcv_graphedge**)jcv_temp_alloc(internal, sizeof(jcv_graphedge*) * (size_t)internal->numsites);
         memset(internal->build_site_edges, 0, sizeof(jcv_graphedge*) * (size_t)internal->numsites);
@@ -2388,7 +2388,7 @@ static void jcv_diagram_generate_internal(int num_points, const jcv_point* point
         }
     }
 
-    if( !(options & JCV_OPTION_DELAUNEY_ONLY) )
+    if( !(options & JCV_OPTION_DELAUNAY_ONLY) )
     {
         jcv_build_graph_edges(internal);
         jcv_fillgaps(d);
@@ -2396,7 +2396,7 @@ static void jcv_diagram_generate_internal(int num_points, const jcv_point* point
     }
     jcv_temp_free_all(internal);
     internal->build_site_edges = 0;
-    d->numvertices = (options & JCV_OPTION_DELAUNEY_ONLY) ? 0 : internal->numvertices;
+    d->numvertices = (options & JCV_OPTION_DELAUNAY_ONLY) ? 0 : internal->numvertices;
 }
 
 #endif // JC_VORONOI_IMPLEMENTATION
@@ -2410,7 +2410,7 @@ ABOUT:
 HISTORY:
     0.10    2026-07-23  - Specialized the event priority queue for half edges
                           Replaced generic site qsort with a specialized introsort
-                          Added Delauney-only generation without Voronoi finalization
+                          Added Delaunay-only generation without Voronoi finalization
             2026-07-22  - Replaced the Red-Black beachline tree with RAVL
                           Optimized edge sorting with an overflow-safe pseudo-angle
                           Skipped gap filling for interior cells when using the default box clipper
@@ -2419,10 +2419,10 @@ HISTORY:
             2026-07-20  - Added unique vertex indices and vertex extraction
             2026-07-20  - Fix invalid topology handling for near-collinear sites
             2026-07-19  - Use a BST to manipulate the beachline
-    0.9     2023-01-22  - Modified the Delauney iterator creation api
+    0.9     2023-01-22  - Modified the Delaunay iterator creation api
     0.8     2022-12-20  - Added fix for missing border edges
                           More robust removal of duplicate graph edges
-                          Added iterator for Delauney edges
+                          Added iterator for Delaunay edges
     0.7     2019-10-25  - Added support for clipping against convex polygons
                         - Added JCV_EDGE_INTERSECT_THRESHOLD for edge intersections
                         - Fixed issue where the bounds calculation wasn’t considering all points
@@ -2486,12 +2486,12 @@ USAGE:
     The api consists of these functions:
 
     void jcv_diagram_generate( int num_points, const jcv_point* points, const jcv_rect* rect, const jcv_clipper* clipper, jcv_diagram* diagram );
-    void jcv_delauney_generate( int num_points, const jcv_point* points, const jcv_rect* rect, const jcv_clipper* clipper, jcv_diagram* diagram );
+    void jcv_delaunay_generate( int num_points, const jcv_point* points, const jcv_rect* rect, const jcv_clipper* clipper, jcv_diagram* diagram );
     void jcv_diagram_generate_useralloc( int num_points, const jcv_point* points, const jcv_rect* rect, const jcv_clipper* clipper, void* userallocctx, FJCVAllocFn allocfn, FJCVFreeFn freefn, jcv_diagram* diagram );
     void jcv_diagram_free( jcv_diagram* diagram );
 
     const jcv_site* jcv_diagram_get_sites( const jcv_diagram* diagram );
-    int jcv_delauney_get_edge_count( const jcv_diagram* diagram );
+    int jcv_delaunay_get_edge_count( const jcv_diagram* diagram );
     void jcv_diagram_get_edges( const jcv_diagram* diagram, jcv_edge_iter* iter );
     void jcv_site_get_edges( const jcv_diagram* diagram, const jcv_site* site, jcv_edge_iter* iter );
     int jcv_edge_next( jcv_edge_iter* iter, jcv_edge* edge );

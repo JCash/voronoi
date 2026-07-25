@@ -61,7 +61,7 @@ Times are medians and lower is better. The benchmark exercises each library's pu
 
 The random cases use a deterministic seed. `100k pathological` is the issue48 input with 99,998 symmetric diagonal-pair sites. Each measurement has two untimed warmups followed by 10 samples for 10k and five samples for 100k and the pathological case.
 
-JCV copies one packed result from WebAssembly into a JavaScript-owned `ArrayBuffer` and disposes each result inside the timed operation. Site access materializes ergonomic `Site` objects; edge rendering reads packed vertex arrays without creating edge objects. The Delauney row instead uses JCV's adjacency-only generator and returns every edge as flat coordinates, without constructing a Voronoi diagram. Other libraries expose different public output forms: d3-voronoi and voronoi eagerly provide arrays, while d3-delaunay renders its Voronoi mesh. These rows therefore compare public access workflows, not identical post-processing algorithms.
+JCV copies one packed result from WebAssembly into a JavaScript-owned `ArrayBuffer` and disposes each result inside the timed operation. Site access materializes ergonomic `Site` objects; edge rendering reads packed vertex arrays without creating edge objects. The Delaunay row instead uses JCV's adjacency-only generator and returns every edge as flat coordinates, without constructing a Voronoi diagram. Other libraries expose different public output forms: d3-voronoi and voronoi eagerly provide arrays, while d3-delaunay renders its Voronoi mesh. These rows therefore compare public access workflows, not identical post-processing algorithms.
 
 ### Voronoi Diagram Generation
 
@@ -89,7 +89,7 @@ JCV copies one packed result from WebAssembly into a JavaScript-owned `ArrayBuff
 
 <img src="images/benchmark/wasm-voronoi-edges.svg" alt="Voronoi diagram" width="350">
 
-### Generate + Get Delauney
+### Generate + Get Delaunay
 
 | Case | JCV 0.10 | d3-delaunay | d3-voronoi | gorhill/voronoi |
 |---|---:|---:|---:|---:|
@@ -97,7 +97,7 @@ JCV copies one packed result from WebAssembly into a JavaScript-owned `ArrayBuff
 | 100k | 45.66 ms | 47.74 ms | 380.67 ms | — |
 | 100k pathological | 16.60 ms | 23.82 ms | 111.00 ms | — |
 
-<img src="images/benchmark/wasm-delauney-edges.svg" alt="Delauney diagram" width="350">
+<img src="images/benchmark/wasm-delaunay-edges.svg" alt="Delaunay diagram" width="350">
 
 ### Peak and retained runtime memory
 
@@ -145,6 +145,6 @@ Compound module size is the JCV `.wasm` payload or the library’s published min
 - Wasm compiled with Emscripten `-O3 -flto`
 - d3-delaunay 6.0.4, d3-voronoi 1.1.4, gorhill/voronoi 1.0.0
 
-The `gorhill/voronoi` package has no direct Delauney retrieval operation, so that entry is not applicable.
+The `gorhill/voronoi` package has no direct Delaunay retrieval operation, so that entry is not applicable.
 
 <!-- wasm-benchmarks:end -->

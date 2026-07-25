@@ -6,7 +6,7 @@ import { brotliCompressSync, constants as zlibConstants } from "node:zlib";
 const repository = path.resolve(import.meta.dirname, "..");
 const modules = path.join(import.meta.dirname, "node_modules");
 const COLORS = {
-  "JCV 0.10": "#5267d9",
+  "JCV 0.11": "#5267d9",
   "d3-delaunay": "#14a38b",
   "d3-voronoi": "#e08b35",
   "gorhill/voronoi": "#b85bb4",
@@ -58,7 +58,7 @@ async function sourceLines(files) {
 
 export async function collectCodeSizes(wasmDirectory = path.join(repository, "build", "wasm")) {
   const definitions = {
-    "JCV 0.10": {
+    "JCV 0.11": {
       module: path.join(wasmDirectory, "jc_voronoi.wasm"),
       sources: [
         path.join(repository, "src", "jc_voronoi.h"),

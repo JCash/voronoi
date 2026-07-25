@@ -411,13 +411,13 @@ static int write_svg(const char* path, int width, int height, const jcv_diagram*
                 (double)p0.x, (double)p0.y, (double)p1.x, (double)p1.y);
     }
 
-    jcv_delauney_iter delauney;
-    jcv_delauney_begin(diagram, &delauney);
-    jcv_delauney_edge delauney_edge;
-    while( jcv_delauney_next(&delauney, &delauney_edge) )
+    jcv_delaunay_iter delaunay;
+    jcv_delaunay_begin(diagram, &delaunay);
+    jcv_delaunay_edge delaunay_edge;
+    while( jcv_delaunay_next(&delaunay, &delaunay_edge) )
     {
-        jcv_point p0 = remap(&delauney_edge.pos[0], &diagram->min, &diagram->max, &dimensions);
-        jcv_point p1 = remap(&delauney_edge.pos[1], &diagram->min, &diagram->max, &dimensions);
+        jcv_point p0 = remap(&delaunay_edge.pos[0], &diagram->min, &diagram->max, &dimensions);
+        jcv_point p1 = remap(&delaunay_edge.pos[1], &diagram->min, &diagram->max, &dimensions);
         fprintf(file, "    <line x1=\"%g\" y1=\"%g\" x2=\"%g\" y2=\"%g\" stroke=\"rgb(64,64,255)\" stroke-width=\"1\"/>\n",
                 (double)p0.x, (double)p0.y, (double)p1.x, (double)p1.y);
     }
@@ -715,7 +715,7 @@ int main(int argc, const char** argv)
 
     unsigned char color_pt[] = {255, 255, 255};
     unsigned char color_line[] = {220, 220, 220};
-    unsigned char color_delauney[] = {64, 64, 255};
+    unsigned char color_delaunay[] = {64, 64, 255};
 
     jcv_diagram diagram;
     jcv_point dimensions;
@@ -790,15 +790,15 @@ int main(int argc, const char** argv)
             draw_line((int)p0.x, (int)p0.y, (int)p1.x, (int)p1.y, image, width, height, 3, color_line);
         }
 
-        jcv_delauney_iter delauney;
-        jcv_delauney_edge delauney_edge;
+        jcv_delaunay_iter delaunay;
+        jcv_delaunay_edge delaunay_edge;
         if( !output_svg )
-            jcv_delauney_begin( &diagram, &delauney );
-        while (!output_svg && jcv_delauney_next( &delauney, &delauney_edge ))
+            jcv_delaunay_begin( &diagram, &delaunay );
+        while (!output_svg && jcv_delaunay_next( &delaunay, &delaunay_edge ))
         {
-            jcv_point p0 = remap(&delauney_edge.pos[0], &diagram.min, &diagram.max, &dimensions );
-            jcv_point p1 = remap(&delauney_edge.pos[1], &diagram.min, &diagram.max, &dimensions );
-            draw_line((int)p0.x, (int)p0.y, (int)p1.x, (int)p1.y, image, width, height, 3, color_delauney);
+            jcv_point p0 = remap(&delaunay_edge.pos[0], &diagram.min, &diagram.max, &dimensions );
+            jcv_point p1 = remap(&delaunay_edge.pos[1], &diagram.min, &diagram.max, &dimensions );
+            draw_line((int)p0.x, (int)p0.y, (int)p1.x, (int)p1.y, image, width, height, 3, color_delaunay);
         }
         printf("Done.\n"); // rendering
 

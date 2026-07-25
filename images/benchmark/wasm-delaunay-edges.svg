@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720" role="img" aria-labelledby="title desc">
-  <title id="title">Delauney diagram</title>
+  <title id="title">Delaunay diagram</title>
   <desc id="desc">Grouped bar chart comparing WebAssembly and JavaScript Voronoi libraries for 10k, 100k, and the 100k pathological case. Times are medians in milliseconds; lower is better. Bars above 500 milliseconds are truncated with a jagged top.</desc>
   <style>.stat-hit{fill:transparent;pointer-events:all}</style>
   <rect width="1200" height="720" fill="#f8fafc"/>
-  <text x="70" y="49" font-family="system-ui, sans-serif" font-size="27" font-weight="700" fill="#152238">Delauney diagram</text>
+  <text x="70" y="49" font-family="system-ui, sans-serif" font-size="27" font-weight="700" fill="#152238">Delaunay diagram</text>
   <text x="70" y="76" font-family="system-ui, sans-serif" font-size="15" fill="#536174">Diagram generation + complete edge retrieval · median time · lower is better</text>
   <line x1="120" y1="575" x2="1150" y2="575" stroke="#d8dee8"/>
   <text x="108" y="580" font-family="system-ui, sans-serif" font-size="13" fill="#536174" text-anchor="end">0</text>

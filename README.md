@@ -51,7 +51,43 @@ But mostly, I did it for fun :)
 | Cell Edges CCW         |           |   *   |         |             |  *  |
 | Easy Relaxation        |           |       |         |      *      |  *  |
 | Custom Allocator       |           |       |         |             |  *  |
-| Delauney generation    |           |       |         |      *      |  *  |
+| Delaunay generation    |           |       |         |      *      |  *  |
+
+# Install
+
+## macOS with Homebrew
+
+Install the C headers and CMake package metadata from the project tap:
+
+```sh
+brew install JCash/tap/jc-voronoi
+```
+
+A CMake project can then consume the installed header-only target:
+
+```cmake
+find_package(jc_voronoi CONFIG REQUIRED)
+target_link_libraries(your_app PRIVATE jc_voronoi::jc_voronoi)
+```
+
+If CMake does not find the Homebrew prefix automatically, configure with
+`-DCMAKE_PREFIX_PATH="$(brew --prefix jc-voronoi)"`.
+
+## JavaScript and WebAssembly with npm
+
+Install the ES module, WebAssembly runtime, worker, and TypeScript declarations:
+
+```sh
+npm install jc-voronoi
+```
+
+```js
+import { loadVoronoi } from "jc-voronoi";
+
+const voronoi = await loadVoronoi();
+```
+
+See [README_JS.md](README_JS.md) for the JavaScript API and examples.
 
 # Build
 
@@ -99,6 +135,8 @@ ctest --test-dir build
 
 The project can also be installed. An installed copy can be consumed with
 `find_package(jc_voronoi CONFIG REQUIRED)` and the same namespaced target.
+Packagers can set `JC_VORONOI_VERSION` while configuring to add version metadata
+to the installed CMake package; ordinary source builds do not need a version.
 
 ## macOS
 
@@ -220,7 +258,7 @@ npm run benchmark --prefix benchmark
 
 See [Benchmarks.md](Benchmarks.md) for the generated tables, methodology, and
 charts. The benchmark compares diagram generation, generation plus site
-access, generation plus Voronoi-edge access, and generation plus Delauney-edge access for
+access, generation plus Voronoi-edge access, and generation plus Delaunay-edge access for
 the 10k, 100k, and 100k pathological (issue48) inputs. It also generates module-size, Brotli, and
 source-LOC comparisons. To update only those code-size results, run
 `npm run code-size --prefix benchmark`.
@@ -228,13 +266,13 @@ source-LOC comparisons. To update only those code-size results, run
 ## Releasing
 
 Create and push a version tag such as `v0.11.0`. The release workflow uses the
-tag as the package version and writes it into the packaged copy of
-`CMakeLists.txt`; the tagged source commit is not modified.
+tag as the npm package version; the tagged source commit is not modified.
 
-Pushing the tag creates the GitHub release and publishes the WebAssembly
-assets. It also publishes a minimal CMake source package, its SHA-256 checksum,
-and a generated `jc-voronoi.rb` Homebrew formula whose URL and checksum refer
-to that exact source package.
+Pushing the tag creates the GitHub release, publishes the `jc-voronoi` npm
+package, and uploads the WebAssembly assets. Once those artifacts are
+available, it dispatches the release to the
+[`JCash/homebrew-tap`](https://github.com/JCash/homebrew-tap) repository. That
+repository updates and stores the Homebrew formula.
 
 <details>
 <summary>Configuration defines</summary>
@@ -281,7 +319,7 @@ The main api contains these functions
 
 ```C
 void jcv_diagram_generate( int num_points, const jcv_point* points, const jcv_rect* rect, const jcv_clipper* clipper, jcv_diagram* diagram );
-void jcv_delauney_generate( int num_points, const jcv_point* points, const jcv_rect* rect, const jcv_clipper* clipper, jcv_diagram* diagram );
+void jcv_delaunay_generate( int num_points, const jcv_point* points, const jcv_rect* rect, const jcv_clipper* clipper, jcv_diagram* diagram );
 void jcv_diagram_generate_useralloc( int num_points, const jcv_point* points, const jcv_rect* rect, const jcv_clipper* clipper, void* userallocctx, FJCVAllocFn allocfn, FJCVFreeFn freefn, jcv_diagram* diagram );
 void jcv_diagram_free( jcv_diagram* diagram );
 
@@ -289,7 +327,7 @@ const jcv_site* jcv_diagram_get_sites( const jcv_diagram* diagram );
 int jcv_get_num_vertices( const jcv_diagram* diagram );
 void jcv_diagram_get_vertices( const jcv_diagram* diagram, jcv_point* vertices );
 int jcv_diagram_get_edge_count( const jcv_diagram* diagram );
-int jcv_delauney_get_edge_count( const jcv_diagram* diagram );
+int jcv_delaunay_get_edge_count( const jcv_diagram* diagram );
 void jcv_diagram_get_edges( const jcv_diagram* diagram, jcv_edge_iter* iter );
 void jcv_site_get_edges( const jcv_diagram* diagram, const jcv_site* site, jcv_edge_iter* iter );
 int jcv_edge_next( jcv_edge_iter* iter, jcv_edge* edge );
@@ -374,21 +412,21 @@ the cell.
 </details>
 
 <details>
-<summary>Delauney triangulation</summary>
+<summary>Delaunay triangulation</summary>
 
-If only Delauney adjacency is needed, generate it without clipping or building
+If only Delaunay adjacency is needed, generate it without clipping or building
 Voronoi cell topology:
 (See [main.c](./src/main.c) for a practical example)
 
 ```C
 jcv_diagram diagram = {0};
-jcv_delauney_generate(num_points, points, NULL, NULL, &diagram);
-int edge_count = jcv_delauney_get_edge_count(&diagram);
+jcv_delaunay_generate(num_points, points, NULL, NULL, &diagram);
+int edge_count = jcv_delaunay_get_edge_count(&diagram);
 
-jcv_delauney_iter iter;
-jcv_delauney_begin( &diagram, &iter );
-jcv_delauney_edge delauney_edge;
-while (jcv_delauney_next( &iter, &delauney_edge ))
+jcv_delaunay_iter iter;
+jcv_delaunay_begin( &diagram, &iter );
+jcv_delaunay_edge delaunay_edge;
+while (jcv_delaunay_next( &iter, &delaunay_edge ))
 {
     ...
 }
@@ -396,8 +434,8 @@ while (jcv_delauney_next( &iter, &delauney_edge ))
 jcv_diagram_free(&diagram);
 ```
 
-Sites and the Delauney iterator are available on a Delauney-only diagram. Only
-the `sites` and `pos` members of each `jcv_delauney_edge` are valid. Voronoi edge
+Sites and the Delaunay iterator are available on a Delaunay-only diagram. Only
+the `sites` and `pos` members of each `jcv_delaunay_edge` are valid. Voronoi edge
 geometry, per-site edges, and unique vertices are intentionally unavailable.
 
 </details>
@@ -530,7 +568,7 @@ Example implementation (see [main.c](./src/main.c) for actual code):
 
 void draw_edges(const jcv_diagram* diagram);
 void draw_cells(const jcv_diagram* diagram);
-void draw_delauney(const jcv_diagram* diagram);
+void draw_delaunay(const jcv_diagram* diagram);
 
 void generate_and_draw(int numpoints, const jcv_point* points, int imagewidth, int imageheight)
 {
@@ -540,7 +578,7 @@ void generate_and_draw(int numpoints, const jcv_point* points, int imagewidth, i
 
     draw_edges(&diagram);
     draw_cells(&diagram);
-    draw_delauney(&diagram);
+    draw_delaunay(&diagram);
 
     jcv_diagram_free(&diagram);
 }
@@ -576,14 +614,14 @@ void draw_cells(const jcv_diagram* diagram)
     }
 }
 
-void draw_delauney(const jcv_diagram* diagram)
+void draw_delaunay(const jcv_diagram* diagram)
 {
-    jcv_delauney_iter delauney;
-    jcv_delauney_begin(diagram, &delauney);
-    jcv_delauney_edge delauney_edge;
-    while( jcv_delauney_next(&delauney, &delauney_edge) )
+    jcv_delaunay_iter delaunay;
+    jcv_delaunay_begin(diagram, &delaunay);
+    jcv_delaunay_edge delaunay_edge;
+    while( jcv_delaunay_next(&delaunay, &delaunay_edge) )
     {
-        draw_line(delauney_edge.pos[0], delauney_edge.pos[1]);
+        draw_line(delaunay_edge.pos[0], delaunay_edge.pos[1]);
     }
 }
 ```

@@ -324,9 +324,9 @@ float* jcv_voronoi_edges(const float* xy,
     return edges;
 }
 
-/* Each Delauney edge connects the two sites separated by a Voronoi edge. */
+/* Each Delaunay edge connects the two sites separated by a Voronoi edge. */
 EMSCRIPTEN_KEEPALIVE
-float* jcv_delauney_edges(const float* xy,
+float* jcv_delaunay_edges(const float* xy,
                           int num_points,
                           float min_x,
                           float min_y,
@@ -336,8 +336,8 @@ float* jcv_delauney_edges(const float* xy,
 {
     jcv_diagram diagram = {0};
     jcv_rect rect;
-    jcv_delauney_iter iter;
-    jcv_delauney_edge edge;
+    jcv_delaunay_iter iter;
+    jcv_delaunay_edge edge;
     int edge_count = 0;
     int edge_index = 0;
     float* edges;
@@ -358,8 +358,8 @@ float* jcv_delauney_edges(const float* xy,
     rect.min.y = min_y;
     rect.max.x = max_x;
     rect.max.y = max_y;
-    jcv_delauney_generate(num_points, (const jcv_point*)xy, &rect, NULL, &diagram);
-    edge_count = jcv_delauney_get_edge_count(&diagram);
+    jcv_delaunay_generate(num_points, (const jcv_point*)xy, &rect, NULL, &diagram);
+    edge_count = jcv_delaunay_get_edge_count(&diagram);
 
     edges = edge_count > 0 ? (float*)malloc(sizeof(float) * (size_t)edge_count * 4) : NULL;
     if (edge_count > 0 && edges == NULL)
@@ -369,8 +369,8 @@ float* jcv_delauney_edges(const float* xy,
         return NULL;
     }
 
-    jcv_delauney_begin(&diagram, &iter);
-    while (jcv_delauney_next(&iter, &edge))
+    jcv_delaunay_begin(&diagram, &iter);
+    while (jcv_delaunay_next(&iter, &edge))
     {
         const int offset = edge_index * 4;
         edges[offset + 0] = edge.pos[0].x;

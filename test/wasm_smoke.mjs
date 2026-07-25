@@ -21,20 +21,20 @@ for (const coordinate of edges) {
 }
 
 assert.equal(voronoi.edges([], 100, 100).length, 0);
-const delauneyEdges = voronoi.delauneyEdges(points, 100, 100);
+const delaunayEdges = voronoi.delaunayEdges(points, 100, 100);
 assert.deepEqual(
-  voronoi.delauneyEdges(points, { bounds: [0, 0, 100, 100] }),
-  delauneyEdges,
+  voronoi.delaunayEdges(points, { bounds: [0, 0, 100, 100] }),
+  delaunayEdges,
 );
-assert.ok(delauneyEdges.length > 0);
-assert.equal(delauneyEdges.length % 4, 0);
-for (const coordinate of delauneyEdges) assert.ok(Number.isFinite(coordinate));
-const negativeDelauneyEdges = voronoi.delauneyEdges([
+assert.ok(delaunayEdges.length > 0);
+assert.equal(delaunayEdges.length % 4, 0);
+for (const coordinate of delaunayEdges) assert.ok(Number.isFinite(coordinate));
+const negativeDelaunayEdges = voronoi.delaunayEdges([
   { x: -90, y: -90 },
   { x: 90, y: -90 },
   { x: 0, y: -10 },
 ], { bounds: [-100, -100, 100, 0] });
-assert.ok(negativeDelauneyEdges.length > 0);
+assert.ok(negativeDelaunayEdges.length > 0);
 
 const diagram = voronoi.generate(points, { bounds: [0, 0, 100, 100] });
 const workerPoints = new Float32Array(points.flatMap(({ x, y }) => [x, y]));
@@ -50,7 +50,7 @@ assert.equal(diagram.numSites, 3);
 assert.ok(diagram.numVertices > 0);
 assert.equal(diagram.numEdges, diagram.edges.length);
 assert.equal(
-  diagram.numDelauneyEdges,
+  diagram.numDelaunayEdges,
   diagram.edges.filter((edge) => edge.sites[0] && edge.sites[1]).length,
 );
 assert.deepEqual(diagram.bounds, [0, 0, 100, 100]);
@@ -64,13 +64,13 @@ const pathContext = {
 };
 assert.equal(diagram.render(pathContext), pathContext);
 assert.equal(voronoiPath.length, diagram.numEdges * 2);
-const delauneyPath = [];
-const delauneyContext = {
-  moveTo: (x, y) => delauneyPath.push(["M", x, y]),
-  lineTo: (x, y) => delauneyPath.push(["L", x, y]),
+const delaunayPath = [];
+const delaunayContext = {
+  moveTo: (x, y) => delaunayPath.push(["M", x, y]),
+  lineTo: (x, y) => delaunayPath.push(["L", x, y]),
 };
-assert.equal(diagram.renderDelauney(delauneyContext), delauneyContext);
-assert.equal(delauneyPath.length, diagram.numDelauneyEdges * 2);
+assert.equal(diagram.renderDelaunay(delaunayContext), delaunayContext);
+assert.equal(delaunayPath.length, diagram.numDelaunayEdges * 2);
 
 const cell = diagram.cell(0);
 assert.ok(cell);
@@ -107,7 +107,7 @@ assert.equal(json.cells[0].site, 0);
 assert.equal(json.cells[0].edges.length, cell.edges.length);
 assert.deepEqual(json.cells[0].neighbors, cell.neighbors.map((site) => site.index));
 assert.equal(json.cells[0].polygon.length, cell.polygon.length);
-assert.ok(json.delauneyEdges.length > 0);
+assert.ok(json.delaunayEdges.length > 0);
 assert.deepEqual(Object.keys(json.edges[0]).sort(), ["pos", "sites", "vertices"]);
 
 assert.throws(() => diagram.cell(-1), RangeError);
@@ -165,4 +165,4 @@ diagram.dispose();
 assert.throws(() => diagram.numSites, /disposed/);
 assert.throws(() => retainedEdge.pos, /disposed/);
 
-console.log(`Generated ${edges.length / 4} Voronoi and ${delauneyEdges.length / 4} Delauney edges`);
+console.log(`Generated ${edges.length / 4} Voronoi and ${delaunayEdges.length / 4} Delaunay edges`);

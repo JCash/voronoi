@@ -1,5 +1,22 @@
 {
-  "name": "jc_voronoi-wasm",
+  "name": "jc-voronoi",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "description": "Fast WebAssembly Voronoi and Delaunay generation",
+  "main": "./voronoi.js",
+  "module": "./voronoi.js",
+  "types": "./voronoi.d.ts",
+  "exports": {
+    ".": {
+      "types": "./voronoi.d.ts",
+      "import": "./voronoi.js",
+      "default": "./voronoi.js"
+    }
+  },
+  "license": "MIT",
+  "homepage": "https://jcash.github.io/voronoi/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JCash/voronoi.git"
+  }
 }

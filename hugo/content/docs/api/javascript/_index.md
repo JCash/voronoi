@@ -34,13 +34,13 @@ The JavaScript API loads the WebAssembly module and exposes persistent diagram o
 <tr><td><a href="#worker-backed-generation"><code>workerVoronoi.generate(points, options)</code></a></td><td>Generate a <code>Diagram</code> in a one-shot worker.</td></tr>
 <tr><td><a href="#worker-backed-generation"><code>workerVoronoi.generate(points, width, height)</code></a></td><td>Generate a worker-backed <code>Diagram</code> using dimensions.</td></tr>
 <tr><td><a href="#compatibility-helpers"><code>voronoi.edges(points, width, height)</code></a></td><td>Return flat Voronoi edge coordinates.</td></tr>
-<tr><td><a href="#compatibility-helpers"><code>voronoi.delauneyEdges(points, width, height)</code></a></td><td>Return flat Delauney edge coordinates.</td></tr>
-<tr><td><a href="#compatibility-helpers"><code>voronoi.delauneyEdges(points, options)</code></a></td><td>Return flat Delauney edge coordinates using explicit bounds.</td></tr>
+<tr><td><a href="#compatibility-helpers"><code>voronoi.delaunayEdges(points, width, height)</code></a></td><td>Return flat Delaunay edge coordinates.</td></tr>
+<tr><td><a href="#compatibility-helpers"><code>voronoi.delaunayEdges(points, options)</code></a></td><td>Return flat Delaunay edge coordinates using explicit bounds.</td></tr>
 <tr><td><a href="#diagram"><code>diagram.site(inputIndex)</code></a></td><td>Return the retained <code>Site</code>, or <code>null</code> when pruned.</td></tr>
 <tr><td><a href="#diagram"><code>diagram.cell(inputIndex)</code></a></td><td>Return the site's <code>Cell</code>, or <code>null</code> when pruned.</td></tr>
 <tr><td><a href="#diagram"><code>diagram.neighbors(inputIndex)</code></a></td><td>Return neighboring <code>Site</code> objects.</td></tr>
 <tr><td><a href="#diagram"><code>diagram.render(context)</code></a></td><td>Add all Voronoi segments to a path context without creating edge objects.</td></tr>
-<tr><td><a href="#diagram"><code>diagram.renderDelauney(context)</code></a></td><td>Add all Delauney segments to a path context without creating edge objects.</td></tr>
+<tr><td><a href="#diagram"><code>diagram.renderDelaunay(context)</code></a></td><td>Add all Delaunay segments to a path context without creating edge objects.</td></tr>
 <tr><td><a href="#diagram"><code>diagram.dispose()</code></a></td><td>Eagerly release the JavaScript-owned result buffer.</td></tr>
 <tr><td><a href="#point"><code>point.toJSON()</code></a></td><td>Return a plain <code>{ x, y }</code> object.</td></tr>
 </tbody></table>
@@ -80,7 +80,7 @@ implement the iterator exposed by generated `Point` objects.
 ```
 
 `PathContext` is the minimal drawing interface used by `render()` and
-`renderDelauney()`:
+`renderDelaunay()`:
 
 ```ts
 interface PathContext {
@@ -135,14 +135,14 @@ as a synchronous result, but its WebAssembly heap is no longer retained. Input
 | `numSites` | Number of retained sites |
 | `numVertices` | Number of unique vertices |
 | `numEdges` | Number of Voronoi edges |
-| `numDelauneyEdges` | Number of Delauney adjacency edges |
+| `numDelaunayEdges` | Number of Delaunay adjacency edges |
 | `sites` | Retained `Site` objects |
 | `edges` | All Voronoi `Edge` objects |
 | `site(inputIndex)` | Input-order `Site`, or `null` when pruned |
 | `cell(inputIndex)` | Input-order `Cell`, or `null` when pruned |
 | `neighbors(inputIndex)` | Neighboring `Site` objects |
 | `render(context)` | Adds Voronoi segments through `moveTo` and `lineTo` |
-| `renderDelauney(context)` | Adds Delauney segments through `moveTo` and `lineTo` |
+| `renderDelaunay(context)` | Adds Delaunay segments through `moveTo` and `lineTo` |
 | `dispose()` | Eagerly releases the result buffer and invalidates the diagram |
 
 The result buffer is garbage-collected normally; `dispose()` is optional.
@@ -180,6 +180,6 @@ The result buffer is garbage-collected normally; `dispose()` is optional.
 
 ## Compatibility helpers
 
-`voronoi.edges(points, width, height)` and `voronoi.delauneyEdges(points, width, height)` return flat `Float32Array` coordinate pairs for applications that need the earlier bulk-output API. `delauneyEdges` also accepts `{ bounds: [minX, minY, maxX, maxY] }` or `{ width, height }`.
+`voronoi.edges(points, width, height)` and `voronoi.delaunayEdges(points, width, height)` return flat `Float32Array` coordinate pairs for applications that need the earlier bulk-output API. `delaunayEdges` also accepts `{ bounds: [minX, minY, maxX, maxY] }` or `{ width, height }`.
 
 See [Examples - JS](../../../examples/js/) for a complete example.

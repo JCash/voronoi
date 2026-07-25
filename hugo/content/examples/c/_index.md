@@ -14,7 +14,7 @@ The focused C examples below are adapted from the README snippets and grouped by
 
 - [Access sites in input order](site-order/)
 - [Build an indexed vertex list](unique-vertices/)
-- [Generate Delauney adjacency](delauney/)
+- [Generate Delaunay adjacency](delaunay/)
 
 ## Customize generation
 

@@ -6,7 +6,7 @@ const operations = [
   ["generate", "Generate diagram"],
   ["sites", "Generate + get sites"],
   ["edges", "Generate + render edges"],
-  ["delauney", "Generate + get Delauney"],
+  ["delaunay", "Generate + get Delaunay"],
 ];
 const libraries = ["JCV 0.10", "d3-delaunay", "d3-voronoi", "gorhill/voronoi"];
 const runButton = document.querySelector("#run");
@@ -58,7 +58,7 @@ function prepareJcv(points, bounds) {
       diagram.render(context);
       return checksum;
     }),
-    delauney: () => voronoi.delauneyEdges(points, { bounds }).length / 4,
+    delaunay: () => voronoi.delaunayEdges(points, { bounds }).length / 4,
   };
 }
 

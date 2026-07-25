@@ -19,7 +19,7 @@ The offline suite compares `jc_voronoi` with d3-delaunay, d3-voronoi, and gorhil
 
 ![Voronoi diagram](../images/benchmark/wasm-voronoi-edges.svg)
 
-![Delauney diagram](../images/benchmark/wasm-delauney-edges.svg)
+![Delaunay diagram](../images/benchmark/wasm-delaunay-edges.svg)
 
 ![Peak and retained WebAssembly and JavaScript memory](../images/benchmark/wasm-memory.svg)
 

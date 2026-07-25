@@ -16,11 +16,11 @@ All coordinates use the normalized range `0`–`1`, so the same URL renders cons
 | `points` | `x,y;x,y;…` | Exact site coordinates. Supply between 2 and 250 points. |
 | `count` | `2`–`250` | Number of random sites when `points` is omitted. Default: `42`. |
 | `seed` | integer | Makes a random `count` reproducible. |
-| `delauney` | `true`, `1`, `yes`, or `on` | Shows Delauney edges. |
+| `delaunay` | `true`, `1`, `yes`, or `on` | Shows Delaunay edges. |
 
 For example:
 
-[`/app/?points=0.15,0.2;0.8,0.25;0.5,0.85&delauney=true`](?points=0.15%2C0.2%3B0.8%2C0.25%3B0.5%2C0.85&delauney=true)
+[`/app/?points=0.15,0.2;0.8,0.25;0.5,0.85&delaunay=true`](?points=0.15%2C0.2%3B0.8%2C0.25%3B0.5%2C0.85&delaunay=true)
 
 Or create a reproducible random diagram:
 
@@ -28,7 +28,7 @@ Or create a reproducible random diagram:
 
 ## Copied JSON
 
-**Copy JSON** writes a versioned object to the clipboard containing normalized sites, normalized Voronoi edges, the currently visible Delauney edges, and the canvas bounds used for the render.
+**Copy JSON** writes a versioned object to the clipboard containing normalized sites, normalized Voronoi edges, the currently visible Delaunay edges, and the canvas bounds used for the render.
 
 ## Open files
 

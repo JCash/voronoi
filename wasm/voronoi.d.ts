@@ -42,14 +42,14 @@ export interface Diagram {
   readonly numSites: number;
   readonly numVertices: number;
   readonly numEdges: number;
-  readonly numDelauneyEdges: number;
+  readonly numDelaunayEdges: number;
   readonly sites: readonly Site[];
   readonly edges: readonly Edge[];
   site(inputIndex: number): Site | null;
   cell(inputIndex: number): Cell | null;
   neighbors(inputIndex: number): readonly Site[];
   render(context: PathContext): PathContext;
-  renderDelauney(context: PathContext): PathContext;
+  renderDelaunay(context: PathContext): PathContext;
   /** Eagerly releases the JavaScript-owned result buffer. Optional. */
   dispose(): void;
 }
@@ -77,8 +77,8 @@ export interface Voronoi {
   edges(points: PointInput, width: number, height: number): Float32Array;
 
   /** Returns flat x0, y0, x1, y1 coordinates for every Delaunay edge. */
-  delauneyEdges(points: PointInput, options: GenerateOptions): Float32Array;
-  delauneyEdges(
+  delaunayEdges(points: PointInput, options: GenerateOptions): Float32Array;
+  delaunayEdges(
     points: PointInput,
     width: number,
     height: number,
