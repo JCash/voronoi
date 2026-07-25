@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.15)
 
-project(jc_voronoi VERSION 0.11.0 LANGUAGES C)
+set(JC_VORONOI_VERSION "" CACHE STRING "Version used for installed CMake package metadata")
+if(JC_VORONOI_VERSION)
+    project(jc_voronoi VERSION "${JC_VORONOI_VERSION}" LANGUAGES C)
+else()
+    project(jc_voronoi LANGUAGES C)
+endif()
 
 include(GNUInstallDirs)
 
@@ -74,13 +79,20 @@ configure_package_config_file(
     ${CMAKE_CURRENT_BINARY_DIR}/jc_voronoiConfig.cmake
     INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/jc_voronoi
 )
-write_basic_package_version_file(
-    ${CMAKE_CURRENT_BINARY_DIR}/jc_voronoiConfigVersion.cmake
-    COMPATIBILITY SameMajorVersion
+set(JC_VORONOI_PACKAGE_FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/jc_voronoiConfig.cmake
 )
-install(
-    FILES
-        ${CMAKE_CURRENT_BINARY_DIR}/jc_voronoiConfig.cmake
+if(JC_VORONOI_VERSION)
+    write_basic_package_version_file(
         ${CMAKE_CURRENT_BINARY_DIR}/jc_voronoiConfigVersion.cmake
+        VERSION "${JC_VORONOI_VERSION}"
+        COMPATIBILITY SameMajorVersion
+    )
+    list(APPEND JC_VORONOI_PACKAGE_FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/jc_voronoiConfigVersion.cmake
+    )
+endif()
+install(
+    FILES ${JC_VORONOI_PACKAGE_FILES}
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/jc_voronoi
 )

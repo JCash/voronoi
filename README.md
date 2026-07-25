@@ -99,6 +99,8 @@ ctest --test-dir build
 
 The project can also be installed. An installed copy can be consumed with
 `find_package(jc_voronoi CONFIG REQUIRED)` and the same namespaced target.
+Packagers can set `JC_VORONOI_VERSION` while configuring to add version metadata
+to the installed CMake package; ordinary source builds do not need a version.
 
 ## macOS
 
