@@ -101,3 +101,18 @@ jobs:
             dist/jc_voronoi/voronoi.js \
             dist/jc_voronoi/voronoi.worker.js \
             --clobber
+
+      - name: Update Homebrew tap
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_DISPATCH_TOKEN }}
+        run: |
+          if [[ -z "${GH_TOKEN}" ]]; then
+            echo "HOMEBREW_TAP_DISPATCH_TOKEN is not configured" >&2
+            exit 1
+          fi
+
+          gh workflow run publish-jc-voronoi.yml \
+            --repo JCash/homebrew-tap \
+            --ref main \
+            --field tag="${GITHUB_REF_NAME}"
