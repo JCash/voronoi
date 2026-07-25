@@ -228,13 +228,13 @@ source-LOC comparisons. To update only those code-size results, run
 ## Releasing
 
 Create and push a version tag such as `v0.11.0`. The release workflow uses the
-tag as the package version and writes it into the packaged copy of
-`CMakeLists.txt`; the tagged source commit is not modified.
+tag as the npm package version; the tagged source commit is not modified.
 
-Pushing the tag creates the GitHub release and publishes the WebAssembly
-assets. It also publishes a minimal CMake source package, its SHA-256 checksum,
-and a generated `jc-voronoi.rb` Homebrew formula whose URL and checksum refer
-to that exact source package.
+Pushing the tag creates the GitHub release, publishes the `jc-voronoi` npm
+package, and uploads the WebAssembly assets. Once those artifacts are
+available, it dispatches the release to the
+[`JCash/homebrew-tap`](https://github.com/JCash/homebrew-tap) repository. That
+repository updates and stores the Homebrew formula.
 
 <details>
 <summary>Configuration defines</summary>

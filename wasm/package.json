@@ -2,6 +2,17 @@
   "name": "jc-voronoi",
   "private": true,
   "type": "module",
+  "description": "Fast WebAssembly Voronoi and Delaunay generation",
+  "main": "./voronoi.js",
+  "module": "./voronoi.js",
+  "types": "./voronoi.d.ts",
+  "exports": {
+    ".": {
+      "types": "./voronoi.d.ts",
+      "import": "./voronoi.js",
+      "default": "./voronoi.js"
+    }
+  },
   "license": "MIT",
   "repository": {
     "type": "git",
