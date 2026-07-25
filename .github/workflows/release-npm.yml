@@ -74,12 +74,16 @@ jobs:
           ./scripts/generate_changelog.sh
           cp CHANGELOG.md dist/jc_voronoi/CHANGELOG.md
 
-      - name: Set package version from tag
-        if: startsWith(env.RELEASE_TAG, 'v')
+      - name: Prepare package metadata
         run: |
+          package_version="0.0.0-dev"
+          if [[ "${RELEASE_TAG}" == v* ]]; then
+            package_version="${RELEASE_TAG#v}"
+          fi
+
           npm pkg set \
             "name=jc-voronoi" \
-            "version=${RELEASE_TAG#v}" \
+            "version=${package_version}" \
             "license=MIT" \
             "repository.type=git" \
             "repository.url=git+https://github.com/JCash/voronoi.git" \
