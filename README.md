@@ -53,6 +53,42 @@ But mostly, I did it for fun :)
 | Custom Allocator       |           |       |         |             |  *  |
 | Delaunay generation    |           |       |         |      *      |  *  |
 
+# Install
+
+## macOS with Homebrew
+
+Install the C headers and CMake package metadata from the project tap:
+
+```sh
+brew install JCash/tap/jc-voronoi
+```
+
+A CMake project can then consume the installed header-only target:
+
+```cmake
+find_package(jc_voronoi CONFIG REQUIRED)
+target_link_libraries(your_app PRIVATE jc_voronoi::jc_voronoi)
+```
+
+If CMake does not find the Homebrew prefix automatically, configure with
+`-DCMAKE_PREFIX_PATH="$(brew --prefix jc-voronoi)"`.
+
+## JavaScript and WebAssembly with npm
+
+Install the ES module, WebAssembly runtime, worker, and TypeScript declarations:
+
+```sh
+npm install jc-voronoi
+```
+
+```js
+import { loadVoronoi } from "jc-voronoi";
+
+const voronoi = await loadVoronoi();
+```
+
+See [README_JS.md](README_JS.md) for the JavaScript API and examples.
+
 # Build
 
 `jc_voronoi` is a header-only library, so you do not need to build the library
