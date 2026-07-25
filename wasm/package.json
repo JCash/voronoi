@@ -1,5 +1,10 @@
 {
   "name": "jc-voronoi",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JCash/voronoi.git"
+  }
 }
