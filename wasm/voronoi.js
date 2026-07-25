@@ -244,7 +244,7 @@ export async function loadVoronoi(moduleOptions = {}) {
       this._siteCount = header[HEADER.siteCount];
       this._vertexCount = header[HEADER.vertexCount];
       this._edgeCount = header[HEADER.edgeCount];
-      this._delauneyEdgeCount = null;
+      this._delaunayEdgeCount = null;
       this._inputToSite = new Int32Array(buffer, header[HEADER.inputMapOffset], this._inputCount);
       this._siteWords = new Uint32Array(buffer, header[HEADER.sitesOffset], this._siteCount * SITE_WORDS);
       this._siteFloats = new Float32Array(buffer, header[HEADER.sitesOffset], this._siteCount * SITE_WORDS);
@@ -304,17 +304,17 @@ export async function loadVoronoi(moduleOptions = {}) {
       return this._edgeCount;
     }
 
-    get numDelauneyEdges() {
+    get numDelaunayEdges() {
       this._assertAlive();
-      if (this._delauneyEdgeCount === null) {
+      if (this._delaunayEdgeCount === null) {
         let count = 0;
         for (let index = 0; index < this._edgeCount; ++index) {
           const offset = index * EDGE_WORDS;
           if (this._edgeWords[offset] >= 0 && this._edgeWords[offset + 1] >= 0) ++count;
         }
-        this._delauneyEdgeCount = count;
+        this._delaunayEdgeCount = count;
       }
-      return this._delauneyEdgeCount;
+      return this._delaunayEdgeCount;
     }
 
     get sites() {
@@ -366,7 +366,7 @@ export async function loadVoronoi(moduleOptions = {}) {
       return context;
     }
 
-    renderDelauney(context) {
+    renderDelaunay(context) {
       this._assertAlive();
       for (let index = 0; index < this._edgeCount; ++index) {
         const offset = index * EDGE_WORDS;
@@ -481,8 +481,8 @@ export async function loadVoronoi(moduleOptions = {}) {
     edges: (points, width, height) => generateEdges(
       points, [width, height], module._jcv_voronoi_edges,
     ),
-    delauneyEdges: (points, boundsOrWidth, height) => generateEdges(
-      points, parseBounds(boundsOrWidth, height), module._jcv_delauney_edges,
+    delaunayEdges: (points, boundsOrWidth, height) => generateEdges(
+      points, parseBounds(boundsOrWidth, height), module._jcv_delaunay_edges,
     ),
     _wasmMemoryBytes: () => module.HEAPU8.buffer.byteLength,
   };

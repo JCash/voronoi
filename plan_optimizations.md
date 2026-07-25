@@ -30,27 +30,27 @@ some clipped Voronoi work until its output is requested. This is why JCV can be
 slower in the generation-only benchmark while being faster when all Voronoi
 edges are retrieved.
 
-The first optimization is now implemented. `jcv_delauney_generate()` and
+The first optimization is now implemented. `jcv_delaunay_generate()` and
 `jcv_diagram_generate()` share a flag-based `jcv_diagram_generate_internal()`.
-`JCV_OPTION_DELAUNEY_ONLY` skips clipping, graph-edge construction, boundary-gap
+`JCV_OPTION_DELAUNAY_ONLY` skips clipping, graph-edge construction, boundary-gap
 filling, per-site edge finalization, and the temporary per-site topology. In the
-100k Wasm workflow, generation plus complete Delauney iteration dropped from
+100k Wasm workflow, generation plus complete Delaunay iteration dropped from
 about 85 ms to 69 ms; the pathological case dropped from about 38 ms to 30 ms.
-The Delauney-only circle-event path also skips Voronoi endpoint and unique-vertex
+The Delaunay-only circle-event path also skips Voronoi endpoint and unique-vertex
 writes, reducing the 100k Wasm result further to about 68 ms.
-`jcv_delauney_get_edge_count()` exposes the maintained edge counter so callers do
+`jcv_delaunay_get_edge_count()` exposes the maintained edge counter so callers do
 not need a counting traversal before allocating output.
 
 The generic `qsort` has also been replaced by an allocation-free, inlinable
 introsort with three-way partitioning, small-range insertion sort, heapsort
 fallback, and sorted/reverse-sorted fast paths. The latest 100k Wasm results are
-about 66 ms for the full Voronoi workflow and 48 ms for Delauney-only generation
+about 66 ms for the full Voronoi workflow and 48 ms for Delaunay-only generation
 plus iteration, down from approximately 85 ms and 68 ms respectively.
 
 The priority queue is now specialized for `jcv_halfedge`. Typed heap storage and
 direct inlined comparisons/position updates replace all three callbacks. This
 reduces the latest 100k Wasm results to about 61 ms for full Voronoi generation
-and 44 ms for Delauney-only generation plus iteration.
+and 44 ms for Delaunay-only generation plus iteration.
 
 The remaining WebAssembly optimization priorities are:
 
@@ -72,7 +72,7 @@ micro-optimizing the queue, allocator, or clipping code.
 
 The benchmark should retain generation-only and generation-plus-access tables,
 but the performance charts should focus on complete public output workflows:
-**Voronoi diagram** and **Delauney diagram**.
+**Voronoi diagram** and **Delaunay diagram**.
 
 ## 1. Add output-generation flags
 
@@ -273,7 +273,7 @@ pq->get_pos(...)
 
 Heap movement functions are inlinable, and the event buffer is typed as
 `jcv_halfedge**` throughout. At 100k sites this reduced full Voronoi generation
-from about 66 ms to 61 ms and Delauney-only generation plus iteration from about
+from about 66 ms to 61 ms and Delaunay-only generation plus iteration from about
 48 ms to 44 ms in Wasm.
 
 ## 6. Replace generic `qsort`

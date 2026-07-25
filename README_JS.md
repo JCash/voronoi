@@ -51,13 +51,10 @@ a `Float32Array` containing `x0, y0, x1, y1` for each edge:
 
 ```js
 const voronoiEdges = voronoi.edges(points, 100, 100);
-const delaunayEdges = voronoi.delauneyEdges(points, {
+const delaunayEdges = voronoi.delaunayEdges(points, {
   bounds: [0, 0, 100, 100],
 });
 ```
-
-The `delauneyEdges` spelling is retained for compatibility with the underlying
-library API.
 
 ## Generate in a worker
 

@@ -1434,7 +1434,7 @@ TEST_F(VoronoiTest, issue48_frontier_performance_pattern)
 }
 
 
-TEST_F(VoronoiTest, Delauney)
+TEST_F(VoronoiTest, Delaunay)
 {
     jcv_point points[] = {
         {1.5, 1.5},
@@ -1446,27 +1446,27 @@ TEST_F(VoronoiTest, Delauney)
     jcv_diagram_generate(num_points, points, 0, 0, &ctx->diagram);
     ASSERT_EQ( num_points, ctx->diagram.numsites );
 
-    jcv_delauney_iter iter;
-    jcv_delauney_begin( &ctx->diagram, &iter );
-    jcv_delauney_edge delauney_edge;
-    ASSERT_EQ(3, jcv_delauney_get_edge_count(&ctx->diagram));
+    jcv_delaunay_iter iter;
+    jcv_delaunay_begin( &ctx->diagram, &iter );
+    jcv_delaunay_edge delaunay_edge;
+    ASSERT_EQ(3, jcv_delaunay_get_edge_count(&ctx->diagram));
 
     bool seen[3][3] = {};
     int count = 0;
-    while (jcv_delauney_next( &iter, &delauney_edge ))
+    while (jcv_delaunay_next( &iter, &delaunay_edge ))
     {
-        int sitea = delauney_edge.sites[0]->index;
-        int siteb = delauney_edge.sites[1]->index;
+        int sitea = delaunay_edge.sites[0]->index;
+        int siteb = delaunay_edge.sites[1]->index;
 
         ASSERT_NE(sitea, siteb);
         ASSERT_FALSE(seen[sitea][siteb] || seen[siteb][sitea]);
         seen[sitea][siteb] = true;
 
-        ASSERT_EQ(points[sitea].x, delauney_edge.pos[0].x);
-        ASSERT_EQ(points[sitea].y, delauney_edge.pos[0].y);
+        ASSERT_EQ(points[sitea].x, delaunay_edge.pos[0].x);
+        ASSERT_EQ(points[sitea].y, delaunay_edge.pos[0].y);
 
-        ASSERT_EQ(points[siteb].x, delauney_edge.pos[1].x);
-        ASSERT_EQ(points[siteb].y, delauney_edge.pos[1].y);
+        ASSERT_EQ(points[siteb].x, delaunay_edge.pos[1].x);
+        ASSERT_EQ(points[siteb].y, delaunay_edge.pos[1].y);
 
         count++;
     }
@@ -1476,7 +1476,7 @@ TEST_F(VoronoiTest, Delauney)
     ASSERT_TRUE(seen[1][2] || seen[2][1]);
 }
 
-TEST_F(VoronoiTest, Delauney_only_matches_full_diagram)
+TEST_F(VoronoiTest, Delaunay_only_matches_full_diagram)
 {
     jcv_point points[] = {
         {0.5, 0.5},
@@ -1488,14 +1488,14 @@ TEST_F(VoronoiTest, Delauney_only_matches_full_diagram)
     };
     const int num_points = (int)(sizeof(points) / sizeof(points[0]));
     bool full_edges[num_points][num_points] = {};
-    bool delauney_edges[num_points][num_points] = {};
+    bool delaunay_edges[num_points][num_points] = {};
 
     jcv_diagram_generate(num_points, points, 0, 0, &ctx->diagram);
-    jcv_delauney_iter full_iter;
-    jcv_delauney_begin(&ctx->diagram, &full_iter);
-    jcv_delauney_edge edge;
+    jcv_delaunay_iter full_iter;
+    jcv_delaunay_begin(&ctx->diagram, &full_iter);
+    jcv_delaunay_edge edge;
     int full_count = 0;
-    while( jcv_delauney_next(&full_iter, &edge) )
+    while( jcv_delaunay_next(&full_iter, &edge) )
     {
         int a = (int)edge.sites[0]->index;
         int b = (int)edge.sites[1]->index;
@@ -1503,39 +1503,39 @@ TEST_F(VoronoiTest, Delauney_only_matches_full_diagram)
         ++full_count;
     }
 
-    jcv_diagram delauney = {};
-    jcv_delauney_generate(num_points, points, 0, 0, &delauney);
-    ASSERT_EQ(num_points, delauney.numsites);
-    ASSERT_EQ(0, delauney.numvertices);
-    ASSERT_EQ(0, jcv_diagram_get_edge_count(&delauney));
-    ASSERT_EQ(full_count, jcv_delauney_get_edge_count(&delauney));
+    jcv_diagram delaunay = {};
+    jcv_delaunay_generate(num_points, points, 0, 0, &delaunay);
+    ASSERT_EQ(num_points, delaunay.numsites);
+    ASSERT_EQ(0, delaunay.numvertices);
+    ASSERT_EQ(0, jcv_diagram_get_edge_count(&delaunay));
+    ASSERT_EQ(full_count, jcv_delaunay_get_edge_count(&delaunay));
 
     jcv_edge_iter voronoi_iter;
     jcv_edge voronoi_edge;
-    jcv_diagram_get_edges(&delauney, &voronoi_iter);
+    jcv_diagram_get_edges(&delaunay, &voronoi_iter);
     ASSERT_FALSE(jcv_edge_next(&voronoi_iter, &voronoi_edge));
 
-    jcv_delauney_iter iter;
-    jcv_delauney_begin(&delauney, &iter);
-    int delauney_count = 0;
-    while( jcv_delauney_next(&iter, &edge) )
+    jcv_delaunay_iter iter;
+    jcv_delaunay_begin(&delaunay, &iter);
+    int delaunay_count = 0;
+    while( jcv_delaunay_next(&iter, &edge) )
     {
         int a = (int)edge.sites[0]->index;
         int b = (int)edge.sites[1]->index;
-        ASSERT_FALSE(delauney_edges[a][b]);
-        delauney_edges[a][b] = delauney_edges[b][a] = true;
-        ++delauney_count;
+        ASSERT_FALSE(delaunay_edges[a][b]);
+        delaunay_edges[a][b] = delaunay_edges[b][a] = true;
+        ++delaunay_count;
     }
 
-    ASSERT_EQ(full_count, delauney_count);
-    ASSERT_EQ(jcv_delauney_get_edge_count(&delauney), delauney_count);
+    ASSERT_EQ(full_count, delaunay_count);
+    ASSERT_EQ(jcv_delaunay_get_edge_count(&delaunay), delaunay_count);
     for( int a = 0; a < num_points; ++a )
         for( int b = 0; b < num_points; ++b )
-            ASSERT_EQ(full_edges[a][b], delauney_edges[a][b]);
-    jcv_diagram_free(&delauney);
+            ASSERT_EQ(full_edges[a][b], delaunay_edges[a][b]);
+    jcv_diagram_free(&delaunay);
 }
 
-TEST_F(VoronoiTest, Delauney_edge_remains_valid_after_next)
+TEST_F(VoronoiTest, Delaunay_edge_remains_valid_after_next)
 {
     jcv_point points[] = {
         {1.5, 1.5},
@@ -1546,19 +1546,19 @@ TEST_F(VoronoiTest, Delauney_edge_remains_valid_after_next)
 
     jcv_diagram_generate(num_points, points, 0, 0, &ctx->diagram);
 
-    jcv_delauney_iter iter;
-    jcv_delauney_begin(&ctx->diagram, &iter);
+    jcv_delaunay_iter iter;
+    jcv_delaunay_begin(&ctx->diagram, &iter);
 
-    jcv_delauney_edge first;
-    ASSERT_TRUE(jcv_delauney_next(&iter, &first));
+    jcv_delaunay_edge first;
+    ASSERT_TRUE(jcv_delaunay_next(&iter, &first));
     const jcv_edge* retained_edge = &first.edge;
     const jcv_site* retained_sites[2] = {
         retained_edge->sites[0],
         retained_edge->sites[1],
     };
 
-    jcv_delauney_edge second;
-    ASSERT_TRUE(jcv_delauney_next(&iter, &second));
+    jcv_delaunay_edge second;
+    ASSERT_TRUE(jcv_delaunay_next(&iter, &second));
 
     ASSERT_TRUE(retained_edge->sites[0] == retained_sites[0] &&
                 retained_edge->sites[1] == retained_sites[1]);

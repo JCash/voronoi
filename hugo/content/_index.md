@@ -12,7 +12,7 @@ cascade:
 <div class="voronoi-home">
   <div class="voronoi-showcase">
     <header class="voronoi-hero">
-      <h1>Voronoi/Delauney diagrams in C</h1>
+      <h1>Voronoi/Delaunay diagrams in C</h1>
       <ul class="voronoi-feature-list">
         <li>Header-only C file</li>
         <li>Easy to use</li>

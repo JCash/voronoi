@@ -6,7 +6,7 @@ const context = canvas.getContext("2d");
 const countInput = document.querySelector("#site-count");
 const countOutput = document.querySelector("#site-count-output");
 const status = document.querySelector("#status");
-const delauneyButton = document.querySelector("#delauney");
+const delaunayButton = document.querySelector("#delaunay");
 const copyButton = document.querySelector("#copy-json");
 const pointForm = document.querySelector("#point-form");
 const pointXInput = document.querySelector("#point-x");
@@ -18,7 +18,7 @@ let points = [];
 let voronoi;
 let diagram;
 let draggedPoint = -1;
-let showDelauney = false;
+let showDelaunay = false;
 
 function readBoolean(value) {
   return ["1", "true", "yes", "on"].includes((value || "").toLowerCase());
@@ -66,7 +66,7 @@ function readConfiguration() {
     points: readPoints(parameters.get("points")),
     count: readInteger(parameters.get("count"), 42, 2, 250, "count"),
     seed: readInteger(parameters.get("seed"), null, 0, 4294967295, "seed"),
-    delauney: readBoolean(parameters.get("delauney")),
+    delaunay: readBoolean(parameters.get("delaunay")),
   };
 }
 
@@ -110,11 +110,11 @@ function draw() {
   diagram = voronoi.generate(scaled, width, height);
   context.fillStyle = "#1a1c19";
   context.fillRect(0, 0, width, height);
-  if (showDelauney) {
+  if (showDelaunay) {
     context.strokeStyle = "#ff9367aa";
     context.lineWidth = Math.max(1, window.devicePixelRatio || 1);
     context.beginPath();
-    diagram.renderDelauney(context);
+    diagram.renderDelaunay(context);
     context.stroke();
   }
   context.strokeStyle = "#72796c";
@@ -129,9 +129,9 @@ function draw() {
     context.arc(point.x, point.y, radius, 0, Math.PI * 2);
     context.fill();
   }
-  const delauneyCount = showDelauney ? diagram.numDelauneyEdges : 0;
-  const delauneyStatus = showDelauney ? ` · ${delauneyCount} Delauney` : "";
-  status.textContent = `${diagram.numSites} sites · ${diagram.numEdges} edges${delauneyStatus}`;
+  const delaunayCount = showDelaunay ? diagram.numDelaunayEdges : 0;
+  const delaunayStatus = showDelaunay ? ` · ${delaunayCount} Delaunay` : "";
+  status.textContent = `${diagram.numSites} sites · ${diagram.numEdges} edges${delaunayStatus}`;
 }
 
 async function copyJSON() {
@@ -203,9 +203,9 @@ canvas.addEventListener("dblclick", (event) => {
 });
 if (countInput) countInput.addEventListener("input", () => randomize(Number(countInput.value)));
 document.querySelector("#randomize")?.addEventListener("click", () => randomize(Number(countInput.value)));
-delauneyButton?.addEventListener("click", () => {
-  showDelauney = !showDelauney;
-  delauneyButton.setAttribute("aria-pressed", String(showDelauney));
+delaunayButton?.addEventListener("click", () => {
+  showDelaunay = !showDelaunay;
+  delaunayButton.setAttribute("aria-pressed", String(showDelaunay));
   draw();
 });
 document.querySelector("#clear")?.addEventListener("click", () => {
@@ -276,15 +276,15 @@ let configurationError;
 try {
   configuration = readConfiguration();
 } catch (error) {
-  configuration = { points: null, count: 42, seed: null, delauney: false };
+  configuration = { points: null, count: 42, seed: null, delaunay: false };
   configurationError = error;
 }
 
 try {
   const { loadVoronoi } = await import("./vendor/voronoi.js");
   voronoi = await loadVoronoi();
-  showDelauney = configuration.delauney;
-  delauneyButton?.setAttribute("aria-pressed", String(showDelauney));
+  showDelaunay = configuration.delaunay;
+  delaunayButton?.setAttribute("aria-pressed", String(showDelaunay));
   const embeddedPoints = readPoints(canvas.dataset.points);
   if (embeddedPoints || configuration.points) {
     points = embeddedPoints || configuration.points;

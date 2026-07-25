@@ -6,7 +6,7 @@ aliases:
 ---
 
 `jc_voronoi.h` contains the complete core API for generating Voronoi cells and
-Delauney adjacency, then traversing the result without further allocation.
+Delaunay adjacency, then traversing the result without further allocation.
 
 ## Types
 
@@ -18,8 +18,8 @@ Delauney adjacency, then traversing the result without further allocation.
 <tr><td><a href="#jcv_edge"><code>jcv_edge</code></a></td><td>Clipped Voronoi edge value.</td></tr>
 <tr><td><a href="#jcv_diagram"><code>jcv_diagram</code></a></td><td>Generated result and public counts and bounds.</td></tr>
 <tr><td><a href="#jcv_edge_iter"><code>jcv_edge_iter</code></a></td><td>Iterator over diagram or site edges.</td></tr>
-<tr><td><a href="#jcv_delauney_iter"><code>jcv_delauney_iter</code></a></td><td>Iterator over adjacent site pairs.</td></tr>
-<tr><td><a href="#jcv_delauney_edge"><code>jcv_delauney_edge</code></a></td><td>One Delauney adjacency result.</td></tr>
+<tr><td><a href="#jcv_delaunay_iter"><code>jcv_delaunay_iter</code></a></td><td>Iterator over adjacent site pairs.</td></tr>
+<tr><td><a href="#jcv_delaunay_edge"><code>jcv_delaunay_edge</code></a></td><td>One Delaunay adjacency result.</td></tr>
 <tr><td><a href="#fjcvallocfn-and-fjcvfreefn"><code>FJCVAllocFn</code>, <code>FJCVFreeFn</code></a></td><td>Custom allocation callbacks.</td></tr>
 <tr><td><a href="#jcv_clipper"><code>jcv_clipper</code></a></td><td>Custom clipping callbacks and context.</td></tr>
 <tr><td><a href="#jcv_context_internal"><code>jcv_context_internal</code></a></td><td>Opaque context passed to clipping callbacks.</td></tr>
@@ -29,7 +29,7 @@ Delauney adjacency, then traversing the result without further allocation.
 
 <table class="api-summary"><tbody>
 <tr><td><a href="#jcv_diagram_generate"><code>jcv_diagram_generate</code></a></td><td>Generate a complete Voronoi diagram.</td></tr>
-<tr><td><a href="#jcv_delauney_generate"><code>jcv_delauney_generate</code></a></td><td>Generate Delauney adjacency only.</td></tr>
+<tr><td><a href="#jcv_delaunay_generate"><code>jcv_delaunay_generate</code></a></td><td>Generate Delaunay adjacency only.</td></tr>
 <tr><td><a href="#jcv_diagram_generate_useralloc"><code>jcv_diagram_generate_useralloc</code></a></td><td>Generate using caller-provided allocation callbacks.</td></tr>
 <tr><td><a href="#jcv_diagram_free"><code>jcv_diagram_free</code></a></td><td>Release a generated diagram.</td></tr>
 <tr><td><a href="#jcv_diagram_get_sites"><code>jcv_diagram_get_sites</code></a></td><td>Access the diagram-owned site array.</td></tr>
@@ -39,9 +39,9 @@ Delauney adjacency, then traversing the result without further allocation.
 <tr><td><a href="#jcv_diagram_get_edges"><code>jcv_diagram_get_edges</code></a></td><td>Begin iteration over all counter-clockwise Voronoi edges.</td></tr>
 <tr><td><a href="#jcv_site_get_edges"><code>jcv_site_get_edges</code></a></td><td>Begin iteration around one cell.</td></tr>
 <tr><td><a href="#jcv_edge_next"><code>jcv_edge_next</code></a></td><td>Advance a Voronoi edge iterator.</td></tr>
-<tr><td><a href="#jcv_delauney_get_edge_count"><code>jcv_delauney_get_edge_count</code></a></td><td>Get the Delauney adjacency count.</td></tr>
-<tr><td><a href="#jcv_delauney_begin"><code>jcv_delauney_begin</code></a></td><td>Begin Delauney adjacency iteration.</td></tr>
-<tr><td><a href="#jcv_delauney_next"><code>jcv_delauney_next</code></a></td><td>Advance a Delauney iterator.</td></tr>
+<tr><td><a href="#jcv_delaunay_get_edge_count"><code>jcv_delaunay_get_edge_count</code></a></td><td>Get the Delaunay adjacency count.</td></tr>
+<tr><td><a href="#jcv_delaunay_begin"><code>jcv_delaunay_begin</code></a></td><td>Begin Delaunay adjacency iteration.</td></tr>
+<tr><td><a href="#jcv_delaunay_next"><code>jcv_delaunay_next</code></a></td><td>Advance a Delaunay iterator.</td></tr>
 <tr><td><a href="#jcv_boxshape_test"><code>jcv_boxshape_test</code></a></td><td>Built-in rectangle point test.</td></tr>
 <tr><td><a href="#jcv_boxshape_clip"><code>jcv_boxshape_clip</code></a></td><td>Built-in rectangle edge clipper.</td></tr>
 <tr><td><a href="#jcv_boxshape_fillgaps"><code>jcv_boxshape_fillgaps</code></a></td><td>Close cells along a rectangle boundary.</td></tr>
@@ -182,28 +182,28 @@ Iterator state for Voronoi edges. Allocate it on the stack, initialize it with
 `jcv_diagram_get_edges` or `jcv_site_get_edges`, and retrieve values with
 `jcv_edge_next`. Do not access its members directly.
 
-### `jcv_delauney_iter`
+### `jcv_delaunay_iter`
 
 ```c
-typedef struct jcv_delauney_iter_ jcv_delauney_iter;
+typedef struct jcv_delaunay_iter_ jcv_delaunay_iter;
 ```
 
-Iterator state for Delauney adjacency. Allocate it on the stack, initialize it
-with `jcv_delauney_begin`, and retrieve values with `jcv_delauney_next`. Do not
+Iterator state for Delaunay adjacency. Allocate it on the stack, initialize it
+with `jcv_delaunay_begin`, and retrieve values with `jcv_delaunay_next`. Do not
 access its members directly.
 
-### `jcv_delauney_edge`
+### `jcv_delaunay_edge`
 
 ```c
-typedef struct jcv_delauney_edge_ {
+typedef struct jcv_delaunay_edge_ {
     jcv_edge edge;
     const jcv_site* sites[2];
     jcv_point pos[2];
-} jcv_delauney_edge;
+} jcv_delaunay_edge;
 ```
 
 One pair of adjacent sites. `sites` points to the two diagram-owned sites and
-`pos` contains their input positions. After `jcv_delauney_generate`, only
+`pos` contains their input positions. After `jcv_delaunay_generate`, only
 `sites` and `pos` are supported output; do not depend on `edge` geometry.
 
 ### `FJCVAllocFn` and `FJCVFreeFn`
@@ -273,10 +273,10 @@ Generates the complete clipped Voronoi diagram using `malloc` internally.
 Generation prunes duplicate points, points outside the rectangle, and points for
 which the clipper's `test_fn` returns zero.
 
-### `jcv_delauney_generate`
+### `jcv_delaunay_generate`
 
 ```c
-void jcv_delauney_generate(
+void jcv_delaunay_generate(
     int num_points,
     const jcv_point* points,
     const jcv_rect* rect,
@@ -284,12 +284,10 @@ void jcv_delauney_generate(
     jcv_diagram* diagram);
 ```
 
-Generates only the Delauney adjacency used by `jcv_delauney_begin` and
-`jcv_delauney_next`. This avoids constructing Voronoi edge geometry, per-site
+Generates only the Delaunay adjacency used by `jcv_delaunay_begin` and
+`jcv_delaunay_next`. This avoids constructing Voronoi edge geometry, per-site
 edge lists, and unique vertices. `jcv_diagram_get_edge_count` and
 `jcv_get_num_vertices` therefore return zero for this result.
-
-The public API retains the historical spelling **Delauney** in its symbol names.
 
 ### `jcv_diagram_generate_useralloc`
 
@@ -352,7 +350,7 @@ void jcv_diagram_get_vertices(
 
 Writes every unique endpoint into caller-owned storage for at least
 `jcv_get_num_vertices(diagram)` points. An edge's `vertices[n]` indexes the point
-written for `edge.pos[n]`. This API is unavailable on a Delauney-only result.
+written for `edge.pos[n]`. This API is unavailable on a Delaunay-only result.
 
 ## Traverse Voronoi edges
 
@@ -411,38 +409,38 @@ while (jcv_edge_next(&iter, &edge)) {
 }
 ```
 
-## Traverse Delauney adjacency
+## Traverse Delaunay adjacency
 
-### `jcv_delauney_get_edge_count`
+### `jcv_delaunay_get_edge_count`
 
 ```c
-int jcv_delauney_get_edge_count(const jcv_diagram* diagram);
+int jcv_delaunay_get_edge_count(const jcv_diagram* diagram);
 ```
 
-Returns in constant time the number of adjacency edges yielded by a Delauney
+Returns in constant time the number of adjacency edges yielded by a Delaunay
 iterator.
 
-### `jcv_delauney_begin`
+### `jcv_delaunay_begin`
 
 ```c
-void jcv_delauney_begin(
+void jcv_delaunay_begin(
     const jcv_diagram* diagram,
-    jcv_delauney_iter* iter);
+    jcv_delaunay_iter* iter);
 ```
 
-Initializes `iter` for either a complete Voronoi diagram or a Delauney-only
-result. Retrieve adjacency values with `jcv_delauney_next`.
+Initializes `iter` for either a complete Voronoi diagram or a Delaunay-only
+result. Retrieve adjacency values with `jcv_delaunay_next`.
 
-### `jcv_delauney_next`
+### `jcv_delaunay_next`
 
 ```c
-int jcv_delauney_next(
-    jcv_delauney_iter* iter,
-    jcv_delauney_edge* edge);
+int jcv_delaunay_next(
+    jcv_delaunay_iter* iter,
+    jcv_delaunay_edge* edge);
 ```
 
 Copies the next adjacent site pair into `edge` and returns non-zero. Returns zero
-at the end. See `jcv_delauney_edge` for the output member contract.
+at the end. See `jcv_delaunay_edge` for the output member contract.
 
 ## Clipper callback types
 

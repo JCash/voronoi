@@ -1,5 +1,43 @@
 # Migration Guide
 
+## 0.11.0
+
+This release corrects the historical misspelling of **Delaunay** throughout the
+C and JavaScript APIs. The misspelled names are removed rather than retained as
+aliases, so callers must update them when upgrading.
+
+### C API
+
+Replace the public C names as follows:
+
+| 0.10 name | 0.11 name |
+|---|---|
+| `jcv_delauney_edge` | `jcv_delaunay_edge` |
+| `jcv_delauney_iter` | `jcv_delaunay_iter` |
+| `JCV_OPTION_DELAUNEY_ONLY` | `JCV_OPTION_DELAUNAY_ONLY` |
+| `jcv_delauney_generate()` | `jcv_delaunay_generate()` |
+| `jcv_delauney_get_edge_count()` | `jcv_delaunay_get_edge_count()` |
+| `jcv_delauney_begin()` | `jcv_delaunay_begin()` |
+| `jcv_delauney_next()` | `jcv_delaunay_next()` |
+| `jcv_delauney_iter.delauney_only` | `jcv_delaunay_iter.delaunay_only` |
+
+Recompile every translation unit that includes `jc_voronoi.h` after making
+these changes.
+
+### JavaScript API
+
+Replace the JavaScript and TypeScript members as follows:
+
+| 0.10 name | 0.11 name |
+|---|---|
+| `voronoi.delauneyEdges()` | `voronoi.delaunayEdges()` |
+| `diagram.numDelauneyEdges` | `diagram.numDelaunayEdges` |
+| `diagram.renderDelauney()` | `diagram.renderDelaunay()` |
+
+Serialized diagram objects now use `delaunayEdges` instead of
+`delauneyEdges`. The interactive demo query parameter is likewise renamed from
+`delauney` to `delaunay`.
+
 ## 0.10.0
 
 This release introduces some breaking API changes.
