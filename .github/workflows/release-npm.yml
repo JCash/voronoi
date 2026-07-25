@@ -96,6 +96,7 @@ jobs:
             const pkg = require("./dist/jc_voronoi/package.json");
             if (pkg.private) throw new Error("generated package is private");
             if (pkg.name !== "jc-voronoi") throw new Error("unexpected package name: " + pkg.name);
+            if (pkg.homepage !== "https://jcash.github.io/voronoi/") throw new Error("unexpected homepage: " + pkg.homepage);
           '
           npm pack --dry-run ./dist/jc_voronoi
 
@@ -110,8 +111,6 @@ jobs:
 
       - name: Publish npm package
         if: startsWith(env.RELEASE_TAG, 'v')
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           PACKAGE_VERSION="${RELEASE_TAG#v}"
           PACKAGE_NAME="$(npm pkg get name --prefix dist/jc_voronoi | tr -d '\"')"
